@@ -3,7 +3,7 @@
 import re
 import string
 import unicodedata
-from typing import Callable, Optional
+from typing import Callable, List, Optional
 
 LIGATURE_TABLE = {
     42802: "AA",
@@ -40,6 +40,13 @@ LIGATURE_TABLE = {
     42848: "VY",
     42849: "vy",
 }
+
+
+def split(text: str, sep: str) -> List:
+    """Split text by separators."""
+    sep = re.escape("".join(sep))
+
+    return re.findall(rf"[^{sep}]+[{sep}]?", text)
 
 
 def remove_control_chars(text: str) -> str:
