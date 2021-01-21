@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
-__all__ = [
-    'preprocessing',
-]
+import texi.preprocessing
+import texi.tagger
+
+__version__ = "0.1.0"
