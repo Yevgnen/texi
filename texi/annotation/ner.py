@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import xml.etree.ElementTree as ET
 from typing import Any, Dict, Tuple, Union
 
 import numpy as np
@@ -111,3 +112,36 @@ class BratParser(DualFileAnnotationParser):
                     offset += len(example_chars)
                     example_chars = []
                     last_i = i
+
+
+class XmlParser(DualFileAnnotationParser):
+    def __init__(self, **kwargs):
+        self.text_parser = kwargs.get("text_parser")
+        kwargs["text_ext"] = kwargs.get("text_ext", ".xml")
+        kwargs["annotation_ext"] = kwargs.get("annotation_ext", ".ent")
+        self.text_offset = kwargs.pop("text_offset", 0)
+        super().__init__(**kwargs)
+
+    def parse_text(self, filename):
+        if callable(self.text_parser):
+            with open(filename, mode="r") as f:
+                return self.text_parser(f.read())
+
+        return ET.parse(filename).getroot().text
+
+    def parse_entities(self, filename):
+        with open(filename, mode="r") as f:
+            id_ = -1
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+
+                word_str, pos_str, type_str = line.split()[:3]
+                word = word_str.split("=")[1]
+                type_ = type_str.split("=")[1]
+                start, end = [int(x) for x in pos_str.split("=")[1].split(":")]
+                start -= self.text_offset
+                end -= self.text_offset
+                id_ += 1
+                yield (id_, type_, start, end, word)
