@@ -54,10 +54,6 @@ class DualFileAnnotationParser(AnnotationParser):
             if len(pairs) == 2:
                 yield list(pairs)
 
-    def iter_texts(self, dirname):
-        for _, txt in self._iter_dir_samples(dirname):
-            yield self.parse_text(txt)
-
     def parse_text(self, filename):
         # Should return a text string.
         raise NotImplementedError()
