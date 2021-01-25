@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-import felis.pytorch.attention
-import felis.pytorch.dataset
-import felis.pytorch.losses
-import felis.pytorch.rnn
-import felis.pytorch.scheduled_sampling
-import felis.pytorch.utils
+import texi.pytorch.attention
+import texi.pytorch.dataset
+import texi.pytorch.losses
+import texi.pytorch.rnn
+import texi.pytorch.scheduled_sampling
+import texi.pytorch.utils
