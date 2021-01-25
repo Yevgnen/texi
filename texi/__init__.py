@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import texi.apps
 import texi.embedding
 import texi.preprocessing
 import texi.pytorch

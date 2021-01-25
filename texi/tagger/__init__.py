@@ -8,3 +8,13 @@ __all__ = [
     "IOBES",
     "SequeceLabelingTagger",
 ]
+
+taggers = {
+    "iob1": IOB1,
+    "iob2": IOB2,
+    "iobes": IOBES,
+}
+
+
+def Tagger(scheme: str, *args, **kwargs):
+    return taggers[scheme.lower()](*args, **kwargs)
