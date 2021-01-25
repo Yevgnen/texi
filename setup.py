@@ -30,7 +30,7 @@ setup(
     author_email="wherejoystarts@gmail.com",
     packages=find_packages(exclude=("tests", "tests.*")),
     include_package_data=True,
-    install_requires=["numpy"],
+    install_requires=["numpy", "torch"],
     test_suite="tests",
     zip_safe=False,
 )

@@ -2,6 +2,7 @@
 
 import texi.embedding
 import texi.preprocessing
+import texi.pytorch
 import texi.tagger
 import texi.text
 import texi.vocab
