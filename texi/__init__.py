@@ -2,6 +2,7 @@
 
 import texi.apps
 import texi.embedding
+import texi.metrics
 import texi.preprocessing
 import texi.pytorch
 import texi.tagger
