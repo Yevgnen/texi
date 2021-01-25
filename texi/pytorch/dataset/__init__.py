@@ -2,9 +2,11 @@
 
 from texi.pytorch.dataset.dataset import Dataset
 from texi.pytorch.dataset.classification import TextDataset, TextPairDataset
+from texi.pytorch.dataset.sequence_labeling import SequenceLabelingDataset
 
 __all__ = [
     "Dataset",
     "TextDataset",
     "TextPairDataset",
+    "SequenceLabelingDataset",
 ]

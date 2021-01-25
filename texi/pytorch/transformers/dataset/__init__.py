@@ -5,9 +5,11 @@ from texi.pytorch.transformers.dataset.classification import (
     TextDataset,
     TextPairDataset,
 )
+from texi.pytorch.transformers.dataset.sequence_labeling import SequenceLabelingDataset
 
 __all__ = [
     "Dataset",
     "TextDataset",
     "TextPairDataset",
+    "SequenceLabelingDataset",
 ]
