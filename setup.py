@@ -34,6 +34,7 @@ setup(
         "ahocorasick",
         "numpy",
         "torch",
+        "pytorch-nlp"
     ],
     test_suite="tests",
     zip_safe=False,
