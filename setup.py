@@ -32,9 +32,12 @@ setup(
     include_package_data=True,
     install_requires=[
         "ahocorasick",
+        "ignite",
         "numpy",
+        "plotly",
+        "pytorch-nlp",
         "torch",
-        "pytorch-nlp"
+        "torchcrf",
     ],
     test_suite="tests",
     zip_safe=False,
