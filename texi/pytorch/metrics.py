@@ -163,7 +163,7 @@ def ranking_metrics(output_transform, train=True):
         "mean_reciprocal_rank": MeanReciprocalRank(output_transform=output_transform)
     }
     for k in [1, 3, 5]:
-        metrics["top{k}_accuracy".format(k=k)] = TopKCategoricalAccuracy(
+        metrics[f"top{k}_accuracy"] = TopKCategoricalAccuracy(
             k=k, output_transform=output_transform
         )
 
