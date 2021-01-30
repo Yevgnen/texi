@@ -31,7 +31,7 @@ setup(
     packages=find_packages(exclude=("tests", "tests.*")),
     include_package_data=True,
     install_requires=[
-        "ahocorasick",
+        "pyahocorasick",
         "ignite",
         "numpy",
         "plotly",
