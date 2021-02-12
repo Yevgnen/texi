@@ -2,7 +2,7 @@
 
 
 import torch
-from felis.collections import collate
+from carton.collections import collate
 from torchnlp.encoders.text import stack_and_pad_tensors
 from torchnlp.utils import collate_tensors, identity
 

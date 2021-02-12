@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import torch
-from felis.collections import collate
+from carton.collections import collate
 
 from texi.pytorch.dataset import TextDataset as _TextDataset
 from texi.pytorch.dataset import TextPairDataset as _TextPairDataset

@@ -9,8 +9,8 @@ import tempfile
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 import ahocorasick
-from felis.random import random_colors
-from felis.palette import Colors
+from carton.palette import Colors
+from carton.random import random_colors
 
 from texi.tagger import Tagger
 

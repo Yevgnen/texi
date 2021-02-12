@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import torch
-from felis.collections import collate
+from carton.collections import collate
 
 from texi.pytorch.dataset import SequenceLabelingDataset as _SequenceLabelingDataset
 
