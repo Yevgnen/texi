@@ -18,7 +18,7 @@ class CHIP2019(object):
         df_val = pd.read_csv(os.path.join(self.dirname, "dev_id.csv"))
         df_val["id"] = df_val["id"].map(lambda x: f"{prefix}_val_{x}")
 
-        new_names = {"question1": "query", "question2": "doc"}
+        new_names = {"question1": "sentence1", "question2": "sentence2"}
         df_train.rename(new_names, axis=1, inplace=True)
         df_val.rename(new_names, axis=1, inplace=True)
 
@@ -38,7 +38,9 @@ class NCOV2019(object):
 
             df = pd.read_csv(os.path.join(self.dirname, f"{basename}.csv"))
             df["id"] = df["id"].map(lambda x: f"{prefix}_{mode}_{x}")
-            df.rename({"query1": "query", "query2": "doc"}, axis=1, inplace=True)
+            df.rename(
+                {"query1": "sentence1", "query2": "sentence2"}, axis=1, inplace=True
+            )
 
             return df.to_dict("records")
 

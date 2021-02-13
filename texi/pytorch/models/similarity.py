@@ -59,31 +59,31 @@ class SiameseLSTM(nn.Module):
 
     def _input_encoding(
         self,
-        querys: torch.Tensor,
-        docs: torch.Tensor,
-        query_lengths: torch.Tensor,
-        doc_lengths: torch.Tensor,
+        sentence1: torch.Tensor,
+        sentence2: torch.Tensor,
+        length1: torch.Tensor,
+        length2: torch.Tensor,
     ):
         return (
-            self._lstm_encode(self.input_encoder, querys, query_lengths),
-            self._lstm_encode(self.input_encoder, docs, doc_lengths),
+            self._lstm_encode(self.input_encoder, sentence1, length1),
+            self._lstm_encode(self.input_encoder, sentence2, length2),
         )
 
     def forward(self, inputs: Dict[str, torch.Tensor]):
-        querys, docs = inputs["query"], inputs["doc"]
-        query_lengths, doc_lengths = inputs["query_length"], inputs["doc_length"]
+        sentence1, sentence2 = inputs["sentence1"], inputs["sentence2"]
+        length1, length2 = inputs["length1"], inputs["length2"]
 
         # Token representation.
-        query_embedded = self.embedding(querys)
-        docembedded = self.embedding(docs)
+        sentence1_embedded = self.embedding(sentence1)
+        sentence2_embedded = self.embedding(sentence2)
 
         # Input encoding.
-        query_encoded, doc_encoded = self._input_encoding(
-            query_embedded, docembedded, query_lengths, doc_lengths
+        sentence1_encoded, sentence2_encoded = self._input_encoding(
+            sentence1_embedded, sentence2_embedded, length1, length2
         )
 
         # Scoring.
-        logits = self.manhattan_similarity(query_encoded, doc_encoded)
+        logits = self.manhattan_similarity(sentence1_encoded, sentence2_encoded)
 
         return logits
 
@@ -152,38 +152,38 @@ class ESIM(nn.Module):
 
     def _input_encoding(
         self,
-        querys: torch.Tensor,
-        docs: torch.Tensor,
-        query_lengths: torch.Tensor,
-        doc_lengths: torch.Tensor,
+        sentence1: torch.Tensor,
+        sentence2: torch.Tensor,
+        length1: torch.Tensor,
+        length2: torch.Tensor,
     ):
         return (
-            self._lstm_encode(self.input_encoder, querys, query_lengths),
-            self._lstm_encode(self.input_encoder, docs, doc_lengths),
+            self._lstm_encode(self.input_encoder, sentence1, length1),
+            self._lstm_encode(self.input_encoder, sentence2, length2),
         )
 
     def _local_inference(
         self,
-        query_encoded: torch.Tensor,
-        doc_encoded: torch.Tensor,
-        query_lengths: torch.Tensor,
-        doc_lengths: torch.Tensor,
+        sentence1_encoded: torch.Tensor,
+        sentence2_encoded: torch.Tensor,
+        length1: torch.Tensor,
+        length2: torch.Tensor,
     ):
-        query_semantics, doc_semantics = self.bidirectional_attention(
-            query_encoded,
-            ~length_to_mask(query_lengths, batch_first=self.batch_first),
-            doc_encoded,
-            ~length_to_mask(doc_lengths, batch_first=self.batch_first),
+        sentence1_semantics, sentence2_semantics = self.bidirectional_attention(
+            sentence1_encoded,
+            ~length_to_mask(length1, batch_first=self.batch_first),
+            sentence2_encoded,
+            ~length_to_mask(length2, batch_first=self.batch_first),
         )
 
-        query_semantics = self._enhance_local_inference_features(
-            query_encoded, query_semantics
+        sentence1_semantics = self._enhance_local_inference_features(
+            sentence1_encoded, sentence1_semantics
         )
-        doc_semantics = self._enhance_local_inference_features(
-            doc_encoded, doc_semantics
+        sentence2_semantics = self._enhance_local_inference_features(
+            sentence2_encoded, sentence2_semantics
         )
 
-        return query_semantics, doc_semantics
+        return sentence1_semantics, sentence2_semantics
 
     def _enhance_local_inference_features(
         self, encodded: torch.Tensor, local_relevance: torch.Tensor
@@ -200,31 +200,31 @@ class ESIM(nn.Module):
 
     def _inference_composition(
         self,
-        query_information: torch.Tensor,
-        doc_information: torch.Tensor,
-        query_lengths: torch.Tensor,
-        doc_lengths: torch.Tensor,
+        sentence1_information: torch.Tensor,
+        sentence2_information: torch.Tensor,
+        length1: torch.Tensor,
+        length2: torch.Tensor,
     ):
 
         return (
             self._lstm_encode(
                 self.composition_encoder,
-                self.composition_projection(query_information),
-                query_lengths,
+                self.composition_projection(sentence1_information),
+                length1,
             ),
             self._lstm_encode(
                 self.composition_encoder,
-                self.composition_projection(doc_information),
-                doc_lengths,
+                self.composition_projection(sentence2_information),
+                length2,
             ),
         )
 
     def _pooling(
         self,
-        query_composited: torch.Tensor,
-        doc_composited: torch.Tensor,
-        query_lengths: torch.Tensor,
-        doc_lengths: torch.Tensor,
+        sentence1_composited: torch.Tensor,
+        sentence2_composited: torch.Tensor,
+        length1: torch.Tensor,
+        length2: torch.Tensor,
     ):
         def _avg_pooling(tensor, mask):
             return torch.sum(tensor * mask, dim=int(self.batch_first))
@@ -234,49 +234,49 @@ class ESIM(nn.Module):
                 dim=int(self.batch_first)
             )[0]
 
-        query_mask = length_to_mask(
-            query_lengths, batch_first=self.batch_first
+        sentence1_mask = length_to_mask(
+            length1, batch_first=self.batch_first
         ).unsqueeze(dim=-1)
-        doc_mask = length_to_mask(doc_lengths, batch_first=self.batch_first).unsqueeze(
-            dim=-1
-        )
+        sentence2_mask = length_to_mask(
+            length2, batch_first=self.batch_first
+        ).unsqueeze(dim=-1)
 
         return torch.cat(
             [
-                _avg_pooling(query_composited, query_mask),
-                _max_pooling(query_composited, query_mask),
-                _avg_pooling(doc_composited, doc_mask),
-                _max_pooling(doc_composited, doc_mask),
+                _avg_pooling(sentence1_composited, sentence1_mask),
+                _max_pooling(sentence1_composited, sentence1_mask),
+                _avg_pooling(sentence2_composited, sentence2_mask),
+                _max_pooling(sentence2_composited, sentence2_mask),
             ],
             dim=-1,
         )
 
     def forward(self, inputs: Dict[str, torch.Tensor]):
-        querys, docs = inputs["query"], inputs["doc"]
-        query_lengths, doc_lengths = inputs["query_length"], inputs["doc_length"]
+        sentence1, sentence2 = inputs["sentence1"], inputs["sentence2"]
+        length1, length2 = inputs["length1"], inputs["length2"]
 
         # Token representation.
-        query_embedded = self.embedding(querys)
-        docembedded = self.embedding(docs)
+        sentence1_embedded = self.embedding(sentence1)
+        sentence2_embedded = self.embedding(sentence2)
 
         # Input encoding.
-        query_encoded, doc_encoded = self._input_encoding(
-            query_embedded, docembedded, query_lengths, doc_lengths
+        sentence1_encoded, sentence2_encoded = self._input_encoding(
+            sentence1_embedded, sentence2_embedded, length1, length2
         )
 
         # Local inference.
-        query_information, doc_information = self._local_inference(
-            query_encoded, doc_encoded, query_lengths, doc_lengths
+        sentence1_information, sentence2_information = self._local_inference(
+            sentence1_encoded, sentence2_encoded, length1, length2
         )
 
         # Inference composition.
-        query_composited, doc_composited = self._inference_composition(
-            query_information, doc_information, query_lengths, doc_lengths
+        sentence1_composited, sentence2_composited = self._inference_composition(
+            sentence1_information, sentence2_information, length1, length2
         )
 
         # Pooling.
         hidden = self._pooling(
-            query_composited, doc_composited, query_lengths, doc_lengths
+            sentence1_composited, sentence2_composited, length1, length2
         )
 
         # Projection.

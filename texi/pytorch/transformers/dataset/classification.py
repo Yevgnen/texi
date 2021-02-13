@@ -23,7 +23,7 @@ class TextPairDataset(_TextPairDataset):
     def collate(self, batch):
         collated = collate(batch)
 
-        text_pairs = list(zip(collated["query"], collated["doc"]))
+        text_pairs = list(zip(collated["sentence1"], collated["sentence2"]))
         x = self.tokenizer(
             text_pairs,
             padding=True,

@@ -30,8 +30,8 @@ class TextDataset(Dataset):
 class TextPairDataset(Dataset):
     def encode(self, example):
         return {
-            "query": self.tokenize(example["query"]),
-            "doc": self.tokenize(example["doc"]),
+            "sentence1": self.tokenize(example["sentence1"]),
+            "sentence2": self.tokenize(example["sentence2"]),
             "label": self.label_encoder.encode(example["label"]),
         }
 
@@ -39,14 +39,14 @@ class TextPairDataset(Dataset):
         batch = self.encode_batch(batch)
 
         batch = collate_tensors(batch, identity)
-        queries, query_lengths = stack_and_pad_tensors(batch["query"])
-        docs, doc_lengths = stack_and_pad_tensors(batch["doc"])
+        sentence1, length1 = stack_and_pad_tensors(batch["sentence1"])
+        sentence2, length2 = stack_and_pad_tensors(batch["sentence2"])
 
         x = {
-            "query": queries,
-            "doc": docs,
-            "query_length": query_lengths,
-            "doc_length": doc_lengths,
+            "sentence1": sentence1,
+            "sentence2": sentence2,
+            "length1": length1,
+            "length2": length2,
         }
         y = torch.tensor(batch["label"], dtype=torch.int64)
 
