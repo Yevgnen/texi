@@ -1,7 +1,14 @@
 # -*- coding: utf-8 -*-
 
 import texi.datasets.classification
-from texi.datasets.classification import CHIP2019, LCQMC, NCOV2019, PAWSX, BQCorpus
+from texi.datasets.classification import (
+    AFQMC,
+    CHIP2019,
+    LCQMC,
+    NCOV2019,
+    PAWSX,
+    BQCorpus,
+)
 
 __all__ = [
     "classification",
@@ -10,4 +17,5 @@ __all__ = [
     "LCQMC",
     "BQCorpus",
     "PAWSX",
+    "AFQMC",
 ]

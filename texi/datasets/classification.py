@@ -88,3 +88,27 @@ class BQCorpus(LUGETextPairDataset):
 
 class PAWSX(LUGETextPairDataset):
     pass
+
+
+class AFQMC(object):
+    def __init__(self, dirname):
+        self.dirname = dirname
+        self._load_data()
+
+    def _load_data(self):
+        def _load_data(basename, mode):
+            # pylint: disable=import-outside-toplevel
+            import pandas as pd
+
+            df = pd.read_csv(
+                os.path.join(self.dirname, f"{basename}.csv"),
+                sep="\t",
+                names=["id", "sentence1", "sentence2", "label"],
+            )
+            df["id"] = df["id"].map(lambda x: f"AFQMC_{mode}_{x}")
+
+            return df.to_dict("records")
+
+        train1 = _load_data("atec_nlp_sim_train", "train")
+        train2 = _load_data("atec_nlp_sim_train_add", "train")
+        self.train = train1 + train2
