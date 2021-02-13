@@ -45,3 +45,32 @@ class NCOV2019(object):
         prefix = "NCOV2019"
         self.train = _load_data("train", "train")
         self.val = _load_data("dev", "val")
+
+
+class LCQMC(object):
+    def __init__(self, dirname):
+        self.dirname = dirname
+        self._load_data()
+
+    def _load_data(self):
+        def _load_data(basename, mode):
+            # pylint: disable=import-outside-toplevel
+            import pandas as pd
+
+            columns = ["sentence1", "sentence2"]
+            if mode != "test":
+                columns += ["label"]
+
+            df = pd.read_csv(
+                os.path.join(self.dirname, f"{basename}.tsv"),
+                sep="\t",
+                names=columns,
+            )
+            df["id"] = df.index.map(lambda x: f"{prefix}_{mode}_{x}")
+
+            return df.to_dict("records")
+
+        prefix = "NCOV2019"
+        self.train = _load_data("train", "train")
+        self.val = _load_data("dev", "val")
+        self.test = _load_data("test", "test")
