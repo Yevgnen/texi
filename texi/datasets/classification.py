@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import json
 import os
 import zipfile
 
@@ -137,3 +138,26 @@ class CCKS2018(object):
             with zip.open("task3_test_data_expand/test_with_id.txt", mode="r") as f:
                 test = pd.read_csv(f, sep="\t", names=["id", "sentence1", "sentence2"])
                 self.test = test.to_dict("records")
+
+
+class ChineseSNLI(object):
+    def __init__(self, dirname):
+        self.dirname = dirname
+        self._load_data()
+
+    def _load_data(self):
+        def _load_data(basename, mode):
+            filename = os.path.join(self.dirname, f"cnsd_snli_v1.0.{basename}.jsonl")
+            with open(filename, mode="r") as f:
+                examples = []
+                for i, line in enumerate(f):
+                    example = json.loads(line.rstrip())
+                    example["id"] = f"ChineseSNLI_{mode}_{i}"
+                    example["label"] = example.pop("gold_label")
+                    examples += [example]
+
+                return examples
+
+        self.train = _load_data("train", "train")
+        self.val = _load_data("dev", "val")
+        self.test = _load_data("test", "test")

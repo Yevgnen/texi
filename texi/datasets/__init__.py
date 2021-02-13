@@ -9,6 +9,7 @@ from texi.datasets.classification import (
     NCOV2019,
     PAWSX,
     BQCorpus,
+    ChineseSNLI,
 )
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "PAWSX",
     "AFQMC",
     "CCKS2018",
+    "ChineseSNLI",
 ]
