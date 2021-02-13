@@ -161,3 +161,26 @@ class ChineseSNLI(object):
         self.train = _load_data("train", "train")
         self.val = _load_data("dev", "val")
         self.test = _load_data("test", "test")
+
+
+class ChineseSTSB(object):
+    def __init__(self, dirname):
+        self.dirname = dirname
+        self._load_data()
+
+    def _load_data(self):
+        def _load_data(basename, mode):
+            filename = os.path.join(self.dirname, f"cnsd-sts-{basename}.txt")
+            columns = ["id", "sentence1", "sentence2", "label"]
+            with open(filename, mode="r") as f:
+                examples = []
+                for line in f:
+                    id_, sentence1, sentence2, label = line.rstrip().split("||")
+                    label = int(label)
+                    examples += [dict(zip(columns, [id_, sentence1, sentence2, label]))]
+
+                return examples
+
+        self.train = _load_data("train", "train")
+        self.val = _load_data("dev", "val")
+        self.test = _load_data("test", "test")
