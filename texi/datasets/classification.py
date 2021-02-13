@@ -47,7 +47,7 @@ class NCOV2019(object):
         self.val = _load_data("dev", "val")
 
 
-class LCQMC(object):
+class LUGETextPairDataset(object):
     def __init__(self, dirname):
         self.dirname = dirname
         self._load_data()
@@ -74,3 +74,15 @@ class LCQMC(object):
         self.train = _load_data("train", "train")
         self.val = _load_data("dev", "val")
         self.test = _load_data("test", "test")
+
+
+class LCQMC(LUGETextPairDataset):
+    pass
+
+
+class BQCorpus(LUGETextPairDataset):
+    pass
+
+
+class PAWSX(LUGETextPairDataset):
+    pass
