@@ -34,6 +34,7 @@ setup(
         "pyahocorasick",
         "ignite",
         "numpy",
+        "pandas",
         "plotly",
         "pytorch-crf",
         "pytorch-nlp",
