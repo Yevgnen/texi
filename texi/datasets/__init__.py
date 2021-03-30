@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from texi.datasets import classification, translation
+from texi.datasets import classification, text, translation
 from texi.datasets.classification import (
     AFQMC,
     CCKS2018,
@@ -15,6 +15,7 @@ from texi.datasets.classification import (
     THUCNews,
 )
 from texi.datasets.dataset import Dataset, Datasets, JSONDatasets
+from texi.datasets.text import News2016Zh
 from texi.datasets.translation import Translate2019Zh
 
 __all__ = [
@@ -35,4 +36,6 @@ __all__ = [
     "Sohu2021",
     "translation",
     "Translate2019Zh",
+    "text",
+    "News2016Zh",
 ]
