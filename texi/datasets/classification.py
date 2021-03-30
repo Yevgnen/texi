@@ -295,3 +295,22 @@ class ToutiaoNews(Datasets):
                     examples += [example]
 
         return cls(train=examples)
+
+
+class Dianping(Datasets):
+    @classmethod
+    def from_dir(cls, dirname: str):
+        def _load_data(filename):
+            df = pd.read_csv(
+                os.path.join(dirname, filename), header=0, names=["label", "text"]
+            )
+
+            return df.to_dict("records")
+
+        files = {
+            "train": "train.csv",
+            "test": "test.csv",
+        }
+        data = {key: _load_data(value) for key, value in files.items()}
+
+        return cls(**data, dirname=dirname)
