@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+import json
+import os
 from typing import Dict, Iterable, Optional
 
 
@@ -16,6 +18,17 @@ class Dataset(object):
     def __len__(self):
         return len(self.examples)
 
+    @classmethod
+    def from_json(cls, filename: str):
+        examples = []
+        with open(filename) as f:
+            for line in f:
+                line = line.rstrip()
+                if line:
+                    examples += [json.loads(line)]
+
+        return cls(examples)
+
 
 class Datasets(object):
     def __init__(
@@ -31,3 +44,16 @@ class Datasets(object):
         self.test = test
         self.dirname = dirname
         self.filename = filename
+
+
+class JSONDatasets(Datasets):
+    files = {}
+
+    @classmethod
+    def from_dir(cls, dirname: str):
+        data = {
+            key: Dataset.from_json(os.path.join(dirname, value))
+            for key, value in cls.files.items()
+        }
+
+        return cls(**data)
