@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-import texi.datasets.classification
+from texi.datasets import classification
 from texi.datasets.classification import (
     AFQMC,
     CCKS2018,
@@ -11,6 +11,7 @@ from texi.datasets.classification import (
     BQCorpus,
     ChineseSNLI,
     ChineseSTSB,
+    THUCNews,
 )
 
 __all__ = [
@@ -24,4 +25,5 @@ __all__ = [
     "CCKS2018",
     "ChineseSNLI",
     "ChineseSTSB",
+    "THUCNews",
 ]

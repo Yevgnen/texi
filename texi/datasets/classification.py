@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import glob
 import json
 import os
 import zipfile
@@ -184,3 +185,23 @@ class ChineseSTSB(object):
         self.train = _load_data("train", "train")
         self.val = _load_data("dev", "val")
         self.test = _load_data("test", "test")
+
+
+class THUCNews(object):
+    def __init__(self, dirname):
+        self.dirname = dirname
+        self._load_data()
+
+    def _load_data(self):
+        records = []
+        for filename in glob.iglob(
+            os.path.join(self.dirname, "**/*.txt"), recursive=True
+        ):
+            relname = os.path.relpath(filename, self.dirname)
+            label = os.path.dirname(relname)
+            id_ = os.path.splitext(os.path.basename(relname))[0]
+            with open(filename) as f:
+                text = f.read(filename)
+            records += [{"id": id_, "text": text, "label": label}]
+
+        self.train = records
