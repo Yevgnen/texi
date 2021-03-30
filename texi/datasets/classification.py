@@ -199,10 +199,10 @@ class THUCNews(Datasets):
                 label = os.path.dirname(relname)
                 id_ = os.path.splitext(os.path.basename(relname))[0]
                 with open(filename) as f:
-                    text = f.read()
+                    content = f.read()
                     yield {
                         "id": id_,
-                        "text": text,
+                        "content": content,
                         "label": label,
                     }
 
