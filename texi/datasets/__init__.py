@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from texi.datasets import classification, text, translation
+from texi.datasets import classification, question_answering, text, translation
 from texi.datasets.classification import (
     AFQMC,
     CCKS2018,
@@ -16,6 +16,7 @@ from texi.datasets.classification import (
     ToutiaoNews,
 )
 from texi.datasets.dataset import Dataset, Datasets, JSONDatasets
+from texi.datasets.question_answering import Baike2018QA
 from texi.datasets.text import News2016Zh, WebText2019Zh, WeixinPublicCorpus, Wiki2019Zh
 from texi.datasets.translation import Translate2019Zh
 
@@ -43,4 +44,6 @@ __all__ = [
     "WebText2019Zh",
     "Wiki2019Zh",
     "WeixinPublicCorpus",
+    "question_answering",
+    "Baike2018QA",
 ]
