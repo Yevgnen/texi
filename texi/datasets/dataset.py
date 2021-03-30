@@ -2,7 +2,7 @@
 
 import json
 import os
-from typing import Callable, Dict, Iterable, Optional, Union
+from typing import Any, Callable, Dict, Iterable, Optional, Union
 
 
 class Dataset(object):
@@ -91,7 +91,7 @@ class Datasets(object):
 
 
 class JSONDatasets(Datasets):
-    files = {}
+    files = {}  # type: Dict[str, Any]
 
     @classmethod
     def from_dir(cls, dirname: str):
