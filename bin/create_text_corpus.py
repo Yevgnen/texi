@@ -11,6 +11,7 @@ from texi.datasets import (
     Translate2019Zh,
     WebText2019Zh,
     WeixinPublicCorpus,
+    ZhidaoQA,
 )
 
 logger = logging.getLogger(__name__)
@@ -74,6 +75,14 @@ def iter_weixin_public_corpus(dirname):
                 yield x["title"] + x["content"]
 
 
+def iter_zhidaoqa(dirname):
+    datasets = ZhidaoQA.from_dir(dirname)
+    for _, dataset in datasets.items():
+        if dataset is not None:
+            for x in dataset:
+                yield x["question"] + x["answer"]
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
@@ -92,6 +101,7 @@ def main(args):
         "translation2019zh": iter_translation2019zh,
         "webtext2019zh": iter_webtext2019zh,
         "weixin_public_corpus": iter_weixin_public_corpus,
+        "zhidao_qa": iter_zhidaoqa,
     }
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
