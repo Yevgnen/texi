@@ -15,7 +15,7 @@ from texi.datasets.classification import (
     THUCNews,
 )
 from texi.datasets.dataset import Dataset, Datasets, JSONDatasets
-from texi.datasets.text import News2016Zh
+from texi.datasets.text import News2016Zh, WebText2019Zh
 from texi.datasets.translation import Translate2019Zh
 
 __all__ = [
@@ -38,4 +38,5 @@ __all__ = [
     "Translate2019Zh",
     "text",
     "News2016Zh",
+    "WebText2019Zh",
 ]
