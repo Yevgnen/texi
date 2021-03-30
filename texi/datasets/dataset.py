@@ -40,6 +40,12 @@ class Dataset(object):
 
         return len(self.examples)
 
+    def __repr__(self):
+        if self.examples is None:
+            return f"{self.__class__.__name__}(Not loaded)"
+
+        return f"{self.__class__.__name__}({len(self)} examples)"
+
     @classmethod
     def from_json_iter(cls, filename: str):
         def _iter():
