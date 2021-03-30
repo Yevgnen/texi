@@ -11,6 +11,7 @@ from texi.datasets.classification import (
     BQCorpus,
     ChineseSNLI,
     ChineseSTSB,
+    Sohu2021,
     THUCNews,
 )
 from texi.datasets.dataset import Dataset, Datasets
@@ -29,4 +30,5 @@ __all__ = [
     "ChineseSNLI",
     "ChineseSTSB",
     "THUCNews",
+    "Sohu2021",
 ]

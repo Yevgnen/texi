@@ -7,7 +7,7 @@ import zipfile
 
 import pandas as pd
 
-from texi.datasets.dataset import Datasets
+from texi.datasets.dataset import Dataset, Datasets
 
 
 class CHIP2019(Datasets):
@@ -198,6 +198,65 @@ class THUCNews(Datasets):
             id_ = os.path.splitext(os.path.basename(relname))[0]
             with open(filename) as f:
                 text = f.read(filename)
-            records += [{"id": id_, "text": text, "label": label}]
+                records += [{"id": id_, "text": text, "label": label}]
 
         return cls(train=records, dirname=dirname)
+
+
+class Sohu2021(object):
+    def __init__(
+        self,
+        short_short_a,
+        short_long_a,
+        long_long_a,
+        short_short_b,
+        short_long_b,
+        long_long_b,
+    ):
+        self.short_short_a = short_short_a
+        self.short_long_a = short_long_a
+        self.long_long_a = long_long_a
+        self.short_short_b = short_short_b
+        self.short_long_b = short_long_b
+        self.long_long_b = long_long_b
+
+    @classmethod
+    def from_dir(cls, dirname: str):
+        def _load_data(subdir):
+            def _load(basename, mode):
+                flag = "A" if "A" in subdir else "B"
+
+                examples = []
+                with open(os.path.join(dirname, subdir, f"{basename}.txt")) as f:
+                    for i, line in enumerate(f):
+                        line = line.rstrip()
+                        if line:
+                            example = json.loads(line)
+                            example["sentence1"] = example.pop("source")
+                            example["sentence2"] = example.pop("target")
+                            if mode != "test":
+                                example["id"] = f"sohu2021-{subdir}-{i}"
+                                example["label"] = int(example.pop(f"label{flag}"))
+                            examples += [example]
+
+                return Dataset(examples)
+
+            return Datasets(
+                train=_load("train", "train"),
+                val=_load("valid", "val"),
+                test=_load("test_with_id", "test"),
+                dirname=dirname,
+            )
+
+        types = {
+            "short_short_a": "短短匹配A类",
+            "short_long_a": "短长匹配A类",
+            "long_long_a": "长长匹配A类",
+            "short_short_b": "短短匹配B类",
+            "short_long_b": "短长匹配B类",
+            "long_long_b": "长长匹配B类",
+        }
+
+        datasets = {key: _load_data(value) for key, value in types.items()}
+
+        return cls(**datasets)
