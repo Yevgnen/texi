@@ -191,16 +191,22 @@ class ChineseSTSB(Datasets):
 class THUCNews(Datasets):
     @classmethod
     def from_dir(cls, dirname: str):
-        records = []
-        for filename in glob.iglob(os.path.join(dirname, "**/*.txt"), recursive=True):
-            relname = os.path.relpath(filename, dirname)
-            label = os.path.dirname(relname)
-            id_ = os.path.splitext(os.path.basename(relname))[0]
-            with open(filename) as f:
-                text = f.read()
-                records += [{"id": id_, "text": text, "label": label}]
+        def _iter_examples():
+            for filename in glob.iglob(
+                os.path.join(dirname, "**/*.txt"), recursive=True
+            ):
+                relname = os.path.relpath(filename, dirname)
+                label = os.path.dirname(relname)
+                id_ = os.path.splitext(os.path.basename(relname))[0]
+                with open(filename) as f:
+                    text = f.read()
+                    yield {
+                        "id": id_,
+                        "text": text,
+                        "label": label,
+                    }
 
-        return cls(train=records, dirname=dirname)
+        return cls(train=Dataset(_iter_examples), dirname=dirname)
 
 
 class Sohu2021(object):
