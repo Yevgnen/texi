@@ -47,13 +47,17 @@ class Dataset(object):
         return f"{self.__class__.__name__}({len(self)} examples)"
 
     @classmethod
-    def from_json_iter(cls, filename: str):
+    def from_json_iter(
+        cls,
+        filename: str,
+        format_function: Optional[Callable[[Dict], Dict]] = lambda x: x,
+    ):
         def _iter():
             with open(filename) as f:
                 for line in f:
                     line = line.rstrip()
                     if line:
-                        yield json.loads(line)
+                        yield format_function(json.loads(line))
 
         return cls(_iter)
 
@@ -101,9 +105,13 @@ class JSONDatasets(Datasets):
     files = {}  # type: Dict[str, Any]
 
     @classmethod
+    def format(cls, x: Dict) -> Dict:
+        return x
+
+    @classmethod
     def from_dir(cls, dirname: str):
         data = {
-            key: Dataset.from_json_iter(os.path.join(dirname, value))
+            key: Dataset.from_json_iter(os.path.join(dirname, value), cls.format)
             for key, value in cls.files.items()
         }
 
