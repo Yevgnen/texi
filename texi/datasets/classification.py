@@ -11,6 +11,9 @@ from texi.datasets.dataset import Dataset, Datasets, JSONDatasets
 
 
 class CHIP2019(Datasets):
+    # References:
+    # http://www.cips-chip.org.cn:8088/evaluation
+
     @classmethod
     def from_dir(cls, dirname: str):
         prefix = "CHIP2019"
@@ -31,6 +34,9 @@ class CHIP2019(Datasets):
 
 
 class NCOV2019(Datasets):
+    # References:
+    # https://tianchi.aliyun.com/competition/entrance/231776/introduction
+
     @classmethod
     def from_dir(cls, dirname: str):
         def _load_data(basename, mode):
@@ -52,6 +58,9 @@ class NCOV2019(Datasets):
 
 
 class LUGETextPairDataset(Datasets):
+    # References:
+    # https://aistudio.baidu.com/aistudio/competition/detail/45
+
     @classmethod
     def from_dir(cls, dirname: str):
         def _load_data(basename, mode):
@@ -79,18 +88,30 @@ class LUGETextPairDataset(Datasets):
 
 
 class LCQMC(LUGETextPairDataset):
+    # References:
+    # https://aistudio.baidu.com/aistudio/competition/detail/45
+
     pass
 
 
 class BQCorpus(LUGETextPairDataset):
+    # References:
+    # https://aistudio.baidu.com/aistudio/competition/detail/45
+
     pass
 
 
 class PAWSX(LUGETextPairDataset):
+    # References:
+    # https://aistudio.baidu.com/aistudio/competition/detail/45
+
     pass
 
 
 class AFQMC(Datasets):
+    # References:
+    # https://dc.cloud.alipay.com/index#/topic/intro?id=3
+
     @classmethod
     def from_dir(cls, dirname: str):
         def _load_data(basename, mode):
@@ -143,6 +164,9 @@ class CCKS2018(Datasets):
 
 
 class ChineseSNLI(Datasets):
+    # References:
+    # https://github.com/pluto-junzeng/CNSD
+
     @classmethod
     def from_dir(cls, dirname: str):
         def _load_data(basename, mode):
@@ -166,6 +190,9 @@ class ChineseSNLI(Datasets):
 
 
 class ChineseSTSB(Datasets):
+    # References:
+    # https://github.com/pluto-junzeng/CNSD
+
     @classmethod
     def from_dir(cls, dirname: str):
         def _load_data(basename, mode):
@@ -189,6 +216,9 @@ class ChineseSTSB(Datasets):
 
 
 class CAIL2019SCM(JSONDatasets):
+    # References:
+    # https://github.com/thunlp/CAIL2019
+
     files = {
         "train": "train.json",
         "val": "valid.json",
@@ -197,6 +227,9 @@ class CAIL2019SCM(JSONDatasets):
 
 
 class THUCNews(Datasets):
+    # References:
+    # https://thuctc.thunlp.org
+
     @classmethod
     def from_dir(cls, dirname: str):
         def _iter_examples():
@@ -218,6 +251,9 @@ class THUCNews(Datasets):
 
 
 class Sohu2021(object):
+    # References:
+    # https://www.biendata.xyz/competition/sohu_2021/
+
     def __init__(
         self,
         short_short_a,
@@ -277,6 +313,9 @@ class Sohu2021(object):
 
 
 class ToutiaoNews(Datasets):
+    # References:
+    # https://github.com/fateleak/toutiao-text-classfication-dataset
+
     @classmethod
     def from_dir(cls, dirname: str):
         examples = []
