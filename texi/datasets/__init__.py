@@ -13,8 +13,11 @@ from texi.datasets.classification import (
     ChineseSTSB,
     THUCNews,
 )
+from texi.datasets.dataset import Dataset, Datasets
 
 __all__ = [
+    "Dataset",
+    "Datasets",
     "classification",
     "CHIP2019",
     "NCOV2019",
