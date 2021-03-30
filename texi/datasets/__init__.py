@@ -13,6 +13,7 @@ from texi.datasets.classification import (
     ChineseSTSB,
     Sohu2021,
     THUCNews,
+    ToutiaoNews,
 )
 from texi.datasets.dataset import Dataset, Datasets, JSONDatasets
 from texi.datasets.text import News2016Zh, WebText2019Zh, WeixinPublicCorpus, Wiki2019Zh
@@ -34,6 +35,7 @@ __all__ = [
     "ChineseSTSB",
     "THUCNews",
     "Sohu2021",
+    "ToutiaoNews",
     "translation",
     "Translate2019Zh",
     "text",

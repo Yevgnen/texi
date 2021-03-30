@@ -260,3 +260,24 @@ class Sohu2021(object):
         datasets = {key: _load_data(value) for key, value in types.items()}
 
         return cls(**datasets)
+
+
+class ToutiaoNews(Datasets):
+    @classmethod
+    def from_dir(cls, dirname: str):
+        examples = []
+        with open(os.path.join(dirname, "toutiao_cat_data.txt")) as f:
+            for line in f:
+                line = line.rstrip()
+                if line:
+                    id_, category_id, category, title, keywords = line.split("_!_")
+                    example = {
+                        "id": id_,
+                        "category_id": category_id,
+                        "category": category,
+                        "title": title,
+                        "keywords": keywords.split(","),
+                    }
+                    examples += [example]
+
+        return cls(train=examples)
