@@ -89,6 +89,13 @@ class Datasets(object):
         for mode in ["train", "val", "test"]:
             yield mode, getattr(self, mode)
 
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}(train={self.train}"
+            f", val={self.val}, test={self.test}"
+            f", dirname={self.dirname}, filename={self.filename})"
+        )
+
 
 class JSONDatasets(Datasets):
     files = {}  # type: Dict[str, Any]
