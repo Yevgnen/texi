@@ -7,7 +7,7 @@ import zipfile
 
 import pandas as pd
 
-from texi.datasets.dataset import Dataset, Datasets
+from texi.datasets.dataset import Dataset, Datasets, JSONDatasets
 
 
 class CHIP2019(Datasets):
@@ -186,6 +186,14 @@ class ChineseSTSB(Datasets):
             test=_load_data("test", "test"),
             dirname=dirname,
         )
+
+
+class CAIL2019SCM(JSONDatasets):
+    files = {
+        "train": "train.json",
+        "val": "valid.json",
+        "test": "test.json",
+    }
 
 
 class THUCNews(Datasets):

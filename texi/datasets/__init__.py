@@ -3,6 +3,7 @@
 from texi.datasets import classification, question_answering, text, translation
 from texi.datasets.classification import (
     AFQMC,
+    CAIL2019SCM,
     CCKS2018,
     CHIP2019,
     LCQMC,
@@ -34,6 +35,7 @@ __all__ = [
     "CCKS2018",
     "ChineseSNLI",
     "ChineseSTSB",
+    "CAIL2019SCM",
     "THUCNews",
     "Sohu2021",
     "ToutiaoNews",
