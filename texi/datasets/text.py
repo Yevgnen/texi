@@ -38,3 +38,9 @@ class Wiki2019Zh(Datasets):
                         examples += [example]
 
         return cls(train=examples)
+
+
+class WeixinPublicCorpus(JSONDatasets):
+    files = {
+        "train": "articles.json",
+    }
