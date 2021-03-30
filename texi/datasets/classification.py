@@ -333,7 +333,7 @@ class ToutiaoNews(Datasets):
                     }
                     examples += [example]
 
-        return cls(train=examples)
+        return cls(train=Dataset(examples))
 
 
 class Dianping(Datasets):
