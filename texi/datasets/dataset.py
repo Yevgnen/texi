@@ -85,6 +85,10 @@ class Datasets(object):
 
         return self
 
+    def items(self):
+        for mode in ["train", "val", "test"]:
+            yield mode, getattr(self, mode)
+
 
 class JSONDatasets(Datasets):
     files = {}
