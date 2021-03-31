@@ -2,6 +2,7 @@
 
 import argparse
 import logging
+import re
 from pathlib import Path
 
 from texi.datasets import (
@@ -17,11 +18,11 @@ from texi.datasets import (
 logger = logging.getLogger(__name__)
 
 
-def write_texts(text_iter, filename):
+def write_texts(text_iter, filename, preprocess=lambda x: x):
     wrote = 0
     with open(filename, mode="w") as f:
         for text in text_iter:
-            f.writelines(text + "\n")
+            f.writelines(preprocess(text) + "\n")
             wrote += 1
 
     return wrote
@@ -83,6 +84,12 @@ def iter_zhidaoqa(dirname):
                 yield x["question"] + x["answer"]
 
 
+def preprocess(x):
+    x = re.sub(r"[\r\n]", "", x)
+
+    return x
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
@@ -107,7 +114,9 @@ def main(args):
     args.output_dir.mkdir(parents=True, exist_ok=True)
     for dataset, iterator in data.items():
         lines = write_texts(
-            iterator(args.data_dir / dataset), args.output_dir / dataset
+            iterator(args.data_dir / dataset),
+            args.output_dir / dataset,
+            preprocess=preprocess,
         )
         logger.info("Processed %d lines of: %s", lines, dataset)
 
