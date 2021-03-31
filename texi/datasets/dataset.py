@@ -102,7 +102,7 @@ class Datasets(object):
 
 
 class JSONDatasets(Datasets):
-    files = {}  # type: Dict[str, Any]
+    files = {}  # type: Dict[str, str]
 
     @classmethod
     def format(cls, x: Dict) -> Dict:
