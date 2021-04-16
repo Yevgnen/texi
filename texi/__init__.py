@@ -2,6 +2,7 @@
 
 import texi.apps
 import texi.datasets
+import texi.document
 import texi.embedding
 import texi.metrics
 import texi.preprocessing
