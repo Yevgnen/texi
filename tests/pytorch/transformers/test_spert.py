@@ -31,16 +31,8 @@ class TestSpERTSampler(unittest.TestCase):
             "relations": [
                 {
                     "type": "born in",
-                    "arg1": {
-                        "type": "per",
-                        "start": 0,
-                        "end": 1,
-                    },
-                    "arg2": {
-                        "type": "loc",
-                        "start": 4,
-                        "end": 5,
-                    },
+                    "arg1": {"type": "per", "start": 0, "end": 1},
+                    "arg2": {"type": "loc", "start": 4, "end": 5},
                 }
             ],
         }
