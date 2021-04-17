@@ -2,7 +2,10 @@
 
 import itertools
 import random
-from typing import Dict, List, Mapping, Optional
+from typing import Any, Dict, Iterable, List, Mapping, Optional
+
+from texi.preprocessing import LabelEncoder
+from texi.pytorch.dataset import Dataset
 
 
 class SpERTSampler(object):
@@ -75,3 +78,73 @@ class SpERTSampler(object):
         )
 
         return negatives
+
+
+class SpERTDataset(Dataset):
+    def __init__(
+        self,
+        examples: Iterable[Dict],
+        negative_sampler: SpERTSampler,
+        entity_label_encoder: LabelEncoder,
+        relation_label_encoder: LabelEncoder,
+        tokenizer: Optional[Any] = None,
+        train: bool = False,
+    ):
+        super().__init__(examples, tokenizer=tokenizer, train=train)
+        self.negative_sampler = negative_sampler
+        self.entity_label_encoder = entity_label_encoder
+        self.relation_label_encoder = relation_label_encoder
+
+    def _encode_entities(self, entities, tokens):
+        offset = 1  # Added [CLS] token.
+        offsets = []
+        for token in tokens:
+            offsets += [offset]
+            offset += len(token)
+
+        entity_indices = {}
+        encoded_entities = []
+        for i, entity in enumerate(entities):
+            start = offsets[entity["start"]]
+            end = offsets[entity["end"] - 1] + len(tokens[entity["end"] - 1])
+            encoded_entities += [
+                {
+                    "start": start,
+                    "end": end,
+                    "type": self.entity_label_encoder.encode_label(entity["type"]),
+                }
+            ]
+
+            entity_indices[(entity["start"], entity["end"])] = i
+
+        return encoded_entities, entity_indices
+
+    def _encode_relations(self, relations, entity_indices):
+        encoded_relations = []
+        for rel in relations:
+            head_index = entity_indices[rel["arg1"]["start"], rel["arg1"]["end"]]
+            tail_index = entity_indices[rel["arg2"]["start"], rel["arg2"]["end"]]
+            encoded_relations += [
+                {
+                    "head": head_index,
+                    "tail": tail_index,
+                    "type": self.relation_label_encoder.encode_label(rel["type"]),
+                }
+            ]
+
+        return encoded_relations
+
+    def encode_example(self, example, entities, relations):
+        output = self.tokenizer(example["text"], add_special_tokens=False)
+
+        encoded_entities, entity_indices = self._encode_entities(
+            entities, output["input_ids"]
+        )
+        encoded_relations = self._encode_relations(relations, entity_indices)
+
+        output = {k: list(itertools.chain.from_iterable(v)) for k, v in output.items()}
+        return {
+            "output": output,
+            "entities": encoded_entities,
+            "relations": encoded_relations,
+        }

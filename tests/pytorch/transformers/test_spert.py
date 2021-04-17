@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 
 import unittest
+from unittest.mock import Mock
 
 import torch
+from transformers import BertTokenizerFast
 
-from texi.pytorch.transformers.spert import SpERTSampler
+from texi.preprocessing import LabelEncoder
+from texi.pytorch.transformers.spert import SpERTDataset, SpERTSampler
 
 
 def random_entity_mask(num_entities, max_length=20):
@@ -126,6 +129,88 @@ class TestSpERTSampler(unittest.TestCase):
             },
             negatives,
         )
+
+
+class TestSpERTDataset(unittest.TestCase):
+    def setUp(self):
+        self.example = {
+            "text": ["BillGates", "was", "born", "in", "America", "."],
+            "entities": [
+                {"type": "per", "start": 0, "end": 1},
+                {"type": "prep", "start": 3, "end": 4},
+                {"type": "loc", "start": 4, "end": 5},
+            ],
+            "relations": [
+                {
+                    "type": "born in",
+                    "arg1": {"type": "per", "start": 0, "end": 1},
+                    "arg2": {"type": "loc", "start": 4, "end": 5},
+                }
+            ],
+        }
+        self.entities = [
+            {"type": "per", "start": 0, "end": 1},
+            {"type": "prep", "start": 3, "end": 4},
+            {"type": "loc", "start": 4, "end": 5},
+            {"type": "NOT_ENTITY", "start": 0, "end": 3},
+        ]
+        self.relations = [
+            {
+                "type": "born in",
+                "arg1": {"type": "per", "start": 0, "end": 1},
+                "arg2": {"type": "loc", "start": 4, "end": 5},
+            },
+            {
+                "type": "NO_RELATION",
+                "arg1": {"type": "prep", "start": 3, "end": 4},
+                "arg2": {"type": "loc", "start": 4, "end": 5},
+            },
+            {
+                "type": "NO_RELATION",
+                "arg1": {"type": "loc", "start": 4, "end": 5},
+                "arg2": {"type": "per", "start": 0, "end": 1},
+            },
+        ]
+
+    def test_encode_example(self):
+        entity_label_encoder = LabelEncoder(["per", "prep", "loc", "NOT_ENTITY"])
+        relation_label_encoder = LabelEncoder(["born in", "NO_RELATION"])
+
+        dataset = SpERTDataset(
+            [self.example],
+            Mock(),
+            entity_label_encoder,
+            relation_label_encoder,
+            tokenizer=BertTokenizerFast.from_pretrained("bert-base-uncased"),
+        )
+        output = dataset.encode_example(self.example, self.entities, self.relations)
+
+        self.assertEqual(len(output["entities"]), len(self.entities))
+        self.assertEqual(
+            set(output["output"].keys()),
+            {"input_ids", "token_type_ids", "attention_mask"},
+        )
+        self.assertEqual(
+            output["entities"][0],
+            {"type": 0, "start": 1, "end": 4},
+        )
+        self.assertEqual(
+            output["entities"][1],
+            {"type": 1, "start": 6, "end": 7},
+        )
+        self.assertEqual(
+            output["entities"][2],
+            {"type": 2, "start": 7, "end": 8},
+        )
+        self.assertEqual(
+            output["entities"][3],
+            {"type": 3, "start": 1, "end": 6},
+        )
+
+        self.assertEqual(len(output["relations"]), len(self.relations))
+        self.assertEqual(output["relations"][0], {"type": 0, "head": 0, "tail": 2})
+        self.assertEqual(output["relations"][1], {"type": 1, "head": 1, "tail": 2})
+        self.assertEqual(output["relations"][2], {"type": 1, "head": 2, "tail": 0})
 
 
 if __name__ == "__main__":
