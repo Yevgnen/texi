@@ -41,6 +41,15 @@ class Dataset(metaclass=abc.ABCMeta):
 
         self.train = train
 
+    def __len__(self):
+        return len(self.examples)
+
+    def __getitem__(self, key):
+        return self.examples[key]
+
+    def __iter__(self):
+        yield from iter(self.examples)
+
     def encode(self, example: Mapping) -> Dict:
         raise NotImplementedError()
 
