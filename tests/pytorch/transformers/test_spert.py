@@ -24,21 +24,19 @@ class TestSpERTSampler(unittest.TestCase):
         self.example = {
             "text": ["Bill", "was", "born", "in", "USA", "."],
             "entities": [
-                {"mention": ["Bill"], "type": "per", "start": 0, "end": 1},
-                {"mention": ["in"], "type": "prep", "start": 3, "end": 4},
-                {"mention": ["USA"], "type": "loc", "start": 4, "end": 5},
+                {"type": "per", "start": 0, "end": 1},
+                {"type": "prep", "start": 3, "end": 4},
+                {"type": "loc", "start": 4, "end": 5},
             ],
             "relations": [
                 {
                     "type": "born in",
                     "arg1": {
-                        "mention": ["Bill"],
                         "type": "per",
                         "start": 0,
                         "end": 1,
                     },
                     "arg2": {
-                        "mention": ["USA"],
                         "type": "loc",
                         "start": 4,
                         "end": 5,
@@ -99,40 +97,40 @@ class TestSpERTSampler(unittest.TestCase):
         self.assertIn(
             {
                 "type": self.negative_relation_type,
-                "arg1": {"mention": ["Bill"], "type": "per", "start": 0, "end": 1},
-                "arg2": {"mention": ["in"], "type": "prep", "start": 3, "end": 4},
+                "arg1": {"type": "per", "start": 0, "end": 1},
+                "arg2": {"type": "prep", "start": 3, "end": 4},
             },
             negatives,
         )
         self.assertIn(
             {
                 "type": self.negative_relation_type,
-                "arg1": {"mention": ["in"], "type": "prep", "start": 3, "end": 4},
-                "arg2": {"mention": ["Bill"], "type": "per", "start": 0, "end": 1},
+                "arg1": {"type": "prep", "start": 3, "end": 4},
+                "arg2": {"type": "per", "start": 0, "end": 1},
             },
             negatives,
         )
         self.assertIn(
             {
                 "type": self.negative_relation_type,
-                "arg1": {"mention": ["USA"], "type": "loc", "start": 4, "end": 5},
-                "arg2": {"mention": ["in"], "type": "prep", "start": 3, "end": 4},
+                "arg1": {"type": "loc", "start": 4, "end": 5},
+                "arg2": {"type": "prep", "start": 3, "end": 4},
             },
             negatives,
         )
         self.assertIn(
             {
                 "type": self.negative_relation_type,
-                "arg1": {"mention": ["in"], "type": "prep", "start": 3, "end": 4},
-                "arg2": {"mention": ["USA"], "type": "loc", "start": 4, "end": 5},
+                "arg1": {"type": "prep", "start": 3, "end": 4},
+                "arg2": {"type": "loc", "start": 4, "end": 5},
             },
             negatives,
         )
         self.assertIn(
             {
                 "type": self.negative_relation_type,
-                "arg1": {"mention": ["USA"], "type": "loc", "start": 4, "end": 5},
-                "arg2": {"mention": ["Bill"], "type": "per", "start": 0, "end": 1},
+                "arg1": {"type": "loc", "start": 4, "end": 5},
+                "arg2": {"type": "per", "start": 0, "end": 1},
             },
             negatives,
         )
