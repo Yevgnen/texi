@@ -55,6 +55,9 @@ class SpERTSampler(object):
         if entities is None:
             entities = example["entities"]
 
+        if not entities:
+            return []
+
         positives = example["relations"]
         positive_tuples = {
             (r["arg1"]["start"], r["arg1"]["end"], r["arg2"]["start"], r["arg2"]["end"])

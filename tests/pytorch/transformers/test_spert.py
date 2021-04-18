@@ -55,7 +55,7 @@ class TestSpERTSampler(unittest.TestCase):
 
     def test_sample_negative_entities_few_entities(self):
         example = {
-            "text": "abc",
+            "text": ["I", "hate", "you"],
             "entities": [],
         }
         sampler = SpERTSampler(
@@ -84,6 +84,20 @@ class TestSpERTSampler(unittest.TestCase):
             self.assertEqual(negative["type"], self.negative_entity_type)
             self.assertIsInstance(negative["start"], int)
             self.assertIsInstance(negative["end"], int)
+
+    def test_sample_negative_relation_no_entities(self):
+        example = {
+            "text": ["I", "hate", "you"],
+            "entities": [],
+        }
+        sampler = SpERTSampler(
+            self.num_negative_entities,
+            10,
+            self.max_entity_length,
+            negative_entity_type=self.negative_entity_type,
+        )
+        negatives = sampler.sample_negative_relations(example)
+        self.assertEqual(len(negatives), 0)
 
     def test_sample_negative_relation(self):
         negatives = self.sampler.sample_negative_relations(self.example)
