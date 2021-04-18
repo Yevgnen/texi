@@ -4,8 +4,28 @@ import itertools
 import random
 from typing import Any, Dict, Iterable, List, Mapping, Optional
 
+import torch
+
 from texi.preprocessing import LabelEncoder
 from texi.pytorch.dataset import Dataset
+
+
+def create_span_mask(start: List[int], end: List[int], length: int) -> torch.LongTensor:
+    if len(start) != len(end):
+        raise ValueError(
+            f"`start` and `end` should have same lengths: {len(start)} != {len(end)}"
+        )
+
+    if len(start) == 0:
+        return torch.zeros((0, length), dtype=torch.int64)
+
+    start = torch.tensor(start, dtype=torch.int64)
+    end = torch.tensor(end, dtype=torch.int64)
+    mask = torch.arange(length, dtype=torch.int64).unsqueeze(dim=-1)
+    mask = (start <= mask) & (mask < end)
+    mask = mask.transpose(0, 1).long()
+
+    return mask
 
 
 class SpERTSampler(object):
