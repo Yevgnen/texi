@@ -206,7 +206,7 @@ class SpERTDataset(Dataset):
         entity_masks, entity_labels = [], []
         max_length, max_entities = 0, 0
         for i, entities in enumerate(collated["entities"]):
-            assert len(entities) > 0, "There must at least 1 negative entity."
+            assert len(entities) > 0, "There must be at least 1 negative entity."
 
             entities = collate(entities)
 
