@@ -233,10 +233,12 @@ class SpERTDataset(Dataset):
 
         entity_masks = torch.stack(entity_masks)
         entity_labels = torch.stack(entity_labels)
+        entity_sample_masks = (entity_masks.sum(dim=-1) > 0).long()
 
         return {
             "entity_masks": entity_masks,
             "entity_labels": entity_labels,
+            "entity_sample_masks": entity_sample_masks,
         }
 
     def _collate_relations(self, collated):
@@ -288,6 +290,9 @@ class SpERTDataset(Dataset):
 
             max_relations = max(max_relations, args.size(0))
             max_length = max(max_length, num_tokens)
+        relation_sample_masks = [
+            torch.ones(len(x), dtype=torch.int64) for x in relation_labels
+        ]
 
         relation_args = [
             torch.nn.functional.pad(x, [0, 0, 0, max_relations - x.size(0)])
@@ -303,15 +308,21 @@ class SpERTDataset(Dataset):
             torch.nn.functional.pad(x, [0, 0, 0, max_relations - x.size(0)])
             for x in relation_labels
         ]
+        relation_sample_masks = [
+            torch.nn.functional.pad(x, [0, max_relations - x.size(0)])
+            for x in relation_sample_masks
+        ]
 
         relation_args = torch.stack(relation_args)
         relation_context_masks = torch.stack(relation_context_masks)
         relation_labels = torch.stack(relation_labels)
+        relation_sample_masks = torch.stack(relation_sample_masks)
 
         return {
             "relations": relation_args,
             "relation_context_masks": relation_context_masks,
             "relation_labels": relation_labels,
+            "relation_sample_masks": relation_sample_masks,
         }
 
     def collate(self, batch):
