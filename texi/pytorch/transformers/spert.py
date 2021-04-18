@@ -203,7 +203,7 @@ class SpERTDataset(Dataset):
         return self.encode_example(example, entities, relations)
 
     def _collate_entities(self, collated):
-        entity_masks, entity_labels, entity_sample_masks = [], [], []
+        entity_masks, entity_labels = [], []
         max_length, max_entities = 0, 0
         for i, entities in enumerate(collated["entities"]):
             assert len(entities) > 0, "There must at least 1 negative entity."
@@ -216,8 +216,6 @@ class SpERTDataset(Dataset):
 
             labels = torch.tensor(entities["label"], dtype=torch.int64)
             entity_labels += [labels]
-
-            entity_sample_masks += [torch.ones(masks.size(0), dtype=torch.int64)]
 
             max_entities = max(max_entities, masks.size(0))
             max_length = max(max_length, masks.size(1))
@@ -232,19 +230,13 @@ class SpERTDataset(Dataset):
             torch.nn.functional.pad(x, [0, max_entities - len(x)])
             for x in entity_labels
         ]
-        entity_sample_masks = [
-            torch.nn.functional.pad(x, [0, max_entities - len(x)])
-            for x in entity_sample_masks
-        ]
 
         entity_masks = torch.stack(entity_masks)
         entity_labels = torch.stack(entity_labels)
-        entity_sample_masks = torch.stack(entity_sample_masks)
 
         return {
             "entity_masks": entity_masks,
             "entity_labels": entity_labels,
-            "entity_sample_masks": entity_sample_masks,
         }
 
     def _collate_relations(self, collated):
