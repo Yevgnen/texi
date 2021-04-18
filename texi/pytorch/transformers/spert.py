@@ -642,3 +642,40 @@ class SpERT(nn.Module):
             "entity_logits": entity_logits,
             "relation_logits": relation_logits,
         }
+
+
+def predict(
+    entity_logits: torch.FloatTensor,
+    entity_masks: torch.LongTensor,
+    entity_label_encoder: LabelEncoder,
+    non_entity_index: int,
+    relation_logits: torch.FloatTensor,
+    relation_label_encoder: LabelEncoder,
+    no_relation_index: int,
+    tokenizer: Union[BertTokenizer, BertTokenizerFast],
+):
+    # TODO: 2021-04-18 Reuse `filter_entities`.
+    entity_sample_masks = (entity_masks.sum(dim=-1) > 0).long()
+    entity_labels = entity_logits.argmax(dim=-1)
+    non_entity_masks = (entity_labels == non_entity_index).long()
+    entity_labels.masked_fill_((1 - entity_sample_masks) | non_entity_masks, -1)
+
+    starts = entity_masks.argmax(dim=-1, keepdim=True)
+    ends = entity_masks.sum(dim=-1, keepdim=True) + starts
+    entity_spans = torch.cat((starts, ends), dim=-1)
+    entity_spans = entity_spans.cpu().numpy().tolist()
+
+    entities = [
+        [
+            {
+                "type": entity_label_encoder.decode_label(label),
+                "start": entity_spans[i][j][0],
+                "end": entity_spans[i][j][1],
+            }
+            for j, label in enumerate(labels)
+            if label > 0
+        ]
+        for i, labels in enumerate(entity_labels.detach().cpu().numpy().tolist())
+    ]
+
+    return entities
