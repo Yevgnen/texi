@@ -241,25 +241,25 @@ class TestSpERTDataset(unittest.TestCase):
         )
         self.assertEqual(
             output["entities"][0],
-            {"type": 0, "start": 1, "end": 4},
+            {"label": 0, "start": 1, "end": 4},
         )
         self.assertEqual(
             output["entities"][1],
-            {"type": 1, "start": 6, "end": 7},
+            {"label": 1, "start": 6, "end": 7},
         )
         self.assertEqual(
             output["entities"][2],
-            {"type": 2, "start": 7, "end": 8},
+            {"label": 2, "start": 7, "end": 8},
         )
         self.assertEqual(
             output["entities"][3],
-            {"type": 3, "start": 1, "end": 6},
+            {"label": 3, "start": 1, "end": 6},
         )
 
         self.assertEqual(len(output["relations"]), len(self.relations))
-        self.assertEqual(output["relations"][0], {"type": 0, "head": 0, "tail": 2})
-        self.assertEqual(output["relations"][1], {"type": 1, "head": 1, "tail": 2})
-        self.assertEqual(output["relations"][2], {"type": 1, "head": 2, "tail": 0})
+        self.assertEqual(output["relations"][0], {"label": 0, "head": 0, "tail": 2})
+        self.assertEqual(output["relations"][1], {"label": 1, "head": 1, "tail": 2})
+        self.assertEqual(output["relations"][2], {"label": 1, "head": 2, "tail": 0})
 
 
 if __name__ == "__main__":
