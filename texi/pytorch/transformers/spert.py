@@ -409,7 +409,7 @@ class SpERT(nn.Module):
         embedding_dim: int,
         num_entity_types: int,
         num_relation_types: int,
-        non_entity_index: int,
+        negative_entity_index: int,
         max_entity_length: int = 100,
         dropout: float = 0.2,
     ):
@@ -424,7 +424,7 @@ class SpERT(nn.Module):
         )
         self.num_entity_types = num_entity_types
         self.num_relation_types = num_relation_types
-        self.non_entity_index = non_entity_index
+        self.negative_entity_index = negative_entity_index
         self.max_entity_length = max_entity_length
         self.dropout = nn.Dropout(p=dropout)
 
@@ -557,7 +557,7 @@ class SpERT(nn.Module):
         # entity_labels: [B, E]
         entity_sample_masks = entity_masks.sum(dim=-1) > 0
         entity_labels = entity_logits.argmax(dim=-1)
-        non_entity_masks = entity_labels == self.non_entity_index
+        non_entity_masks = entity_labels == self.negative_entity_index
         entity_labels.masked_fill_(~entity_sample_masks | non_entity_masks, -1)
 
         # entity_spans: [B, E, 2]
@@ -668,17 +668,17 @@ def predict(
     entity_masks: torch.LongTensor,
     entity_token_spans: torch.LongTensor,
     entity_label_encoder: LabelEncoder,
-    non_entity_index: int,
+    negative_entity_index: int,
     relation_logits: torch.FloatTensor,
     relations: torch.LongTensor,
     relation_sample_masks: torch.LongTensor,
     relation_label_encoder: LabelEncoder,
-    no_relation_index: int,
+    negative_relation_index: int,
 ):
     # Predict entities.
     entity_sample_masks = entity_masks.sum(dim=-1) > 0
     entity_labels = entity_logits.argmax(dim=-1)
-    non_entity_masks = entity_labels == non_entity_index
+    non_entity_masks = entity_labels == negative_entity_index
     entity_labels.masked_fill_(~entity_sample_masks | non_entity_masks, -1)
     entity_token_spans = entity_token_spans.cpu().numpy().tolist()
     entities = [
@@ -697,7 +697,7 @@ def predict(
     # Predict relations.
     if relation_logits.size(1) > 0:
         relation_labels = relation_logits.argmax(dim=-1)
-        no_relation_masks = relation_labels == no_relation_index
+        no_relation_masks = relation_labels == negative_relation_index
         relation_labels.masked_fill_(
             ~relation_sample_masks.bool() | no_relation_masks, -1
         )
