@@ -612,7 +612,9 @@ class SpERT(nn.Module):
         ]
 
         relations = torch.stack(relations)
-        relation_context_masks = torch.stack(relation_context_masks)
+        relation_context_masks = torch.stack(relation_context_masks).to(
+            entity_labels.device
+        )
         relation_sample_masks = torch.stack(relation_sample_masks)
 
         return relations, relation_context_masks, relation_sample_masks
