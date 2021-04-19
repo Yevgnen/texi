@@ -362,6 +362,9 @@ class SpERTLoss(nn.Module):
         return entity_loss
 
     def _relation_loss(self, relation_logits, relation_labels, relation_sample_masks):
+        if relation_logits.size(1) == 0:
+            return relation_logits.new_zeros(1)
+
         relation_loss = self.relation_loss(relation_logits, relation_labels.float())
         relation_loss.masked_fill_(relation_sample_masks.unsqueeze(-1) == 0, 0)
         relation_loss = relation_loss.sum() / relation_sample_masks.sum()
@@ -410,6 +413,8 @@ class SpERT(nn.Module):
         self.relation_classifier = nn.Linear(
             2 * embedding_dim + 3 * bert.config.hidden_size, num_relation_types
         )
+        self.num_entity_types = num_entity_types
+        self.num_relation_types = num_relation_types
         self.non_entity_index = non_entity_index
         self.max_entity_length = max_entity_length
         self.dropout = nn.Dropout(p=dropout)
@@ -446,6 +451,9 @@ class SpERT(nn.Module):
         entities,
         entity_sizes,
     ):
+        if relations.size(1) == 0:
+            return relations.new_zeros(*relations.size()[:2], self.num_relation_types)
+
         # relation_contexts: [B, R, L, H] -> [B, R, H]
         relation_contexts = self._masked_hidden_states(
             hidden_states, relation_context_masks
@@ -538,10 +546,10 @@ class SpERT(nn.Module):
         # Non-entiies and padding will have label -1.
 
         # entity_labels: [B, E]
-        entity_sample_masks = (entity_masks.sum(dim=-1) > 0).long()
+        entity_sample_masks = entity_masks.sum(dim=-1) > 0
         entity_labels = entity_logits.argmax(dim=-1)
-        non_entity_masks = (entity_labels == self.non_entity_index).long()
-        entity_labels.masked_fill_((1 - entity_sample_masks) | non_entity_masks, -1)
+        non_entity_masks = entity_labels == self.non_entity_index
+        entity_labels.masked_fill_(~entity_sample_masks | non_entity_masks, -1)
 
         # entity_spans: [B, E, 2]
         starts = entity_masks.argmax(dim=-1, keepdim=True)
@@ -655,10 +663,10 @@ def predict(
     tokenizer: Union[BertTokenizer, BertTokenizerFast],
 ):
     # TODO: 2021-04-18 Reuse `filter_entities`.
-    entity_sample_masks = (entity_masks.sum(dim=-1) > 0).long()
+    entity_sample_masks = entity_masks.sum(dim=-1) > 0
     entity_labels = entity_logits.argmax(dim=-1)
-    non_entity_masks = (entity_labels == non_entity_index).long()
-    entity_labels.masked_fill_((1 - entity_sample_masks) | non_entity_masks, -1)
+    non_entity_masks = entity_labels == non_entity_index
+    entity_labels.masked_fill_(~entity_sample_masks | non_entity_masks, -1)
 
     starts = entity_masks.argmax(dim=-1, keepdim=True)
     ends = entity_masks.sum(dim=-1, keepdim=True) + starts
