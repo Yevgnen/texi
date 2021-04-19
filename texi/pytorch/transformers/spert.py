@@ -468,7 +468,7 @@ class SpERT(nn.Module):
             hidden_states, relation_context_masks
         )
         relation_contexts, _ = relation_contexts.max(dim=-2)
-        relation_contexts.masked_fill_(relation_sample_masks.unsqueeze(dim=-1), 0)
+        relation_contexts.masked_fill_(relation_sample_masks.unsqueeze(dim=-1) == 1, 0)
 
         # entity_pairs: [B, R, 2H]
         batch_size, num_relations, _ = relations.size()
@@ -679,7 +679,9 @@ def predict(
     entity_sample_masks = entity_masks.sum(dim=-1) > 0
     entity_labels = entity_logits.argmax(dim=-1)
     non_entity_masks = entity_labels == negative_entity_index
-    entity_labels.masked_fill_(~entity_sample_masks | non_entity_masks, -1)
+    entity_labels = entity_labels.masked_fill(
+        ~entity_sample_masks | non_entity_masks, -1
+    ).long()
     entity_token_spans = entity_token_spans.cpu().numpy().tolist()
     entities = [
         {
@@ -698,9 +700,9 @@ def predict(
     if relation_logits.size(1) > 0:
         relation_labels = relation_logits.argmax(dim=-1)
         no_relation_masks = relation_labels == negative_relation_index
-        relation_labels.masked_fill_(
+        relation_labels = relation_labels.masked_fill(
             ~relation_sample_masks.bool() | no_relation_masks, -1
-        )
+        ).long()
         relations = relations.detach().cpu().numpy().tolist()
         relations = [
             [
@@ -712,7 +714,9 @@ def predict(
                 for j, label in enumerate(labels)
                 if label >= 0
             ]
-            for i, (labels, args) in enumerate(zip(relation_labels, entities))
+            for i, (labels, args) in enumerate(
+                zip(relation_labels.detach().cpu().numpy().tolist(), entities)
+            )
         ]
     else:
         relations = [[] for _ in range(len(relations))]
