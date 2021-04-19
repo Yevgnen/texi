@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import itertools
 import random
-from typing import TYPE_CHECKING, Dict, Iterable, List, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Mapping, Optional, Union
 
 import torch
 import torch.nn as nn
@@ -665,6 +665,27 @@ class SpERT(nn.Module):
         }
 
 
+def decode_entities(
+    entity_labels: torch.LongTensor,
+    entity_token_spans: torch.LongTensor,
+    entity_label_encoder: LabelEncoder,
+) -> List[Dict[int, Dict[str, Any]]]:
+    entities = [
+        {
+            j: {
+                "type": entity_label_encoder.decode_label(label),
+                "start": entity_token_spans[i][j][0],
+                "end": entity_token_spans[i][j][1],
+            }
+            for j, label in enumerate(labels)
+            if label >= 0
+        }
+        for i, labels in enumerate(entity_labels.detach().cpu().numpy().tolist())
+    ]
+
+    return entities
+
+
 def predict(
     entity_logits: torch.FloatTensor,
     entity_masks: torch.LongTensor,
@@ -685,18 +706,8 @@ def predict(
         ~entity_sample_masks | non_entity_masks, -1
     ).long()
     entity_token_spans = entity_token_spans.cpu().numpy().tolist()
-    entities = [
-        {
-            j: {
-                "type": entity_label_encoder.decode_label(label),
-                "start": entity_token_spans[i][j][0],
-                "end": entity_token_spans[i][j][1],
-            }
-            for j, label in enumerate(labels)
-            if label >= 0
-        }
-        for i, labels in enumerate(entity_labels.detach().cpu().numpy().tolist())
-    ]
+
+    entities = decode_entities(entity_labels, entity_token_spans, entity_label_encoder)
 
     # Predict relations.
     if relation_logits.size(1) > 0:
