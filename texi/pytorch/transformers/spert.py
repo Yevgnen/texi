@@ -681,7 +681,7 @@ def predict(
                 "end": entity_spans[i][j][1],
             }
             for j, label in enumerate(labels)
-            if label > 0
+            if label >= 0
         ]
         for i, labels in enumerate(entity_labels.detach().cpu().numpy().tolist())
     ]
