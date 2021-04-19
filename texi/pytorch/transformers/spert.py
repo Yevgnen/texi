@@ -142,9 +142,9 @@ class SpERTDataset(Dataset):
                     "start": start,
                     "end": end,
                     "label": self.entity_label_encoder.encode_label(entity["type"]),
+                    "token_span": [entity["start"], entity["end"]],
                 }
             ]
-
             entity_indices[(entity["start"], entity["end"])] = i
 
         return encoded_entities, entity_indices
@@ -203,7 +203,7 @@ class SpERTDataset(Dataset):
         return self.encode_example(example, entities, relations)
 
     def _collate_entities(self, collated):
-        entity_masks, entity_labels = [], []
+        entity_masks, entity_labels, entity_token_spans = [], [], []
         max_length, max_entities = 0, 0
         for i, entities in enumerate(collated["entities"]):
             assert len(entities) > 0, "There must be at least 1 negative entity."
@@ -216,6 +216,9 @@ class SpERTDataset(Dataset):
 
             labels = torch.tensor(entities["label"], dtype=torch.int64)
             entity_labels += [labels]
+
+            token_spans = torch.tensor(entities["token_span"], dtype=torch.int64)
+            entity_token_spans += [token_spans]
 
             max_entities = max(max_entities, masks.size(0))
             max_length = max(max_length, masks.size(1))
@@ -230,15 +233,21 @@ class SpERTDataset(Dataset):
             torch.nn.functional.pad(x, [0, max_entities - len(x)])
             for x in entity_labels
         ]
+        entity_token_spans = [
+            torch.nn.functional.pad(x, [0, 0, 0, max_entities - len(x)])
+            for x in entity_token_spans
+        ]
 
         entity_masks = torch.stack(entity_masks)
         entity_labels = torch.stack(entity_labels)
         entity_sample_masks = (entity_masks.sum(dim=-1) > 0).long()
+        entity_token_spans = torch.stack(entity_token_spans)
 
         return {
             "entity_masks": entity_masks,
             "entity_labels": entity_labels,
             "entity_sample_masks": entity_sample_masks,
+            "entity_token_spans": entity_token_spans,
         }
 
     def _collate_relations(self, collated):
@@ -655,6 +664,7 @@ class SpERT(nn.Module):
 def predict(
     entity_logits: torch.FloatTensor,
     entity_masks: torch.LongTensor,
+    entity_token_spans: torch.LongTensor,
     entity_label_encoder: LabelEncoder,
     non_entity_index: int,
     relation_logits: torch.FloatTensor,
@@ -668,17 +678,14 @@ def predict(
     non_entity_masks = entity_labels == non_entity_index
     entity_labels.masked_fill_(~entity_sample_masks | non_entity_masks, -1)
 
-    starts = entity_masks.argmax(dim=-1, keepdim=True)
-    ends = entity_masks.sum(dim=-1, keepdim=True) + starts
-    entity_spans = torch.cat((starts, ends), dim=-1)
-    entity_spans = entity_spans.cpu().numpy().tolist()
+    entity_token_spans = entity_token_spans.cpu().numpy().tolist()
 
     entities = [
         [
             {
                 "type": entity_label_encoder.decode_label(label),
-                "start": entity_spans[i][j][0],
-                "end": entity_spans[i][j][1],
+                "start": entity_token_spans[i][j][0],
+                "end": entity_token_spans[i][j][1],
             }
             for j, label in enumerate(labels)
             if label >= 0
