@@ -574,7 +574,7 @@ class SpERT(nn.Module):
             pairs, context_starts, context_ends = [], [], []
             indices = entity_labels.new_tensor(range(len(labels)))
             for head, tail in torch.cartesian_prod(indices, indices):
-                if labels[head] > 0 and labels[tail] > 0 and head != tail:
+                if labels[head] >= 0 and labels[tail] >= 0 and head != tail:
                     head_start, head_end = entity_spans[i][head]
                     tail_start, tail_end = entity_spans[i][tail]
 
@@ -658,6 +658,8 @@ class SpERT(nn.Module):
         return {
             "entity_logits": entity_logits,
             "relation_logits": relation_logits,
+            "relations": relations,
+            "relation_sample_masks": relation_sample_masks,
         }
 
 
@@ -668,29 +670,53 @@ def predict(
     entity_label_encoder: LabelEncoder,
     non_entity_index: int,
     relation_logits: torch.FloatTensor,
+    relations: torch.LongTensor,
+    relation_sample_masks: torch.LongTensor,
     relation_label_encoder: LabelEncoder,
     no_relation_index: int,
-    tokenizer: Union[BertTokenizer, BertTokenizerFast],
 ):
-    # TODO: 2021-04-18 Reuse `filter_entities`.
+    # Predict entities.
     entity_sample_masks = entity_masks.sum(dim=-1) > 0
     entity_labels = entity_logits.argmax(dim=-1)
     non_entity_masks = entity_labels == non_entity_index
     entity_labels.masked_fill_(~entity_sample_masks | non_entity_masks, -1)
-
     entity_token_spans = entity_token_spans.cpu().numpy().tolist()
-
     entities = [
-        [
-            {
+        {
+            j: {
                 "type": entity_label_encoder.decode_label(label),
                 "start": entity_token_spans[i][j][0],
                 "end": entity_token_spans[i][j][1],
             }
             for j, label in enumerate(labels)
             if label >= 0
-        ]
+        }
         for i, labels in enumerate(entity_labels.detach().cpu().numpy().tolist())
     ]
 
-    return entities
+    # Predict relations.
+    if relation_logits.size(1) > 0:
+        relation_labels = relation_logits.argmax(dim=-1)
+        no_relation_masks = relation_labels == no_relation_index
+        relation_labels.masked_fill_(
+            ~relation_sample_masks.bool() | no_relation_masks, -1
+        )
+        relations = relations.detach().cpu().numpy().tolist()
+        relations = [
+            [
+                {
+                    "type": relation_label_encoder.decode_label(label),
+                    "arg1": args[relations[i][j][0]],
+                    "arg2": args[relations[i][j][1]],
+                }
+                for j, label in enumerate(labels)
+                if label >= 0
+            ]
+            for i, (labels, args) in enumerate(zip(relation_labels, entities))
+        ]
+    else:
+        relations = [[] for _ in range(len(relations))]
+
+    entities = [sorted(x.values(), key=lambda x: x["start"]) for x in entities]
+
+    return list(zip(entities, relations))
