@@ -6,17 +6,15 @@ import dataclasses
 from typing import TYPE_CHECKING, List, Optional
 
 if TYPE_CHECKING:
-    from pybrat.parser import Entity as PyBratEntity
     from pybrat.parser import Example
-    from pybrat.parser import Relation as PyBratRelation
 
 
 @dataclasses.dataclass
 class Token(object):
-    index: int
     start: int
     end: int
     phrase: str
+    index: Optional[int] = None
     id: Optional[str] = None
 
     def as_dict(self):
@@ -74,6 +72,7 @@ class Entity(object):
     type: EntityType
     token_span: TokenSpan
     phrase: str
+    index: Optional[int] = None
     id: Optional[str] = None
 
     @property
@@ -93,28 +92,9 @@ class Entity(object):
             "type": str(self.type),
             "token_span": self.token_span.as_dict(),
             "phrase": self.phrase,
+            "index": self.index,
             "id": self.id,
         }
-
-    @classmethod
-    def from_pybrat(cls, entity: PyBratEntity):
-        tokens = [
-            Token(
-                index=entity.start + i,
-                start=entity.start + i,
-                end=entity.start + i + 1,
-                phrase=char,
-            )
-            for i, char in enumerate(entity.mention)
-        ]
-        token_span = TokenSpan(tokens=tokens)
-
-        return cls(
-            type=EntityType(name=entity.type),
-            token_span=token_span,
-            phrase=entity.mention,
-            id=entity.id,
-        )
 
 
 @dataclasses.dataclass
@@ -130,6 +110,7 @@ class Relation(object):
     type: RelationType
     head: Entity
     tail: Entity
+    index: Optional[int] = None
     id: Optional[str] = None
 
     def as_dict(self):
@@ -139,15 +120,6 @@ class Relation(object):
             "tail": self.tail.as_dict(),
             "id": self.id,
         }
-
-    @classmethod
-    def from_pybrat(cls, relation: PyBratRelation):
-        head = Entity.from_pybrat(relation.arg1)
-        tail = Entity.from_pybrat(relation.arg2)
-
-        return cls(
-            type=RelationType(name=relation.type), head=head, tail=tail, id=relation.id
-        )
 
 
 @dataclasses.dataclass
@@ -171,13 +143,40 @@ class Document(object):
         return len(self.tokens)
 
     @classmethod
-    def from_pybrat(cls, example: Example):
+    def from_pybrat(
+        cls, example: Example, sort_entities: bool = True, sort_relations: bool = True
+    ):
         tokens = [
             Token(index=i, start=i, end=i + 1, phrase=char)
             for i, char in enumerate(example.text)
         ]
-        entities = [Entity.from_pybrat(x) for x in example.entities]
-        relations = [Relation.from_pybrat(x) for x in example.relations]
+        entity_map = {
+            x.id: Entity(
+                type=EntityType(name=x.type),
+                token_span=TokenSpan(tokens=tokens[x.start : x.end]),
+                phrase=x.mention,
+                index=i,
+                id=x.id,
+            )
+            for i, x in enumerate(example.entities)
+        }
+        relations = [
+            Relation(
+                type=RelationType(name=x.type),
+                head=entity_map[x.arg1.id],
+                tail=entity_map[x.arg2.id],
+                index=i,
+                id=x.id,
+            )
+            for i, x in enumerate(example.relations)
+        ]
+
+        entities = list(entity_map.values())
+        if sort_entities:
+            entities.sort(key=lambda x: x.start)
+
+        if sort_relations:
+            relations.sort(key=lambda x: (x.head.start, x.tail.start))
 
         return cls(
             tokens=tokens,
