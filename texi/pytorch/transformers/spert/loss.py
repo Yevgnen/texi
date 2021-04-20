@@ -5,8 +5,14 @@ import torch.nn as nn
 
 
 class SpERTLoss(nn.Module):
-    def __init__(self):
+    def __init__(
+        self, entity_loss_weight: float = 1.0, relation_loss_weight: float = 1.0
+    ):
         super().__init__()
+        total_weight = entity_loss_weight + relation_loss_weight
+        self.entity_loss_weight = entity_loss_weight / total_weight
+        self.relation_loss_weight = relation_loss_weight / total_weight
+
         self.entity_loss = nn.CrossEntropyLoss(reduction="none")
         self.relation_loss = nn.BCEWithLogitsLoss(reduction="none")
 
@@ -40,10 +46,12 @@ class SpERTLoss(nn.Module):
         entity_loss = self._entity_loss(
             entity_logits, entity_labels, entity_sample_masks
         )
+        entity_loss *= self.entity_loss_weight
 
         relation_loss = self._relation_loss(
             relation_logits, relation_labels, relation_sample_masks
         )
+        relation_loss *= self.relation_loss_weight
 
         loss = entity_loss + relation_loss
 
