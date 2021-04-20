@@ -131,17 +131,17 @@ class SpERTDataset(Dataset):
             entities = collate(entities)
 
             num_tokens = len(collated["output"][i]["input_ids"])
-            masks = create_span_mask(entities["start"], entities["end"], num_tokens)
-            entity_masks += [masks]
+            mask = create_span_mask(entities["start"], entities["end"], num_tokens)
+            entity_masks += [mask]
 
-            labels = torch.tensor(entities["label"], dtype=torch.int64)
-            entity_labels += [labels]
+            label = torch.tensor(entities["label"], dtype=torch.int64)
+            entity_labels += [label]
 
-            token_spans = torch.tensor(entities["token_span"], dtype=torch.int64)
-            entity_token_spans += [token_spans]
+            token_span = torch.tensor(entities["token_span"], dtype=torch.int64)
+            entity_token_spans += [token_span]
 
-            max_entities = max(max_entities, masks.size(0))
-            max_length = max(max_length, masks.size(1))
+            max_entities = max(max_entities, mask.size(0))
+            max_length = max(max_length, mask.size(1))
 
         entity_masks = [
             torch.nn.functional.pad(
@@ -158,20 +158,20 @@ class SpERTDataset(Dataset):
             for x in entity_token_spans
         ]
 
-        entity_masks = torch.stack(entity_masks)
-        entity_labels = torch.stack(entity_labels)
-        entity_sample_masks = (entity_masks.sum(dim=-1) > 0).long()
-        entity_token_spans = torch.stack(entity_token_spans)
+        entity_mask = torch.stack(entity_masks)
+        entity_label = torch.stack(entity_labels)
+        entity_sample_mask = (entity_mask.sum(dim=-1) > 0).long()
+        entity_token_span = torch.stack(entity_token_spans)
 
         return {
-            "entity_masks": entity_masks,
-            "entity_labels": entity_labels,
-            "entity_sample_masks": entity_sample_masks,
-            "entity_token_spans": entity_token_spans,
+            "entity_mask": entity_mask,
+            "entity_label": entity_label,
+            "entity_sample_mask": entity_sample_mask,
+            "entity_token_span": entity_token_span,
         }
 
     def _collate_relations(self, collated):
-        def _create_context_masks(heads, tails, entity_spans, length):
+        def _create_context_mask(heads, tails, entity_spans, length):
             head_starts, head_ends = zip(*[entity_spans[x] for x in heads])
             tail_starts, tail_ends = zip(*[entity_spans[x] for x in tails])
             starts, ends = [], []
@@ -194,30 +194,30 @@ class SpERTDataset(Dataset):
             num_tokens = len(output["input_ids"])
             if len(relations) > 0:
                 relations = collate(relations)
-                heads = torch.tensor(relations["head"], dtype=torch.int64)
-                tails = torch.tensor(relations["tail"], dtype=torch.int64)
+                head = torch.tensor(relations["head"], dtype=torch.int64)
+                tail = torch.tensor(relations["tail"], dtype=torch.int64)
                 entity_spans = {
                     i: (x["start"], x["end"]) for i, x in enumerate(entities)
                 }
-                masks = _create_context_masks(
+                mask = _create_context_mask(
                     relations["head"], relations["tail"], entity_spans, num_tokens
                 )
-                args = torch.stack([heads, tails], dim=1)
-                labels = torch.nn.functional.one_hot(
+                arg = torch.stack([head, tail], dim=1)
+                label = torch.nn.functional.one_hot(
                     torch.tensor(relations["label"]), len(self.relation_label_encoder)
                 )
             else:
-                args = torch.zeros((0, 2), dtype=torch.int64)
-                masks = torch.zeros((0, num_tokens), dtype=torch.int64)
-                labels = torch.zeros(
+                arg = torch.zeros((0, 2), dtype=torch.int64)
+                mask = torch.zeros((0, num_tokens), dtype=torch.int64)
+                label = torch.zeros(
                     (0, len(self.relation_label_encoder)), dtype=torch.int64
                 )
 
-            relation_args += [args]
-            relation_context_masks += [masks]
-            relation_labels += [labels]
+            relation_args += [arg]
+            relation_context_masks += [mask]
+            relation_labels += [label]
 
-            max_relations = max(max_relations, args.size(0))
+            max_relations = max(max_relations, arg.size(0))
             max_length = max(max_length, num_tokens)
         relation_sample_masks = [
             torch.ones(len(x), dtype=torch.int64) for x in relation_labels
@@ -242,23 +242,25 @@ class SpERTDataset(Dataset):
             for x in relation_sample_masks
         ]
 
-        relation_args = torch.stack(relation_args)
-        relation_context_masks = torch.stack(relation_context_masks)
-        relation_labels = torch.stack(relation_labels)
-        relation_sample_masks = torch.stack(relation_sample_masks)
+        relation_arg = torch.stack(relation_args)
+        relation_context_mask = torch.stack(relation_context_masks)
+        relation_label = torch.stack(relation_labels)
+        relation_sample_mask = torch.stack(relation_sample_masks)
 
         return {
-            "relations": relation_args,
-            "relation_context_masks": relation_context_masks,
-            "relation_labels": relation_labels,
-            "relation_sample_masks": relation_sample_masks,
+            "relation": relation_arg,
+            "relation_context_mask": relation_context_mask,
+            "relation_label": relation_label,
+            "relation_sample_mask": relation_sample_mask,
         }
 
-    def collate(self, batch: Dict) -> Dict:
-        batch = [self.encode(x) for x in batch]
-        collated = collate(batch)
+    def collate(self, batch: Dict) -> Dict[str, torch.Tensor]:
+        encoded_batch = [self.encode(x) for x in batch]
+        collated = collate(encoded_batch)
+
         entities = self._collate_entities(collated)
         relations = self._collate_relations(collated)
+
         output = collate(collated["output"])
         max_length = max(len(x) for x in output["input_ids"])
         output = {

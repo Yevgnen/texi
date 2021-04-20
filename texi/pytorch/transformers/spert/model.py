@@ -40,159 +40,159 @@ class SpERT(nn.Module):
         self.max_entity_length = max_entity_length
         self.dropout = nn.Dropout(p=dropout)
 
-    def _masked_hidden_states(self, hidden_states, masks):
+    def _mask_hidden_states(self, last_hidden_state, mask):
         # pylint: disable=no-self-use
 
-        masks = masks.unsqueeze(dim=-1)
-        masked = hidden_states.unsqueeze(dim=1) * masks
-        masked.masked_fill_(masks == 0, -1e20)
+        mask = mask.unsqueeze(dim=-1)
+        masked = last_hidden_state.unsqueeze(dim=1) * mask
+        masked.masked_fill_(mask == 0, -1e20)
 
         return masked
 
-    def _classify_entities(self, hidden_states, context, entity_masks, entity_sizes):
-        # entities: [B, E, L, H] -> [B, E, H]
-        entities = self._masked_hidden_states(hidden_states, entity_masks)
-        entities, _ = entities.max(dim=-2)
+    def _classify_entities(self, last_hidden_state, context, entity_mask, entity_size):
+        # entity: [B, E, L, H] -> [B, E, H]
+        entity = self._mask_hidden_states(last_hidden_state, entity_mask)
+        entity, _ = entity.max(dim=-2)
 
-        # entity_reprs: [B, E, 2H + D]
-        context = context.unsqueeze(dim=1).repeat(1, entities.size(1), 1)
-        entity_reprs = torch.cat([entities, context, entity_sizes], dim=-1)
-        entity_reprs = self.dropout(entity_reprs)
+        # entity_repr: [B, E, 2H + D]
+        context = context.unsqueeze(dim=1).repeat(1, entity.size(1), 1)
+        entity_repr = torch.cat([entity, context, entity_size], dim=-1)
+        entity_repr = self.dropout(entity_repr)
 
-        # entity_logits: [B, E, NE]
-        entity_logits = self.span_classifier(entity_reprs)
+        # entity_logit: [B, E, NE]
+        entity_logit = self.span_classifier(entity_repr)
 
-        return entity_logits, entities
+        return entity_logit, entity
 
     def _classify_relations(
         self,
-        hidden_states,
-        relations,
-        relation_context_masks,
-        relation_sample_masks,
-        entities,
-        entity_sizes,
+        last_hidden_state,
+        relation,
+        relation_context_mask,
+        relation_sample_mask,
+        entity,
+        entity_size,
     ):
-        if relations.size(1) == 0:
-            return relations.new_zeros(*relations.size()[:2], self.num_relation_types)
+        if relation.size(1) == 0:
+            return relation.new_zeros(*relation.size()[:2], self.num_relation_types)
 
-        # relation_contexts: [B, R, L, H] -> [B, R, H]
-        relation_contexts = self._masked_hidden_states(
-            hidden_states, relation_context_masks
+        # relation_context: [B, R, L, H] -> [B, R, H]
+        relation_context = self._mask_hidden_states(
+            last_hidden_state, relation_context_mask
         )
-        relation_contexts, _ = relation_contexts.max(dim=-2)
-        relation_contexts.masked_fill_(relation_sample_masks.unsqueeze(dim=-1) == 1, 0)
+        relation_context, _ = relation_context.max(dim=-2)
+        relation_context.masked_fill_(relation_sample_mask.unsqueeze(dim=-1) == 1, 0)
 
-        # entity_pairs: [B, R, 2H]
-        batch_size, num_relations, _ = relations.size()
-        entity_pairs = entities[
-            torch.arange(batch_size).unsqueeze(dim=-1), relations.view(batch_size, -1)
+        # entity_pair: [B, R, 2H]
+        batch_size, num_relations, _ = relation.size()
+        entity_pair = entity[
+            torch.arange(batch_size).unsqueeze(dim=-1), relation.view(batch_size, -1)
         ].view(batch_size, num_relations, -1)
 
-        # entity_pair_sizes: [B, R, 2E]
-        entity_pair_sizes = entity_sizes[
-            torch.arange(batch_size).unsqueeze(dim=-1), relations.view(batch_size, -1)
+        # entity_pair_size: [B, R, 2E]
+        entity_pair_size = entity_size[
+            torch.arange(batch_size).unsqueeze(dim=-1), relation.view(batch_size, -1)
         ].view(batch_size, num_relations, -1)
 
-        # relation_reprs: [B, R, 2E + 3H]
-        relation_reprs = torch.cat(
-            [relation_contexts, entity_pairs, entity_pair_sizes], dim=-1
+        # relation_repr: [B, R, 2E + 3H]
+        relation_repr = torch.cat(
+            [relation_context, entity_pair, entity_pair_size], dim=-1
         )
-        relation_reprs = self.dropout(relation_reprs)
+        relation_repr = self.dropout(relation_repr)
 
-        # relation_logits: [B, R, NR]
-        relation_logits = self.relation_classifier(relation_reprs)
+        # relation_logit: [B, R, NR]
+        relation_logit = self.relation_classifier(relation_repr)
 
-        return relation_logits
+        return relation_logit
 
     def _forward_entity(
         self,
         input_ids,
         attention_mask,
         token_type_ids,
-        entity_masks,
+        entity_mask,
     ):
-        # hidden_states: [B, L, H]
-        bert_outputs = self.bert(
+        # last_hidden_state: [B, L, H]
+        bert_output = self.bert(
             input_ids=input_ids,
             attention_mask=attention_mask,
             token_type_ids=token_type_ids,
         )
-        hidden_states = bert_outputs.last_hidden_state
+        last_hidden_state = bert_output.last_hidden_state
 
         # context: [B, H]
-        context = cls_pooling(bert_outputs, attention_mask)
+        context = cls_pooling(bert_output, attention_mask)
 
-        # entity_sizes: [B, E, D]
-        entity_sizes = self.size_embedding(entity_masks.sum(-1))
+        # entity_size: [B, E, D]
+        entity_size = self.size_embedding(entity_mask.sum(-1))
 
-        # entity_logits: [B, E, NE]
-        # entities: [B, E, H]
-        entity_logits, entities = self._classify_entities(
-            hidden_states, context, entity_masks, entity_sizes
+        # entity_logit: [B, E, NE]
+        # entity: [B, E, H]
+        entity_logit, entity = self._classify_entities(
+            last_hidden_state, context, entity_mask, entity_size
         )
 
-        return hidden_states, entity_logits, entities, entity_sizes
+        return last_hidden_state, entity_logit, entity, entity_size
 
     def forward(
         self,
         input_ids: torch.LongTensor,  # [B, L]
         attention_mask: torch.LongTensor,  # [B, L]
         token_type_ids: torch.LongTensor,  # [B, L]
-        entity_masks: torch.LongTensor,  # [B, E, L]
+        entity_mask: torch.LongTensor,  # [B, E, L]
         relations: torch.LongTensor,  # [B, R, 2]
-        relation_context_masks: torch.LongTensor,  # [B, R, L]
-        relation_sample_masks: torch.LongTensor,  # [B, R]
+        relation_context_mask: torch.LongTensor,  # [B, R, L]
+        relation_sample_mask: torch.LongTensor,  # [B, R]
     ) -> Dict[str, torch.FloatTensor]:
-        # hidden_states: [B, L, H]
-        # entity_logits: [B, E, NE]
-        # entities: [B, E, H]
-        # entity_sizes: [B, E, D]
-        hidden_states, entity_logits, entities, entity_sizes = self._forward_entity(
-            input_ids, attention_mask, token_type_ids, entity_masks
+        # last_hidden_state: [B, L, H]
+        # entity_logit: [B, E, NE]
+        # entity: [B, E, H]
+        # entity_size: [B, E, D]
+        last_hidden_state, entity_logit, entity, entity_size = self._forward_entity(
+            input_ids, attention_mask, token_type_ids, entity_mask
         )
 
-        # relation_logits: [B, R, NR]
-        relation_logits = self._classify_relations(
-            hidden_states,
+        # relation_logit: [B, R, NR]
+        relation_logit = self._classify_relations(
+            last_hidden_state,
             relations,
-            relation_context_masks,
-            relation_sample_masks,
-            entities,
-            entity_sizes,
+            relation_context_mask,
+            relation_sample_mask,
+            entity,
+            entity_size,
         )
 
         return {
-            "entity_logits": entity_logits,
-            "relation_logits": relation_logits,
+            "entity_logit": entity_logit,
+            "relation_logit": relation_logit,
         }
 
-    def _filter_entities(self, entity_logits, entity_masks):
+    def _filter_entities(self, entity_logit, entity_mask):
         # Non-entiies and padding will have label -1.
 
-        # entity_labels: [B, E]
-        entity_sample_masks = entity_masks.sum(dim=-1) > 0
-        entity_labels = entity_logits.argmax(dim=-1)
-        non_entity_masks = entity_labels == self.negative_entity_index
-        entity_labels.masked_fill_(~entity_sample_masks | non_entity_masks, -1)
+        # entity_label: [B, E]
+        entity_sample_mask = entity_mask.sum(dim=-1) > 0
+        entity_label = entity_logit.argmax(dim=-1)
+        negative_entity_mask = entity_label == self.negative_entity_index
+        entity_label.masked_fill_(~entity_sample_mask | negative_entity_mask, -1)
 
-        # entity_spans: [B, E, 2]
-        starts = entity_masks.argmax(dim=-1, keepdim=True)
-        ends = entity_masks.sum(dim=-1, keepdim=True) + starts
-        entity_spans = torch.cat((starts, ends), dim=-1)
+        # entity_span: [B, E, 2]
+        start = entity_mask.argmax(dim=-1, keepdim=True)
+        end = entity_mask.sum(dim=-1, keepdim=True) + start
+        entity_span = torch.cat((start, end), dim=-1)
 
-        return entity_labels, entity_spans
+        return entity_label, entity_span
 
-    def _filter_relations(self, entity_labels, entity_spans, max_length):
+    def _filter_relations(self, entity_label, entity_span, max_length):
         relations, relation_context_masks, relation_sample_masks = [], [], []
         max_relations = 0
-        for i, labels in enumerate(entity_labels):
+        for i, labels in enumerate(entity_label):
             pairs, context_starts, context_ends = [], [], []
-            indices = entity_labels.new_tensor(range(len(labels)))
+            indices = entity_label.new_tensor(range(len(labels)))
             for head, tail in torch.cartesian_prod(indices, indices):
                 if labels[head] >= 0 and labels[tail] >= 0 and head != tail:
-                    head_start, head_end = entity_spans[i][head]
-                    tail_start, tail_end = entity_spans[i][tail]
+                    head_start, head_end = entity_span[i][head]
+                    tail_start, tail_end = entity_span[i][tail]
 
                     # Ignore relations of overlapped entities.
                     if head_start >= tail_end or tail_start >= head_end:
@@ -209,14 +209,14 @@ class SpERT(nn.Module):
                     context_starts,
                     context_ends,
                     max_length,
-                    device=entity_labels.device,
+                    device=entity_label.device,
                 )
             ]
-            relation_sample_masks += [entity_labels.new_ones(len(pairs))]
+            relation_sample_masks += [entity_label.new_ones(len(pairs))]
             if len(pairs) > 0:
-                relations += [entity_labels.new_tensor(pairs)]
+                relations += [entity_label.new_tensor(pairs)]
             else:
-                relations += [entity_labels.new_zeros((0, 2))]
+                relations += [entity_label.new_zeros((0, 2))]
             max_relations = max(max_relations, len(pairs))
 
         relations = [
@@ -232,53 +232,53 @@ class SpERT(nn.Module):
             for x in relation_sample_masks
         ]
 
-        relations = torch.stack(relations)
-        relation_context_masks = torch.stack(relation_context_masks)
-        relation_sample_masks = torch.stack(relation_sample_masks)
+        relation = torch.stack(relations)
+        relation_context_mask = torch.stack(relation_context_masks)
+        relation_sample_mask = torch.stack(relation_sample_masks)
 
-        return relations, relation_context_masks, relation_sample_masks
+        return relation, relation_context_mask, relation_sample_mask
 
     def infer(
         self,
         input_ids: torch.LongTensor,  # [B, L]
         attention_mask: torch.LongTensor,  # [B, L]
         token_type_ids: torch.LongTensor,  # [B, L]
-        entity_masks: torch.LongTensor,  # [B, E, L]
+        entity_mask: torch.LongTensor,  # [B, E, L]
     ) -> Dict[str, torch.Tensor]:
-        # hidden_states: [B, L, H]
-        # entity_logits: [B, E, NE]
-        # entities: [B, E, H]
-        # entity_sizes: [B, E, D]
-        hidden_states, entity_logits, entities, entity_sizes = self._forward_entity(
-            input_ids, attention_mask, token_type_ids, entity_masks
+        # last_hidden_state: [B, L, H]
+        # entity_logit: [B, E, NE]
+        # entity: [B, E, H]
+        # entity_size: [B, E, D]
+        last_hidden_state, entity_logit, entity, entity_size = self._forward_entity(
+            input_ids, attention_mask, token_type_ids, entity_mask
         )
 
-        # entity_labels: [B, E]
-        # entity_spans: [B, E, 2]
-        entity_labels, entity_spans = self._filter_entities(entity_logits, entity_masks)
+        # entity_label: [B, E]
+        # entity_span: [B, E, 2]
+        entity_label, entity_span = self._filter_entities(entity_logit, entity_mask)
 
-        # relations: [B, R, 2]
-        # relation_context_masks: [B, R, L]
-        # relation_sample_masks: [B, R]
+        # relation: [B, R, 2]
+        # relation_context_mask: [B, R, L]
+        # relation_sample_mask: [B, R]
         (
-            relations,
-            relation_context_masks,
-            relation_sample_masks,
-        ) = self._filter_relations(entity_labels, entity_spans, input_ids.size(1))
+            relation,
+            relation_context_mask,
+            relation_sample_mask,
+        ) = self._filter_relations(entity_label, entity_span, input_ids.size(1))
 
-        # relation_logits: [B, R, NR]
-        relation_logits = self._classify_relations(
-            hidden_states,
-            relations,
-            relation_context_masks,
-            relation_sample_masks,
-            entities,
-            entity_sizes,
+        # relation_logit: [B, R, NR]
+        relation_logit = self._classify_relations(
+            last_hidden_state,
+            relation,
+            relation_context_mask,
+            relation_sample_mask,
+            entity,
+            entity_size,
         )
 
         return {
-            "entity_logits": entity_logits,
-            "relation_logits": relation_logits,
-            "relations": relations,
-            "relation_sample_masks": relation_sample_masks,
+            "entity_logit": entity_logit,
+            "relation_logit": relation_logit,
+            "relation": relation,
+            "relation_sample_mask": relation_sample_mask,
         }

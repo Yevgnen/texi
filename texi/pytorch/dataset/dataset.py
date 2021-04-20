@@ -21,7 +21,7 @@ from texi.pytorch.utils import get_sampler
 
 T = TypeVar("T", bound="Dataset")
 S = TypeVar("S")
-Batch = Tuple[Dict[str, torch.Tensor], torch.Tensor]
+Batch = Union[Tuple[Dict[str, torch.Tensor], torch.Tensor], Dict[str, torch.Tensor]]
 Texts = Union[Iterable[str], str]
 
 
