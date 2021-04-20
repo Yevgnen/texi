@@ -677,11 +677,18 @@ class SpERT(nn.Module):
 
 def decode_entities(
     entity_labels: torch.LongTensor,
+    entity_sample_masks: torch.LongTensor,
     entity_token_spans: torch.LongTensor,
     entity_label_encoder: LabelEncoder,
     negative_entity_index: int,
     filter_negatives: bool = True,
 ) -> List[Dict[int, Dict[str, Any]]]:
+    non_entity_masks = entity_labels == negative_entity_index
+    entity_labels = entity_labels.masked_fill(
+        ~entity_sample_masks | non_entity_masks, -1
+    ).long()
+    entity_token_spans = entity_token_spans.cpu().numpy().tolist()
+
     entities = [
         [
             {
@@ -703,11 +710,17 @@ def decode_entities(
 def decode_relations(
     relation_labels: torch.LongTensor,
     relations: torch.LongTensor,
+    relation_sample_masks: torch.LongTensor,
     relation_label_encoder: LabelEncoder,
     negative_relation_index: int,
     entities: List[Dict[int, Dict[str, Any]]],
     filter_negatives: bool = True,
 ) -> List[Dict[str, Any]]:
+    no_relation_masks = relation_labels == negative_relation_index
+    relation_labels = relation_labels.masked_fill(
+        ~relation_sample_masks.bool() | no_relation_masks, -1
+    ).long()
+
     if relations.size(1) > 0:
         relations = relations.detach().cpu().numpy().tolist()
         relations = [
@@ -743,15 +756,11 @@ def predict_entities(
     # Predict entity labels.
     entity_sample_masks = entity_masks.sum(dim=-1) > 0
     entity_labels = entity_logits.argmax(dim=-1)
-    non_entity_masks = entity_labels == negative_entity_index
-    entity_labels = entity_labels.masked_fill(
-        ~entity_sample_masks | non_entity_masks, -1
-    ).long()
-    entity_token_spans = entity_token_spans.cpu().numpy().tolist()
 
     # Decode entities.
     entity_predictions = decode_entities(
         entity_labels,
+        entity_sample_masks,
         entity_token_spans,
         entity_label_encoder,
         negative_entity_index,
@@ -773,15 +782,12 @@ def predict_relations(
     if relation_logits.size(1) > 0:
         # Predict relation labels.
         relation_labels = relation_logits.argmax(dim=-1)
-        no_relation_masks = relation_labels == negative_relation_index
-        relation_labels = relation_labels.masked_fill(
-            ~relation_sample_masks.bool() | no_relation_masks, -1
-        ).long()
 
         # Decode relations.
         relation_predictions = decode_relations(
             relation_labels,
             relations,
+            relation_sample_masks,
             relation_label_encoder,
             negative_relation_index,
             entity_predictions,
