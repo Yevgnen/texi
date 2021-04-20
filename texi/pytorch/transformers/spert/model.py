@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Dict
 import torch
 import torch.nn as nn
 
+from texi.pytorch.transformers.pooling import cls_pooling
 from texi.pytorch.transformers.spert.dataset import create_span_mask
 
 if TYPE_CHECKING:
@@ -28,7 +29,7 @@ class SpERT(nn.Module):
         self.bert = bert
         self.size_embedding = nn.Embedding(max_entity_length, embedding_dim)
         self.span_classifier = nn.Linear(
-            embedding_dim + bert.config.hidden_size, num_entity_types
+            embedding_dim + 2 * bert.config.hidden_size, num_entity_types
         )
         self.relation_classifier = nn.Linear(
             2 * embedding_dim + 3 * bert.config.hidden_size, num_relation_types
@@ -48,13 +49,14 @@ class SpERT(nn.Module):
 
         return masked
 
-    def _classify_entities(self, hidden_states, entity_masks, entity_sizes):
+    def _classify_entities(self, hidden_states, context, entity_masks, entity_sizes):
         # entities: [B, E, L, H] -> [B, E, H]
         entities = self._masked_hidden_states(hidden_states, entity_masks)
         entities, _ = entities.max(dim=-2)
 
-        # entity_reprs: [B, E, H + D]
-        entity_reprs = torch.cat([entities, entity_sizes], dim=-1)
+        # entity_reprs: [B, E, 2H + D]
+        context = context.unsqueeze(dim=1).repeat(1, entities.size(1), 1)
+        entity_reprs = torch.cat([entities, context, entity_sizes], dim=-1)
         entity_reprs = self.dropout(entity_reprs)
 
         # entity_logits: [B, E, NE]
@@ -118,13 +120,16 @@ class SpERT(nn.Module):
         )
         hidden_states = bert_outputs.last_hidden_state
 
+        # context: [B, H]
+        context = cls_pooling(bert_outputs, attention_mask)
+
         # entity_sizes: [B, E, D]
         entity_sizes = self.size_embedding(entity_masks.sum(-1))
 
         # entity_logits: [B, E, NE]
         # entities: [B, E, H]
         entity_logits, entities = self._classify_entities(
-            hidden_states, entity_masks, entity_sizes
+            hidden_states, context, entity_masks, entity_sizes
         )
 
         return hidden_states, entity_logits, entities, entity_sizes
