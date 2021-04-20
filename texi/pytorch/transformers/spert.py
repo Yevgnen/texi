@@ -788,7 +788,7 @@ def predict_relations(
             filter_negatives=filter_negatives,
         )
     else:
-        relation_predictions = [[] for _ in range(len(relation_predictions))]
+        relation_predictions = [[] for _ in range(len(relations))]
 
     return relation_predictions
 
