@@ -16,11 +16,10 @@ def decode_entities(
     filter_negatives: bool = True,
 ) -> List[List[Dict[str, Any]]]:
     negative_entity_mask = entity_label == negative_entity_index
-    entity_label = entity_label.masked_fill(
-        ~entity_sample_mask | negative_entity_mask, -1
-    ).long()
-    entity_token_span = entity_token_span.cpu().numpy().tolist()
+    mask = ~entity_sample_mask | negative_entity_mask
+    entity_label = entity_label.masked_fill(mask, -1).long()
 
+    entity_token_span = entity_token_span.cpu().numpy().tolist()
     entities = [
         [
             {
@@ -40,17 +39,17 @@ def decode_entities(
 
 
 def decode_relations(
-    relation_label: torch.LongTensor,
+    relation_prob: torch.Tensor,
     relation: torch.LongTensor,
     relation_sample_mask: torch.LongTensor,
     relation_label_encoder: LabelEncoder,
     negative_relation_index: int,
     filter_negatives: bool = True,
 ) -> List[List[Dict[str, Any]]]:
-    negative_relation_mask = relation_label == negative_relation_index
-    relation_label = relation_label.masked_fill(
-        ~relation_sample_mask.bool() | negative_relation_mask, -1
-    ).long()
+    relation_filter_mask = relation_prob < 0.4
+    relation_pad_mask = ~relation_sample_mask.unsqueeze(dim=-1).bool()
+    mask = relation_pad_mask | relation_filter_mask
+    relation_prob = relation_prob.masked_fill(mask, -1)
 
     if relation.size(1) > 0:
         relation = relation.detach().cpu().numpy().tolist()
@@ -58,15 +57,18 @@ def decode_relations(
             [
                 {
                     "type": relation_label_encoder.decode_label(
-                        label if label >= 0 else negative_relation_index
+                        k if label >= 0 else negative_relation_index
                     ),
                     "head": relation[i][j][0],
                     "tail": relation[i][j][1],
                 }
-                for j, label in enumerate(labels)
+                for j, labels in enumerate(sample_labels)
+                for k, label in enumerate(labels)
                 if not filter_negatives or label >= 0
             ]
-            for i, labels in enumerate(relation_label.detach().cpu().numpy().tolist())
+            for i, sample_labels in enumerate(
+                relation_prob.detach().cpu().numpy().tolist()
+            )
         ]
     else:
         relation = [[] for _ in range(len(relation))]
@@ -108,12 +110,8 @@ def predict_relations(
     filter_negatives: bool = True,
 ) -> List[Dict[str, Any]]:
     if relation_logit.size(1) > 0:
-        # Predict relation labels.
-        relation_label = relation_logit.argmax(dim=-1)
-
-        # Decode relation.
         relation_predictions = decode_relations(
-            relation_label,
+            torch.sigmoid(relation_logit),
             relation,
             relation_sample_mask,
             relation_label_encoder,
