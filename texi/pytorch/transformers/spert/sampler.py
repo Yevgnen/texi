@@ -21,17 +21,15 @@ class SpERTSampler(object):
         self.negative_relation_type = negative_relation_type
 
     def sample_negative_entities(self, example: Mapping) -> List[Dict]:
-        text = example["text"]
+        text = example["tokens"]
         positives = example["entities"]
         positive_tuples = {(x["start"], x["end"]) for x in positives}
         negatives = []
         for length in range(1, self.max_entity_length + 1):
             for i in range(0, len(text) - length + 1):
-                mention = text[i : i + length]
                 negative_tuple = (i, i + length)
                 if negative_tuple not in positive_tuples:
                     negative = {
-                        "mention": mention,
                         "type": self.negative_entity_type,
                         "start": i,
                         "end": i + length,
@@ -45,9 +43,7 @@ class SpERTSampler(object):
         return negatives
 
     def sample_negative_relations(
-        self,
-        example: Mapping,
-        entities: Optional[List[Mapping]] = None,
+        self, example: Mapping, entities: Optional[List[int]] = None
     ) -> List[Dict]:
         if entities is None:
             entities = example["entities"]
@@ -56,21 +52,17 @@ class SpERTSampler(object):
             return []
 
         positives = example["relations"]
-        positive_tuples = {
-            (r["arg1"]["start"], r["arg1"]["end"], r["arg2"]["start"], r["arg2"]["end"])
-            for r in positives
-        }
+        positive_tuples = {(r["head"], r["tail"]) for r in positives}
 
         negatives = []
-        for e1, e2 in itertools.product(entities, repeat=2):
-            if e1 == e2:
+        for i, j in itertools.product(range(len(entities)), repeat=2):
+            if i == j:
                 continue
 
-            negative_tuple = (e1["start"], e1["end"], e2["start"], e2["end"])
-            if negative_tuple in positive_tuples:
+            if (i, j) in positive_tuples:
                 continue
 
-            negative = {"arg1": e1, "arg2": e2, "type": self.negative_relation_type}
+            negative = {"head": i, "tail": j, "type": self.negative_relation_type}
             negatives += [negative]
 
         negatives = random.sample(

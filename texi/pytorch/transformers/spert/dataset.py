@@ -61,7 +61,6 @@ class SpERTDataset(Dataset):
             offsets += [offset]
             offset += len(token)
 
-        entity_indices = {}
         encoded_entities = []
         for i, entity in enumerate(entities):
             start = offsets[entity["start"] + 1]
@@ -74,39 +73,31 @@ class SpERTDataset(Dataset):
                     "token_span": [entity["start"], entity["end"]],
                 }
             ]
-            entity_indices[(entity["start"], entity["end"])] = i
 
-        return encoded_entities, entity_indices
+        return encoded_entities
 
-    def _encode_relations(self, relations, entity_indices):
-        encoded_relations = []
-        for rel in relations:
-            head_index = entity_indices[rel["arg1"]["start"], rel["arg1"]["end"]]
-            tail_index = entity_indices[rel["arg2"]["start"], rel["arg2"]["end"]]
-            encoded_relations += [
-                {
-                    "head": head_index,
-                    "tail": tail_index,
-                    "label": self.relation_label_encoder.encode_label(rel["type"]),
-                }
-            ]
-
-        return encoded_relations
+    def _encode_relations(self, relations):
+        return [
+            {
+                "head": x["head"],
+                "tail": x["tail"],
+                "label": self.relation_label_encoder.encode_label(x["type"]),
+            }
+            for x in relations
+        ]
 
     def encode_example(self, example, entities, relations):
         # Encode tokens.
         tokens = (
-            [self.tokenizer.cls_token] + example["text"] + [self.tokenizer.sep_token]
+            [self.tokenizer.cls_token] + example["tokens"] + [self.tokenizer.sep_token]
         )
         output = self.tokenizer(tokens, add_special_tokens=False)
 
         # Encode entities.
-        encoded_entities, entity_indices = self._encode_entities(
-            entities, output["input_ids"]
-        )
+        encoded_entities = self._encode_entities(entities, output["input_ids"])
 
         # Encode relations.
-        encoded_relations = self._encode_relations(relations, entity_indices)
+        encoded_relations = self._encode_relations(relations)
 
         output = {k: list(itertools.chain.from_iterable(v)) for k, v in output.items()}
 

@@ -61,19 +61,13 @@ class TestFunction(unittest.TestCase):
 class TestSpERTSampler(unittest.TestCase):
     def setUp(self):
         self.example = {
-            "text": ["Bill", "was", "born", "in", "USA", "."],
+            "tokens": ["Bill", "was", "born", "in", "USA", "."],
             "entities": [
                 {"type": "per", "start": 0, "end": 1},
                 {"type": "prep", "start": 3, "end": 4},
                 {"type": "loc", "start": 4, "end": 5},
             ],
-            "relations": [
-                {
-                    "type": "born in",
-                    "arg1": {"type": "per", "start": 0, "end": 1},
-                    "arg2": {"type": "loc", "start": 4, "end": 5},
-                }
-            ],
+            "relations": [{"type": "born in", "head": 0, "tail": 2}],
         }
         self.num_negative_entities = 10
         self.num_negative_relations = 10
@@ -91,7 +85,7 @@ class TestSpERTSampler(unittest.TestCase):
 
     def test_sample_negative_entities_few_entities(self):
         example = {
-            "text": ["I", "hate", "you"],
+            "tokens": ["I", "hate", "you"],
             "entities": [],
         }
         sampler = SpERTSampler(
@@ -106,24 +100,18 @@ class TestSpERTSampler(unittest.TestCase):
 
     def test_sample_negative_entities(self):
         negatives = self.sampler.sample_negative_entities(self.example)
-
         self.assertEqual(len(negatives), self.num_negative_entities)
+
+        spans = {(0, 1), (3, 4), (4, 5)}
         for negative in negatives:
-            self.assertGreaterEqual(len(negative["mention"]), 1)
-            self.assertLessEqual(len(negative["mention"]), self.max_entity_length)
-            self.assertNotEqual(negative["mention"], ["Bill"])
-            self.assertNotEqual(negative["mention"], ["USA"])
-            self.assertEqual(
-                self.example["text"][negative["start"] : negative["end"]],
-                negative["mention"],
-            )
+            self.assertNotIn((negative["start"], negative["end"]), spans)
             self.assertEqual(negative["type"], self.negative_entity_type)
             self.assertIsInstance(negative["start"], int)
             self.assertIsInstance(negative["end"], int)
 
     def test_sample_negative_relation_no_entities(self):
         example = {
-            "text": ["I", "hate", "you"],
+            "tokens": ["I", "hate", "you"],
             "entities": [],
         }
         sampler = SpERTSampler(
@@ -139,64 +127,23 @@ class TestSpERTSampler(unittest.TestCase):
         negatives = self.sampler.sample_negative_relations(self.example)
 
         self.assertEqual(len(negatives), 5)
-        self.assertIn(
-            {
-                "type": self.negative_relation_type,
-                "arg1": {"type": "per", "start": 0, "end": 1},
-                "arg2": {"type": "prep", "start": 3, "end": 4},
-            },
-            negatives,
-        )
-        self.assertIn(
-            {
-                "type": self.negative_relation_type,
-                "arg1": {"type": "prep", "start": 3, "end": 4},
-                "arg2": {"type": "per", "start": 0, "end": 1},
-            },
-            negatives,
-        )
-        self.assertIn(
-            {
-                "type": self.negative_relation_type,
-                "arg1": {"type": "loc", "start": 4, "end": 5},
-                "arg2": {"type": "prep", "start": 3, "end": 4},
-            },
-            negatives,
-        )
-        self.assertIn(
-            {
-                "type": self.negative_relation_type,
-                "arg1": {"type": "prep", "start": 3, "end": 4},
-                "arg2": {"type": "loc", "start": 4, "end": 5},
-            },
-            negatives,
-        )
-        self.assertIn(
-            {
-                "type": self.negative_relation_type,
-                "arg1": {"type": "loc", "start": 4, "end": 5},
-                "arg2": {"type": "per", "start": 0, "end": 1},
-            },
-            negatives,
-        )
+        for head, tail in ((2, 0), (0, 1), (1, 0), (1, 2), (2, 1)):
+            self.assertIn(
+                {"type": self.negative_relation_type, "head": head, "tail": tail},
+                negatives,
+            )
 
 
 class TestSpERTDataset(unittest.TestCase):
     def setUp(self):
         self.example = {
-            "text": ["BillGates", "was", "born", "in", "America", "."],
+            "tokens": ["BillGates", "was", "born", "in", "America", "."],
             "entities": [
                 {"type": "per", "start": 0, "end": 1},
                 {"type": "prep", "start": 3, "end": 4},
                 {"type": "loc", "start": 4, "end": 5},
             ],
-            "relations": [
-                {
-                    "type": "born in",
-                    "arg1": {"type": "per", "start": 0, "end": 1},
-                    "arg2": {"type": "loc", "start": 4, "end": 5},
-                }
-            ],
+            "relations": [{"type": "born in", "head": 0, "tail": 2}],
         }
         self.entities = [
             {"type": "per", "start": 0, "end": 1},
@@ -205,21 +152,9 @@ class TestSpERTDataset(unittest.TestCase):
             {"type": "NOT_ENTITY", "start": 0, "end": 3},
         ]
         self.relations = [
-            {
-                "type": "born in",
-                "arg1": {"type": "per", "start": 0, "end": 1},
-                "arg2": {"type": "loc", "start": 4, "end": 5},
-            },
-            {
-                "type": "NO_RELATION",
-                "arg1": {"type": "prep", "start": 3, "end": 4},
-                "arg2": {"type": "loc", "start": 4, "end": 5},
-            },
-            {
-                "type": "NO_RELATION",
-                "arg1": {"type": "loc", "start": 4, "end": 5},
-                "arg2": {"type": "per", "start": 0, "end": 1},
-            },
+            {"type": "born in", "head": 0, "tail": 2},
+            {"type": "NO_RELATION", "head": 1, "tail": 2},
+            {"type": "NO_RELATION", "head": 2, "tail": 0},
         ]
 
     def test_encode_example(self):

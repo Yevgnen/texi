@@ -14,7 +14,7 @@ def decode_entities(
     entity_label_encoder: LabelEncoder,
     negative_entity_index: int,
     filter_negatives: bool = True,
-) -> List[Dict[int, Dict[str, Any]]]:
+) -> List[List[Dict[str, Any]]]:
     non_entity_masks = entity_labels == negative_entity_index
     entity_labels = entity_labels.masked_fill(
         ~entity_sample_masks | non_entity_masks, -1
@@ -45,9 +45,8 @@ def decode_relations(
     relation_sample_masks: torch.LongTensor,
     relation_label_encoder: LabelEncoder,
     negative_relation_index: int,
-    entities: List[Dict[int, Dict[str, Any]]],
     filter_negatives: bool = True,
-) -> List[Dict[str, Any]]:
+) -> List[List[Dict[str, Any]]]:
     no_relation_masks = relation_labels == negative_relation_index
     relation_labels = relation_labels.masked_fill(
         ~relation_sample_masks.bool() | no_relation_masks, -1
@@ -61,15 +60,13 @@ def decode_relations(
                     "type": relation_label_encoder.decode_label(
                         label if label >= 0 else negative_relation_index
                     ),
-                    "arg1": args[relations[i][j][0]],
-                    "arg2": args[relations[i][j][1]],
+                    "head": relations[i][j][0],
+                    "tail": relations[i][j][1],
                 }
                 for j, label in enumerate(labels)
                 if not filter_negatives or label >= 0
             ]
-            for i, (labels, args) in enumerate(
-                zip(relation_labels.detach().cpu().numpy().tolist(), entities)
-            )
+            for i, labels in enumerate(relation_labels.detach().cpu().numpy().tolist())
         ]
     else:
         relations = [[] for _ in range(len(relations))]
@@ -108,7 +105,6 @@ def predict_relations(
     relation_sample_masks: torch.LongTensor,
     relation_label_encoder: LabelEncoder,
     negative_relation_index: int,
-    entity_predictions: List[Dict[int, Any]],
     filter_negatives: bool = True,
 ) -> List[Dict[str, Any]]:
     if relation_logits.size(1) > 0:
@@ -122,7 +118,6 @@ def predict_relations(
             relation_sample_masks,
             relation_label_encoder,
             negative_relation_index,
-            entity_predictions,
             filter_negatives=filter_negatives,
         )
     else:
@@ -150,24 +145,10 @@ def predict(
         entity_token_spans,
         entity_label_encoder,
         negative_entity_index,
-        filter_negatives=False,
+        filter_negatives=True,
     )
-
-    # Filter negative entities.
-    filtered_entity_predictions = [
-        {
-            i: entity
-            for i, entity in enumerate(entities)
-            if entity["type"]
-            != entity_label_encoder.decode_label(negative_entity_index)
-        }
-        for entities in entity_predictions
-    ]
-
-    entity_predictions = [
-        sorted(x.values(), key=lambda x: x["start"])
-        for x in filtered_entity_predictions
-    ]
+    for example_entity_predictions in entity_predictions:
+        example_entity_predictions.sort(key=lambda x: x["start"])
 
     # Predict relations.
     relation_predictions = predict_relations(
@@ -176,7 +157,6 @@ def predict(
         relation_sample_masks,
         relation_label_encoder,
         negative_relation_index,
-        filtered_entity_predictions,
         filter_negatives=True,
     )
 
