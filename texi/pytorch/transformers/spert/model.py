@@ -200,7 +200,12 @@ class SpERT(nn.Module):
             assert len(pairs) == len(context_starts) == len(context_ends)
 
             relation_context_masks += [
-                create_span_mask(context_starts, context_ends, max_length)
+                create_span_mask(
+                    context_starts,
+                    context_ends,
+                    max_length,
+                    device=entity_labels.device,
+                )
             ]
             relation_sample_masks += [entity_labels.new_ones(len(pairs))]
             if len(pairs) > 0:
@@ -223,9 +228,7 @@ class SpERT(nn.Module):
         ]
 
         relations = torch.stack(relations)
-        relation_context_masks = torch.stack(relation_context_masks).to(
-            entity_labels.device
-        )
+        relation_context_masks = torch.stack(relation_context_masks)
         relation_sample_masks = torch.stack(relation_sample_masks)
 
         return relations, relation_context_masks, relation_sample_masks

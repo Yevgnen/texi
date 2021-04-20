@@ -16,20 +16,26 @@ if TYPE_CHECKING:
     from transformers import BertTokenizer, BertTokenizerFast
 
 
-def create_span_mask(start: List[int], end: List[int], length: int) -> torch.LongTensor:
-    if len(start) != len(end):
+def create_span_mask(
+    starts: List[int],
+    ends: List[int],
+    length: int,
+    dtype: torch.dtype = torch.int64,
+    device: torch.device = "cpu",
+) -> torch.Tensor:
+    if len(starts) != len(ends):
         raise ValueError(
-            f"`start` and `end` should have same lengths: {len(start)} != {len(end)}"
+            f"`start` and `end` should have same lengths: {len(starts)} != {len(ends)}"
         )
 
-    if len(start) == 0:
-        return torch.zeros((0, length), dtype=torch.int64)
+    if len(starts) == 0:
+        return torch.zeros((0, length), dtype=dtype, device=device)
 
-    start = torch.tensor(start, dtype=torch.int64)
-    end = torch.tensor(end, dtype=torch.int64)
-    mask = torch.arange(length, dtype=torch.int64).unsqueeze(dim=-1)
+    start = torch.tensor(starts, dtype=dtype, device=device)
+    end = torch.tensor(ends, dtype=dtype, device=device)
+    mask = torch.arange(length, dtype=dtype, device=device).unsqueeze(dim=-1)
     mask = (start <= mask) & (mask < end)
-    mask = mask.transpose(0, 1).long()
+    mask = mask.transpose(0, 1).type_as(start)
 
     return mask
 
