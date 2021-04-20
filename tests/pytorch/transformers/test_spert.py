@@ -7,7 +7,8 @@ import torch
 from transformers import BertTokenizerFast
 
 from texi.preprocessing import LabelEncoder
-from texi.pytorch.transformers.spert import SpERTDataset, SpERTSampler, create_span_mask
+from texi.pytorch.transformers.spert import SpERTDataset, SpERTSampler
+from texi.pytorch.transformers.spert.dataset import create_span_mask
 
 
 def random_entity_mask(num_entities, max_length=20):
@@ -241,19 +242,19 @@ class TestSpERTDataset(unittest.TestCase):
         )
         self.assertEqual(
             output["entities"][0],
-            {"label": 0, "start": 1, "end": 4},
+            {"label": 0, "start": 1, "end": 4, "token_span": [0, 1]},
         )
         self.assertEqual(
             output["entities"][1],
-            {"label": 1, "start": 6, "end": 7},
+            {"label": 1, "start": 6, "end": 7, "token_span": [3, 4]},
         )
         self.assertEqual(
             output["entities"][2],
-            {"label": 2, "start": 7, "end": 8},
+            {"label": 2, "start": 7, "end": 8, "token_span": [4, 5]},
         )
         self.assertEqual(
             output["entities"][3],
-            {"label": 3, "start": 1, "end": 6},
+            {"label": 3, "start": 1, "end": 6, "token_span": [0, 3]},
         )
 
         self.assertEqual(len(output["relations"]), len(self.relations))

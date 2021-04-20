@@ -1,0 +1,276 @@
+# -*- coding: utf-8 -*-
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Dict
+
+import torch
+import torch.nn as nn
+
+from texi.pytorch.transformers.spert.dataset import create_span_mask
+
+if TYPE_CHECKING:
+    from transformers import BertModel
+
+
+class SpERT(nn.Module):
+    def __init__(
+        self,
+        bert: BertModel,
+        embedding_dim: int,
+        num_entity_types: int,
+        num_relation_types: int,
+        negative_entity_index: int,
+        max_entity_length: int = 100,
+        dropout: float = 0.2,
+    ):
+        super().__init__()
+        self.bert = bert
+        self.size_embedding = nn.Embedding(max_entity_length, embedding_dim)
+        self.span_classifier = nn.Linear(
+            embedding_dim + bert.config.hidden_size, num_entity_types
+        )
+        self.relation_classifier = nn.Linear(
+            2 * embedding_dim + 3 * bert.config.hidden_size, num_relation_types
+        )
+        self.num_entity_types = num_entity_types
+        self.num_relation_types = num_relation_types
+        self.negative_entity_index = negative_entity_index
+        self.max_entity_length = max_entity_length
+        self.dropout = nn.Dropout(p=dropout)
+
+    def _masked_hidden_states(self, hidden_states, masks):
+        # pylint: disable=no-self-use
+
+        masks = masks.unsqueeze(dim=-1)
+        masked = hidden_states.unsqueeze(dim=1) * masks
+        masked.masked_fill_(masks == 0, -1e20)
+
+        return masked
+
+    def _classify_entities(self, hidden_states, entity_masks, entity_sizes):
+        # entities: [B, E, L, H] -> [B, E, H]
+        entities = self._masked_hidden_states(hidden_states, entity_masks)
+        entities, _ = entities.max(dim=-2)
+
+        # entity_reprs: [B, E, H + D]
+        entity_reprs = torch.cat([entities, entity_sizes], dim=-1)
+        entity_reprs = self.dropout(entity_reprs)
+
+        # entity_logits: [B, E, NE]
+        entity_logits = self.span_classifier(entity_reprs)
+
+        return entity_logits, entities
+
+    def _classify_relations(
+        self,
+        hidden_states,
+        relations,
+        relation_context_masks,
+        relation_sample_masks,
+        entities,
+        entity_sizes,
+    ):
+        if relations.size(1) == 0:
+            return relations.new_zeros(*relations.size()[:2], self.num_relation_types)
+
+        # relation_contexts: [B, R, L, H] -> [B, R, H]
+        relation_contexts = self._masked_hidden_states(
+            hidden_states, relation_context_masks
+        )
+        relation_contexts, _ = relation_contexts.max(dim=-2)
+        relation_contexts.masked_fill_(relation_sample_masks.unsqueeze(dim=-1) == 1, 0)
+
+        # entity_pairs: [B, R, 2H]
+        batch_size, num_relations, _ = relations.size()
+        entity_pairs = entities[
+            torch.arange(batch_size).unsqueeze(dim=-1), relations.view(batch_size, -1)
+        ].view(batch_size, num_relations, -1)
+
+        # entity_pair_sizes: [B, R, 2E]
+        entity_pair_sizes = entity_sizes[
+            torch.arange(batch_size).unsqueeze(dim=-1), relations.view(batch_size, -1)
+        ].view(batch_size, num_relations, -1)
+
+        # relation_reprs: [B, R, 2E + 3H]
+        relation_reprs = torch.cat(
+            [relation_contexts, entity_pairs, entity_pair_sizes], dim=-1
+        )
+        relation_reprs = self.dropout(relation_reprs)
+
+        # relation_logits: [B, R, NR]
+        relation_logits = self.relation_classifier(relation_reprs)
+
+        return relation_logits
+
+    def _forward_entity(
+        self,
+        input_ids,
+        attention_mask,
+        token_type_ids,
+        entity_masks,
+    ):
+        # hidden_states: [B, L, H]
+        bert_outputs = self.bert(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+        )
+        hidden_states = bert_outputs.last_hidden_state
+
+        # entity_sizes: [B, E, D]
+        entity_sizes = self.size_embedding(entity_masks.sum(-1))
+
+        # entity_logits: [B, E, NE]
+        # entities: [B, E, H]
+        entity_logits, entities = self._classify_entities(
+            hidden_states, entity_masks, entity_sizes
+        )
+
+        return hidden_states, entity_logits, entities, entity_sizes
+
+    def forward(
+        self,
+        input_ids: torch.LongTensor,  # [B, L]
+        attention_mask: torch.LongTensor,  # [B, L]
+        token_type_ids: torch.LongTensor,  # [B, L]
+        entity_masks: torch.LongTensor,  # [B, E, L]
+        relations: torch.LongTensor,  # [B, R, 2]
+        relation_context_masks: torch.LongTensor,  # [B, R, L]
+        relation_sample_masks: torch.LongTensor,  # [B, R]
+    ) -> Dict[str, torch.FloatTensor]:
+        # hidden_states: [B, L, H]
+        # entity_logits: [B, E, NE]
+        # entities: [B, E, H]
+        # entity_sizes: [B, E, D]
+        hidden_states, entity_logits, entities, entity_sizes = self._forward_entity(
+            input_ids, attention_mask, token_type_ids, entity_masks
+        )
+
+        # relation_logits: [B, R, NR]
+        relation_logits = self._classify_relations(
+            hidden_states,
+            relations,
+            relation_context_masks,
+            relation_sample_masks,
+            entities,
+            entity_sizes,
+        )
+
+        return {
+            "entity_logits": entity_logits,
+            "relation_logits": relation_logits,
+        }
+
+    def _filter_entities(self, entity_logits, entity_masks):
+        # Non-entiies and padding will have label -1.
+
+        # entity_labels: [B, E]
+        entity_sample_masks = entity_masks.sum(dim=-1) > 0
+        entity_labels = entity_logits.argmax(dim=-1)
+        non_entity_masks = entity_labels == self.negative_entity_index
+        entity_labels.masked_fill_(~entity_sample_masks | non_entity_masks, -1)
+
+        # entity_spans: [B, E, 2]
+        starts = entity_masks.argmax(dim=-1, keepdim=True)
+        ends = entity_masks.sum(dim=-1, keepdim=True) + starts
+        entity_spans = torch.cat((starts, ends), dim=-1)
+
+        return entity_labels, entity_spans
+
+    def _filter_relations(self, entity_labels, entity_spans, max_length):
+        relations, relation_context_masks, relation_sample_masks = [], [], []
+        max_relations = 0
+        for i, labels in enumerate(entity_labels):
+            pairs, context_starts, context_ends = [], [], []
+            indices = entity_labels.new_tensor(range(len(labels)))
+            for head, tail in torch.cartesian_prod(indices, indices):
+                if labels[head] >= 0 and labels[tail] >= 0 and head != tail:
+                    head_start, head_end = entity_spans[i][head]
+                    tail_start, tail_end = entity_spans[i][tail]
+
+                    # Ignore relations of overlapped entities.
+                    if head_start >= tail_end or tail_start >= head_end:
+                        start = min(head_end, tail_end)
+                        end = max(head_start, tail_start)
+                        context_starts += [start]
+                        context_ends += [end]
+                        pairs += [(head, tail)]
+
+            assert len(pairs) == len(context_starts) == len(context_ends)
+
+            relation_context_masks += [
+                create_span_mask(context_starts, context_ends, max_length)
+            ]
+            relation_sample_masks += [entity_labels.new_ones(len(pairs))]
+            if len(pairs) > 0:
+                relations += [entity_labels.new_tensor(pairs)]
+            else:
+                relations += [entity_labels.new_zeros((0, 2))]
+            max_relations = max(max_relations, len(pairs))
+
+        relations = [
+            torch.nn.functional.pad(x, [0, 0, 0, max_relations - len(x)])
+            for x in relations
+        ]
+        relation_context_masks = [
+            torch.nn.functional.pad(x, [0, 0, 0, max_relations - len(x)])
+            for x in relation_context_masks
+        ]
+        relation_sample_masks = [
+            torch.nn.functional.pad(x, [0, max_relations - x.size(0)])
+            for x in relation_sample_masks
+        ]
+
+        relations = torch.stack(relations)
+        relation_context_masks = torch.stack(relation_context_masks).to(
+            entity_labels.device
+        )
+        relation_sample_masks = torch.stack(relation_sample_masks)
+
+        return relations, relation_context_masks, relation_sample_masks
+
+    def infer(
+        self,
+        input_ids: torch.LongTensor,  # [B, L]
+        attention_mask: torch.LongTensor,  # [B, L]
+        token_type_ids: torch.LongTensor,  # [B, L]
+        entity_masks: torch.LongTensor,  # [B, E, L]
+    ) -> Dict[str, torch.Tensor]:
+        # hidden_states: [B, L, H]
+        # entity_logits: [B, E, NE]
+        # entities: [B, E, H]
+        # entity_sizes: [B, E, D]
+        hidden_states, entity_logits, entities, entity_sizes = self._forward_entity(
+            input_ids, attention_mask, token_type_ids, entity_masks
+        )
+
+        # entity_labels: [B, E]
+        # entity_spans: [B, E, 2]
+        entity_labels, entity_spans = self._filter_entities(entity_logits, entity_masks)
+
+        # relations: [B, R, 2]
+        # relation_context_masks: [B, R, L]
+        # relation_sample_masks: [B, R]
+        (
+            relations,
+            relation_context_masks,
+            relation_sample_masks,
+        ) = self._filter_relations(entity_labels, entity_spans, input_ids.size(1))
+
+        # relation_logits: [B, R, NR]
+        relation_logits = self._classify_relations(
+            hidden_states,
+            relations,
+            relation_context_masks,
+            relation_sample_masks,
+            entities,
+            entity_sizes,
+        )
+
+        return {
+            "entity_logits": entity_logits,
+            "relation_logits": relation_logits,
+            "relations": relations,
+            "relation_sample_masks": relation_sample_masks,
+        }
