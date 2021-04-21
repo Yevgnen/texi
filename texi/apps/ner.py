@@ -20,17 +20,19 @@ MetricDict = Dict[str, float]
 
 class NerEvaluator(object):
     def __init__(self, entity_types: Iterable[str]):
-        self.entity_types = list(entity_types)
+        self.entity_types = set(entity_types)
         self.reset()
 
     def reset(self):
         self.counter = collections.Counter()
 
-    def _flatten(self, batch, keys):
-        # pylint: disable=no-self-use
+    def _flatten(self, batch):
+        keys = ["type", "start", "end"]
 
         return {
-            tuple(x[key] for key in keys) for x in itertools.chain.from_iterable(batch)
+            tuple(x[key] for key in keys)
+            for x in itertools.chain.from_iterable(batch)
+            if x["type"] in self.entity_types
         }
 
     def update(
@@ -44,9 +46,8 @@ class NerEvaluator(object):
                 f" must have same lengths: {len(targets)} != len(predictions)"
             )
 
-        keys = ["type", "start", "end"]
-        targets = set(self._flatten(targets, keys))
-        predictions = set(self._flatten(predictions, keys))
+        targets = set(self._flatten(targets))
+        predictions = set(self._flatten(predictions))
 
         for entity in targets & predictions:
             self.counter["tp"] += 1
@@ -84,15 +85,24 @@ class NerEvaluator(object):
 
 class ReEvaluator(object):
     def __init__(self, relation_types: Iterable[str], strict: bool = True):
-        self.relation_types = relation_types
+        self.relation_types = set(relation_types)
         self.strict = strict
         self.reset()
 
     def reset(self):
         self.counter = collections.Counter()
 
-    def _to_tuples(self, batch, keys):  # pylint: disable=no-self-use
-        return [set(tuple(r[key] for key in keys) for r in x) for x in batch]
+    def _to_sets(self, batch):
+        keys = ["type", "head", "tail"]
+
+        return [
+            set(
+                tuple(r[key] for key in keys)
+                for r in x
+                if r["type"] in self.relation_types
+            )
+            for x in batch
+        ]
 
     def _get_entity_map(self, entities):  # pylint: disable=no-self-use
 
@@ -134,9 +144,8 @@ class ReEvaluator(object):
                     f" {len(entity_targets)} != {len(entity_predictions)}"
                 )
 
-        keys = ["type", "head", "tail"]
-        targets = self._to_tuples(targets, keys)
-        predictions = self._to_tuples(predictions, keys)
+        targets = self._to_sets(targets)
+        predictions = self._to_sets(predictions)
 
         for i, (example_targets, example_predictions) in enumerate(
             zip(targets, predictions)
