@@ -7,20 +7,22 @@ from typing import Dict, Iterable, List, Mapping
 
 
 class SequeceLabelingTagger(metaclass=abc.ABCMeta):
-    def _iter_chunks(self, chunks):
-        for chunk in chunks:
+    def __init__(self, tag_field: str = "tag"):
+        self.tag_field = tag_field
+
+    def _iter_spans(self, spans):
+        for chunk in spans:
             if isinstance(chunk, collections.abc.Mapping):
-                token, tag, start, end = (
-                    chunk["token"],
-                    chunk["tag"],
+                type_, start, end = (
+                    chunk[self.tag_field],
                     int(chunk["start"]),
                     int(chunk["end"]),
                 )
             else:
-                token, tag, start, end = chunk
+                type_, start, end = chunk
                 start, end = int(start), int(end)
 
-            yield token, tag, start, end
+            yield type_, start, end
 
     @abc.abstractmethod
     def encode(self, inputs: Mapping) -> Dict:
@@ -39,8 +41,8 @@ class SequeceLabelingTagger(metaclass=abc.ABCMeta):
 
                 if not line:
                     if example:
-                        tokens, chunks = zip(*example)
-                        examples += [{"tokens": list(tokens), "tags": list(chunks)}]
+                        tokens, spans = zip(*example)
+                        examples += [{"tokens": list(tokens), "tags": list(spans)}]
                         example = []
                     continue
 
@@ -65,12 +67,10 @@ class SequeceLabelingTagger(metaclass=abc.ABCMeta):
 
 class IOB1(SequeceLabelingTagger):
     def encode(self, inputs: Mapping) -> Dict:
-        tokens, chunks = inputs["tokens"], inputs["chunks"]
+        tokens, spans = inputs["tokens"], inputs["spans"]
 
         tags = ["O"] * len(tokens)
-        for token, tag, start, end in self._iter_chunks(chunks):
-            assert token == tokens[start:end]
-
+        for tag, start, end in self._iter_spans(spans):
             I_tag, B_tag = f"I-{tag}", f"B-{tag}"
             tags[start:end] = [I_tag] * (end - start)
             if start > 0 and tags[start - 1] in {I_tag, B_tag}:
@@ -81,7 +81,7 @@ class IOB1(SequeceLabelingTagger):
     def decode(self, inputs: Mapping) -> Dict:
         tokens, tags = inputs["tokens"], inputs["tags"]
 
-        chunks = []
+        spans = []
         start = -1
         current_tag = None
         for i, tag in enumerate(tags):
@@ -94,10 +94,9 @@ class IOB1(SequeceLabelingTagger):
                 continue
 
             if current_tag and start >= 0:
-                chunks += [
+                spans += [
                     {
-                        "token": tokens[start:i],
-                        "tag": current_tag,
+                        self.tag_field: current_tag,
                         "start": start,
                         "end": i,
                     }
@@ -110,26 +109,23 @@ class IOB1(SequeceLabelingTagger):
                 current_tag = tag
 
         if prefix != "O":
-            chunks += [
+            spans += [
                 {
-                    "token": tokens[start:],
-                    "tag": tag,
+                    self.tag_field: tag,
                     "start": start,
                     "end": len(tokens),
                 }
             ]
 
-        return {"tokens": tokens, "chunks": chunks}
+        return {"tokens": tokens, "spans": spans}
 
 
 class IOB2(SequeceLabelingTagger):
     def encode(self, inputs: Mapping) -> Dict:
-        tokens, chunks = inputs["tokens"], inputs["chunks"]
+        tokens, spans = inputs["tokens"], inputs["spans"]
 
         tags = ["O"] * len(tokens)
-        for token, tag, start, end in self._iter_chunks(chunks):
-            assert token == tokens[start:end]
-
+        for tag, start, end in self._iter_spans(spans):
             tags[start] = f"B-{tag}"
             tags[start + 1 : end] = [f"I-{tag}"] * (end - start - 1)
 
@@ -138,7 +134,7 @@ class IOB2(SequeceLabelingTagger):
     def decode(self, inputs: Mapping) -> Dict:
         tokens, tags = inputs["tokens"], inputs["tags"]
 
-        chunks = []
+        spans = []
         start = -1
         current_tag = None
         for i, tag in enumerate(tags):
@@ -151,10 +147,9 @@ class IOB2(SequeceLabelingTagger):
                 continue
 
             if current_tag and start >= 0:
-                chunks += [
+                spans += [
                     {
-                        "token": tokens[start:i],
-                        "tag": current_tag,
+                        self.tag_field: current_tag,
                         "start": start,
                         "end": i,
                     }
@@ -167,26 +162,23 @@ class IOB2(SequeceLabelingTagger):
                 current_tag = tag
 
         if prefix != "O":
-            chunks += [
+            spans += [
                 {
-                    "token": tokens[start:],
-                    "tag": tag,
+                    self.tag_field: tag,
                     "start": start,
                     "end": len(tokens),
                 }
             ]
 
-        return {"tokens": tokens, "chunks": chunks}
+        return {"tokens": tokens, "spans": spans}
 
 
 class IOBES(SequeceLabelingTagger):
     def encode(self, inputs: Mapping) -> Dict:
-        tokens, chunks = inputs["tokens"], inputs["chunks"]
+        tokens, spans = inputs["tokens"], inputs["spans"]
 
         tags = ["O"] * len(tokens)
-        for token, tag, start, end in self._iter_chunks(chunks):
-            assert token == tokens[start:end]
-
+        for tag, start, end in self._iter_spans(spans):
             if start + 1 == end:
                 tags[start] = f"S-{tag}"
             else:
@@ -199,7 +191,7 @@ class IOBES(SequeceLabelingTagger):
     def decode(self, inputs: Mapping) -> Dict:
         tokens, tags = inputs["tokens"], inputs["tags"]
 
-        chunks = []
+        spans = []
         start = -1
         current_tag = None
         for i, tag in enumerate(tags):
@@ -209,9 +201,7 @@ class IOBES(SequeceLabelingTagger):
                 prefix, tag = tag.split("-")
 
             if prefix == "S":
-                chunks += [
-                    {"token": tokens[i : i + 1], "tag": tag, "start": i, "end": i + 1}
-                ]
+                spans += [{self.tag_field: tag, "start": i, "end": i + 1}]
                 start = -1
                 current_tag = None
                 continue
@@ -225,10 +215,9 @@ class IOBES(SequeceLabelingTagger):
 
             if prefix == "E":
                 if current_tag and start >= 0 and tag == current_tag:
-                    chunks += [
+                    spans += [
                         {
-                            "token": tokens[start : i + 1],
-                            "tag": current_tag,
+                            self.tag_field: current_tag,
                             "start": start,
                             "end": i + 1,
                         }
@@ -240,4 +229,4 @@ class IOBES(SequeceLabelingTagger):
                 start = i
                 current_tag = tag
 
-        return {"tokens": tokens, "chunks": chunks}
+        return {"tokens": tokens, "spans": spans}
