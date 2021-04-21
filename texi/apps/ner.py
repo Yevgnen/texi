@@ -12,7 +12,74 @@ import ahocorasick
 from carton.palette import Colors
 from carton.random import random_colors
 
+from texi.metrics import prf1
 from texi.tagger import Tagger
+
+MetricDict = Dict[str, float]
+
+
+class NerEvaluator(object):
+    def __init__(self, entity_types: Iterable[str]):
+        self.entity_types = list(entity_types)
+        self.reset()
+
+    def reset(self):
+        self.counter = collections.Counter()
+
+    def _flatten(self, batch, keys):
+        # pylint: disable=no-self-use
+
+        return {
+            tuple(x[key] for key in keys) for x in itertools.chain.from_iterable(batch)
+        }
+
+    def update(
+        self,
+        targets: Iterable[Iterable[Mapping]],
+        predictions: Iterable[Iterable[Mapping]],
+    ):
+        if len(targets) != len(predictions):
+            raise ValueError(
+                "`targets` and `predictions`"
+                f" must have same lengths: {len(targets)} != len(predictions)"
+            )
+
+        keys = ["type", "start", "end"]
+        targets = set(self._flatten(targets, keys))
+        predictions = set(self._flatten(predictions, keys))
+
+        for entity in targets & predictions:
+            self.counter["tp"] += 1
+            self.counter[f"{entity[0]}_tp"] += 1
+
+        for entity in targets - predictions:
+            self.counter["fn"] += 1
+            self.counter[f"{entity[0]}_fn"] += 1
+
+        for entity in predictions - targets:
+            self.counter["fp"] += 1
+            self.counter[f"{entity[0]}_fp"] += 1
+
+    def _get_stats(self, type_=None):
+        if type_:
+            prefix = f"{type_}_"
+        else:
+            prefix = ""
+
+        keys = ["tp", "fn", "fp"]
+        stats = {key: self.counter[f"{prefix}{key}"] for key in keys}
+
+        return stats
+
+    def compute(self) -> Tuple[MetricDict, Dict[str, MetricDict]]:
+        metrics = prf1(**self._get_stats())
+        type_metrics = {
+            type_: prf1(**self._get_stats(type_)) for type_ in self.entity_types
+        }
+
+        self.reset()
+
+        return metrics, type_metrics
 
 
 class NERDataReport(object):
