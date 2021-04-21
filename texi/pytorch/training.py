@@ -436,6 +436,9 @@ class Trainer(metaclass=abc.ABCMeta):
         eval_step: Optional[EvalStepFunction] = None,
         params: Optional[Mapping] = None,
     ) -> Tuple[Engine, Dict[str, Engine]]:
+        # Try to get engine params. Can't pass **params to
+        # `self.get_trainer` or `self.get_evaluators` because `params`
+        # contains invalid parameters for them.
         def _get_default_arguments(f, params):
             default_arguments = get_default_arguments(f)
             for key, value in params.items():
