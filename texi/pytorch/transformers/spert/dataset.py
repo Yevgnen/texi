@@ -3,41 +3,18 @@
 from __future__ import annotations
 
 import itertools
-from typing import TYPE_CHECKING, Dict, Iterable, List, Union
+from typing import TYPE_CHECKING, Dict, Iterable, Union
 
 import torch
 from carton.collections import collate
 
 from texi.preprocessing import LabelEncoder
 from texi.pytorch.dataset import Dataset
+from texi.pytorch.masking import create_span_mask
 from texi.pytorch.transformers.spert.sampler import SpERTSampler
 
 if TYPE_CHECKING:
     from transformers import BertTokenizer, BertTokenizerFast
-
-
-def create_span_mask(
-    starts: List[int],
-    ends: List[int],
-    length: int,
-    dtype: torch.dtype = torch.int64,
-    device: torch.device = "cpu",
-) -> torch.Tensor:
-    if len(starts) != len(ends):
-        raise ValueError(
-            f"`start` and `end` should have same lengths: {len(starts)} != {len(ends)}"
-        )
-
-    if len(starts) == 0:
-        return torch.zeros((0, length), dtype=dtype, device=device)
-
-    start = torch.tensor(starts, dtype=dtype, device=device)
-    end = torch.tensor(ends, dtype=dtype, device=device)
-    mask = torch.arange(length, dtype=dtype, device=device).unsqueeze(dim=-1)
-    mask = (start <= mask) & (mask < end)
-    mask = mask.transpose(0, 1).type_as(start)
-
-    return mask
 
 
 class SpERTDataset(Dataset):

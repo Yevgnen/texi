@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING, Dict
 import torch
 import torch.nn as nn
 
+from texi.pytorch.masking import create_span_mask
 from texi.pytorch.transformers.pooling import cls_pooling
-from texi.pytorch.transformers.spert.dataset import create_span_mask
 
 if TYPE_CHECKING:
     from transformers import BertModel
