@@ -20,7 +20,8 @@ from ignite.contrib.handlers import ProgressBar
 from ignite.engine import Engine, Events
 from ignite.handlers import Checkpoint, EarlyStopping, TerminateOnNan
 from ignite.metrics import BatchWise, EpochWise, Metric
-from ignite.utils import convert_tensor, setup_logger
+from ignite.utils import convert_tensor as ignite_convert_tensor
+from ignite.utils import setup_logger
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data import DataLoader
@@ -44,14 +45,8 @@ EvalStepFunction = Callable[[nn.Module, Batch], Dict]
 UpdateFunction = Callable[[Engine, Batch], Dict]
 
 
-def prepare_batch(
-    batch: Batch, device: Optional[torch.device] = None, non_blocking: bool = False
-) -> Batch:
-    x, y = batch
-    return (
-        convert_tensor(x, device=device, non_blocking=non_blocking),
-        convert_tensor(y, device=device, non_blocking=non_blocking),
-    )
+def convert_tensor(*args, **kwargs):
+    return ignite_convert_tensor(*args, **kwargs)
 
 
 def configure_optimizers(
@@ -274,7 +269,7 @@ def build_train_step_function(
 ) -> UpdateFunction:
     def _step(engine, batch):
         net.train()
-        batch = prepare_batch(batch, device=device, non_blocking=non_blocking)
+        batch = convert_tensor(batch, device=device, non_blocking=non_blocking)
         output = train_step(net, batch, loss_function)
         loss = output["loss"]
         loss.backward()
@@ -302,7 +297,7 @@ def build_eval_step_function(
     def _step(engine, batch):
         net.eval()
         with torch.no_grad():
-            batch = prepare_batch(batch, device=device, non_blocking=non_blocking)
+            batch = convert_tensor(batch, device=device, non_blocking=non_blocking)
             output = eval_step(net, batch)
 
             return output
