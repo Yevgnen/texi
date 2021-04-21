@@ -128,6 +128,7 @@ def setup_handlers(
     params: Optional[Mapping] = None,
 ) -> Dict:
     # pylint: disable=not-callable, unused-argument, unused-variable
+    # pylint: disable=too-many-arguments, too-many-locals
 
     # Other event handlers.
     def step_schedulers(engine):
@@ -295,6 +296,8 @@ def build_eval_step_function(
     non_blocking: bool = False,
 ) -> UpdateFunction:
     def _step(engine, batch):
+        # pylint: disable=unused-argument
+
         net.eval()
         with torch.no_grad():
             batch = convert_tensor(batch, device=device, non_blocking=non_blocking)
@@ -307,6 +310,8 @@ def build_eval_step_function(
 
 class Trainer(metaclass=abc.ABCMeta):
     def get_metrics(self, train: bool = True) -> MetricGroup:
+        # pylint: disable=unused-argument
+
         return {}
 
     def predict_step(self, output: Dict) -> torch.Tensor:
@@ -345,6 +350,8 @@ class Trainer(metaclass=abc.ABCMeta):
         log_file: Optional[str] = None,
         name: str = "trainer",
     ) -> Engine:
+        # pylint: disable=too-many-arguments
+
         engine = Engine(
             build_train_step_function(
                 net,
