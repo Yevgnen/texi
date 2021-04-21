@@ -13,11 +13,8 @@ def decode_entities(
     entity_token_span: torch.LongTensor,
     entity_label_encoder: LabelEncoder,
     negative_entity_index: int,
-    filter_negatives: bool = True,
 ) -> List[List[Dict[str, Any]]]:
-    negative_entity_mask = entity_label == negative_entity_index
-    mask = ~entity_sample_mask | negative_entity_mask
-    entity_label = entity_label.masked_fill(mask, -1).long()
+    entity_label = entity_label.masked_fill(~entity_sample_mask, -1).long()
 
     entity_token_span = entity_token_span.cpu().numpy().tolist()
     entities = [
@@ -30,7 +27,7 @@ def decode_entities(
                 "end": entity_token_span[i][j][1],
             }
             for j, label in enumerate(labels)
-            if not filter_negatives or label >= 0
+            if label >= 0
         ]
         for i, labels in enumerate(entity_label.detach().cpu().numpy().tolist())
     ]
@@ -44,7 +41,6 @@ def decode_relations(
     relation_sample_mask: torch.LongTensor,
     relation_label_encoder: LabelEncoder,
     negative_relation_index: int,
-    filter_negatives: bool = True,
 ) -> List[List[Dict[str, Any]]]:
     relation_filter_mask = relation_prob < 0.4
     relation_pad_mask = ~relation_sample_mask.unsqueeze(dim=-1).bool()
@@ -64,7 +60,7 @@ def decode_relations(
                 }
                 for j, labels in enumerate(sample_labels)
                 for k, label in enumerate(labels)
-                if not filter_negatives or label >= 0
+                if label >= 0
             ]
             for i, sample_labels in enumerate(
                 relation_prob.detach().cpu().numpy().tolist()
@@ -82,7 +78,6 @@ def predict_entities(
     entity_token_span: torch.LongTensor,
     entity_label_encoder: LabelEncoder,
     negative_entity_index: int,
-    filter_negatives: bool = True,
 ) -> List[List[Dict[str, Any]]]:
     # Predict entity labels.
     entity_sample_mask = entity_mask.sum(dim=-1) > 0
@@ -95,7 +90,6 @@ def predict_entities(
         entity_token_span,
         entity_label_encoder,
         negative_entity_index,
-        filter_negatives=filter_negatives,
     )
 
     return entity_prediction
@@ -107,7 +101,6 @@ def predict_relations(
     relation_sample_mask: torch.LongTensor,
     relation_label_encoder: LabelEncoder,
     negative_relation_index: int,
-    filter_negatives: bool = True,
 ) -> List[Dict[str, Any]]:
     if relation_logit.size(1) > 0:
         relation_predictions = decode_relations(
@@ -116,7 +109,6 @@ def predict_relations(
             relation_sample_mask,
             relation_label_encoder,
             negative_relation_index,
-            filter_negatives=filter_negatives,
         )
     else:
         relation_predictions = [[] for _ in range(len(relation))]
@@ -143,7 +135,6 @@ def predict(
         entity_token_span,
         entity_label_encoder,
         negative_entity_index,
-        filter_negatives=True,
     )
     for example_entity_prediction in entity_prediction:
         example_entity_prediction.sort(key=lambda x: x["start"])
@@ -155,7 +146,6 @@ def predict(
         relation_sample_mask,
         relation_label_encoder,
         negative_relation_index,
-        filter_negatives=True,
     )
 
     return list(zip(entity_prediction, relation_predictions))
