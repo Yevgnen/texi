@@ -1,0 +1,35 @@
+---
+# Datasets
+val_size: 0.1
+test_size: 0.2
+
+# Model
+pretrained_model: 'bert-base-uncased'
+embedding_dim: 25
+dropout: 0.1
+negative_entity_type: 'NON_ENTITY'
+negative_relation_type: 'NO_RELATION'
+num_negative_entities: 100
+num_negative_relations: 100
+max_entity_length: 10
+relation_filter_threshold: 0.4
+
+# Training
+seed: 1234
+save_path: 'output/'
+lr: 5e-5
+lr_warmup: 0.1
+weight_decay: 0.01
+train_batch_size: 32
+eval_batch_size: 16
+clip_grad_norm: 1.0
+device: 'cuda'
+non_blocking: true
+max_epochs: 100
+log_freq: 10
+schedule_freq: 1
+eval_freq: 5
+eval_metric: 'f1'
+patience: 10
+tensorboard: false
+wandb: false
