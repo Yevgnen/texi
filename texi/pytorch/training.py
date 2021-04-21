@@ -161,7 +161,7 @@ def setup_handlers(
 
     def handle_exceptions(engine, e):
         if isinstance(e, KeyboardInterrupt):
-            engine.logger.info("User terminated...")
+            engine.logger.info("User terminated")
             trainer.terminate()
             test_evaluate_handler(trainer)
         else:
