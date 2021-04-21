@@ -1,14 +1,10 @@
 # -*- coding: utf-8 -*-
 
-import functools
-
-import collections
 import itertools
 import re
-
 import string
 import unicodedata
-from typing import Callable, Hashable, Iterable, List, Optional, Union
+from typing import Callable, Iterable, List, Optional, Union
 
 import torch
 
@@ -105,11 +101,11 @@ class LabelEncoder(object):
         return len(self.index2label)
 
     @property
-    def vocab(self):
+    def labels(self):
         return list(self.label2index)
 
     @property
-    def vocab_size(self):
+    def num_labels(self):
         return len(self)
 
     def reset(self) -> None:

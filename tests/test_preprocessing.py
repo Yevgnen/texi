@@ -10,6 +10,8 @@ from texi.preprocessing import LabelEncoder
 class TestLabelEncoder(unittest.TestCase):
     def valid_encoder(self, encoder, vocab):
         self.assertEqual(len(encoder), len(vocab))
+        self.assertEqual(len(encoder.labels), len(vocab))
+        self.assertEqual(encoder.num_labels, len(vocab))
         self.assertEqual(encoder.label2index, dict(zip(vocab, range(len(vocab)))))
         self.assertEqual(encoder.index2label, dict(zip(range(len(vocab)), vocab)))
         for i, label in enumerate(vocab):
