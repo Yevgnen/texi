@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 
 from texi.pytorch.masking import create_span_mask
-from texi.pytorch.transformers.pooling import cls_pooling
+from texi.pytorch.plm.pooling import cls_pooling
 
 if TYPE_CHECKING:
     from transformers import BertModel

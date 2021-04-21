@@ -11,7 +11,7 @@ from carton.collections import collate
 from texi.preprocessing import LabelEncoder
 from texi.pytorch.dataset import Dataset
 from texi.pytorch.masking import create_span_mask
-from texi.pytorch.transformers.spert.sampler import SpERTSampler
+from texi.pytorch.plm.spert.sampler import SpERTSampler
 
 if TYPE_CHECKING:
     from transformers import BertTokenizer, BertTokenizerFast

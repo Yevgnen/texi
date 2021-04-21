@@ -7,7 +7,7 @@ import torch
 from transformers import BertTokenizerFast
 
 from texi.preprocessing import LabelEncoder
-from texi.pytorch.transformers.spert import SpERTDataset, SpERTSampler
+from texi.pytorch.plm.spert import SpERTDataset, SpERTSampler
 
 
 def random_entity_mask(num_entities, max_length=20):
