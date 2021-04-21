@@ -169,8 +169,7 @@ def setup_handlers(
 
     # Setup handlers.
     handlers = {}
-    bar_format = "{desc}[{n_fmt}/{total_fmt}] {percentage:3.0f}%{postfix} [{elapsed}<{remaining}]"
-    ProgressBar(bar_format=bar_format).attach(
+    ProgressBar(ncols=0).attach(
         trainer,
         metric_names="all",
         event_name=Events.ITERATION_COMPLETED(every=log_freq),
@@ -217,7 +216,7 @@ def setup_handlers(
         evaluators.update({"testing": test_evaluator})
 
     for evaluator in evaluators.values():
-        ProgressBar(bar_format=bar_format).attach(
+        ProgressBar(ncols=0).attach(
             evaluator,
             event_name=Events.ITERATION_COMPLETED(every=log_freq),
         )
