@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import inspect
-from typing import Callable, Dict, Optional, Sequence, Tuple, Union
+from typing import Callable, Dict, Sequence, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -96,22 +96,3 @@ def get_pretrained_optimizer_and_scheduler(
     )
 
     return (optimizer, lr_scheduler)
-
-
-def length_to_mask(
-    lengths: torch.Tensor,
-    max_len: Optional[Union[int, torch.Tensor]] = None,
-    batch_first: bool = False,
-) -> torch.Tensor:
-    if max_len is None:
-        max_len = lengths.max()
-
-    mask = torch.arange(max_len, device=lengths.device).unsqueeze(dim=1).expand(
-        max_len, len(lengths)
-    ) < lengths.unsqueeze(dim=0)
-
-    return mask.transpose(0, 1) if batch_first else mask
-
-
-def mask_to_length(masks: torch.Tensor, batch_first: bool = False) -> torch.Tensor:
-    return masks.sum(dim=int(batch_first)).long()

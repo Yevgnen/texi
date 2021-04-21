@@ -5,7 +5,7 @@ from torchnlp.encoders.text import stack_and_pad_tensors
 from torchnlp.utils import collate_tensors, identity
 
 from texi.pytorch.dataset import Dataset
-from texi.pytorch.utils import length_to_mask
+from texi.pytorch.masking import length_to_mask
 
 
 class SequenceLabelingDataset(Dataset):
