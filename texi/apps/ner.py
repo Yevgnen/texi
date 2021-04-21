@@ -82,6 +82,112 @@ class NerEvaluator(object):
         return metrics, type_metrics
 
 
+class ReEvaluator(object):
+    def __init__(self, relation_types: Iterable[str], strict: bool = True):
+        self.relation_types = relation_types
+        self.strict = strict
+        self.reset()
+
+    def reset(self):
+        self.counter = collections.Counter()
+
+    def _to_tuples(self, batch, keys):  # pylint: disable=no-self-use
+        return [set(tuple(r[key] for key in keys) for r in x) for x in batch]
+
+    def _get_entity_map(self, entities):  # pylint: disable=no-self-use
+
+        return {i: entity for i, entity in enumerate(entities)}
+
+    def _check_entities(self, m1, m2, head, tail):  # pylint: disable=no-self-use
+        return m1[head] == m2[head] and m1[tail] == m2[tail]
+
+    def update(
+        self,
+        targets: Iterable[Iterable[Mapping]],
+        predictions: Iterable[Iterable[Mapping]],
+        entity_targets: Optional[Iterable[Iterable[Mapping]]] = None,
+        entity_predictions: Optional[Iterable[Iterable[Mapping]]] = None,
+    ):
+        # TODO: 2021-04-21 Raise a warning if `entity_targets` or
+        # `entity_predictions` is not sorted.
+
+        if len(targets) != len(predictions):
+            raise ValueError(
+                "`targets` and `predictions`"
+                f" must have same lengths: {len(targets)} != len(predictions)"
+            )
+
+        if self.strict:
+            if entity_targets is None or entity_predictions is None:
+                raise ValueError(
+                    (
+                        "`entity_targets` and `entity_predictions`"
+                        " must not be None"
+                        " when `self.strict` is True"
+                    )
+                )
+
+            if len(entity_targets) != len(entity_predictions):
+                raise ValueError(
+                    "`entity_targets` and `entity_predictions`"
+                    " must have same lengths:"
+                    f" {len(entity_targets)} != {len(entity_predictions)}"
+                )
+
+        keys = ["type", "head", "tail"]
+        targets = self._to_tuples(targets, keys)
+        predictions = self._to_tuples(predictions, keys)
+
+        for i, (example_targets, example_predictions) in enumerate(
+            zip(targets, predictions)
+        ):
+            if self.strict:
+                target_entity_map = self._get_entity_map(entity_targets[i])
+                prediction_entity_map = self._get_entity_map(entity_predictions[i])
+
+            for type_, head, tail in example_targets & example_predictions:
+                if not self.strict or self._check_entities(
+                    target_entity_map, prediction_entity_map, head, tail
+                ):
+                    self.counter["tp"] += 1
+                    self.counter[f"{type_}_tp"] += 1
+                else:
+                    self.counter["fp"] += 1
+                    self.counter[f"{type_}_fp"] += 1
+                    self.counter["fn"] += 1
+                    self.counter[f"{type_}_fn"] += 1
+
+            # Don't need to check entities on errors.
+            for type_, head, tail in example_targets - example_predictions:
+                self.counter["fn"] += 1
+                self.counter[f"{type_}_fn"] += 1
+
+            for type_, head, tail in example_predictions - example_targets:
+                self.counter["fp"] += 1
+                self.counter[f"{type_}_fp"] += 1
+
+    def _get_stats(self, type_=None):
+        if type_:
+            prefix = f"{type_}_"
+        else:
+            prefix = ""
+
+        keys = ["tp", "fn", "fp"]
+        stats = {key: self.counter[f"{prefix}{key}"] for key in keys}
+
+        return stats
+
+    def compute(self) -> Tuple[MetricDict, Dict[str, MetricDict]]:
+        metrics = prf1(**self._get_stats())
+        type_metrics = {
+            type_: prf1(**self._get_stats(type_)) for type_ in self.relation_types
+        }
+
+        self.reset()
+
+        return metrics, type_metrics
+
+
 class NERDataReport(object):
     def __init__(self, examples: Sequence[Mapping], seps: str = "。", k: int = 10):
         # TODO: 2019-09-27 Accept list of tokens inputs of `text` field.
