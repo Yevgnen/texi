@@ -41,8 +41,9 @@ def decode_relations(
     relation_sample_mask: torch.LongTensor,
     relation_label_encoder: LabelEncoder,
     negative_relation_index: int,
+    relation_filter_threshold: float,
 ) -> List[List[Dict[str, Any]]]:
-    relation_filter_mask = relation_prob < 0.4
+    relation_filter_mask = relation_prob < relation_filter_threshold
     relation_pad_mask = ~relation_sample_mask.unsqueeze(dim=-1).bool()
     mask = relation_pad_mask | relation_filter_mask
     relation_prob = relation_prob.masked_fill(mask, -1)
@@ -101,6 +102,7 @@ def predict_relations(
     relation_sample_mask: torch.LongTensor,
     relation_label_encoder: LabelEncoder,
     negative_relation_index: int,
+    relation_filter_threshold: float,
 ) -> List[Dict[str, Any]]:
     if relation_logit.size(1) > 0:
         relation_predictions = decode_relations(
@@ -109,6 +111,7 @@ def predict_relations(
             relation_sample_mask,
             relation_label_encoder,
             negative_relation_index,
+            relation_filter_threshold,
         )
     else:
         relation_predictions = [[] for _ in range(len(relation))]
@@ -127,6 +130,7 @@ def predict(
     relation_sample_mask: torch.LongTensor,
     relation_label_encoder: LabelEncoder,
     negative_relation_index: int,
+    relation_filter_threshold: float,
 ) -> List[Tuple[Dict[str, Any], Dict[str, Any]]]:
     # Predict entities.
     entity_prediction = predict_entities(
@@ -146,6 +150,7 @@ def predict(
         relation_sample_mask,
         relation_label_encoder,
         negative_relation_index,
+        relation_filter_threshold,
     )
 
     return list(zip(entity_prediction, relation_predictions))
