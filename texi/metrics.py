@@ -1,6 +1,24 @@
 # -*- coding: utf-8 -*-
 
 import collections
+from typing import Dict
+
+
+def prf1(tp: int, fp: int, fn: int) -> Dict[str, float]:
+    tpfp = tp + fp
+    precision = tp / tpfp if tpfp > 0 else 0
+
+    tpfn = tp + fn
+    recall = tp / tpfn if tpfn > 0 else 0
+
+    pr = precision + recall
+    f1 = 2 * precision * recall / pr if pr > 0 else 0
+
+    return {
+        "precision": precision,
+        "recall": recall,
+        "f1": f1,
+    }
 
 
 def multilabel_metrics(y, y_pred, kwargs=None):
