@@ -31,8 +31,8 @@ def device(
 
 def get_sampler(
     examples: Sequence,
-    train: bool = True,
-    batch_size: int = 32,
+    train: bool,
+    batch_size: int,
     drop_last: bool = False,
 ) -> BatchSampler:
     if train:

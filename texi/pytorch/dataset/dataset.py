@@ -57,11 +57,11 @@ class Dataset(metaclass=abc.ABCMeta):
         return self.tokenizer.encode(text)
 
     def get_dataloader(
-        self, sampler_kwargs: Optional[Mapping] = None, **kwargs
+        self, batch_size: int, drop_last: bool = False, **kwargs
     ) -> DataLoader:
-        if not sampler_kwargs:
-            sampler_kwargs = {}
-        sampler = get_sampler(self.examples, train=self.train, **sampler_kwargs)
+        sampler = get_sampler(
+            self.examples, self.train, batch_size, drop_last=drop_last
+        )
 
         collate_fn = kwargs.pop("collate_fn", self.collate)
         dataloader = DataLoader(
@@ -72,9 +72,21 @@ class Dataset(metaclass=abc.ABCMeta):
 
     @staticmethod
     def get_dataloaders(
-        iterators: Dict[str, "Dataset"], *args, **kwargs
+        iterators: Dict[str, "Dataset"],
+        train_batch_size: Optional[int] = None,
+        eval_batch_size: Optional[int] = None,
+        batch_size: Optional[int] = None,
+        **kwargs
     ) -> Dict[str, DataLoader]:
-        return {k: v.get_dataloader(*args, **kwargs) for k, v in iterators.items()}
+        batch_sizes = {
+            "train": batch_size if train_batch_size is None else train_batch_size,
+            "val": batch_size if eval_batch_size is None else eval_batch_size,
+            "test": batch_size if eval_batch_size is None else eval_batch_size,
+        }
+
+        return {
+            k: v.get_dataloader(batch_sizes[k], **kwargs) for k, v in iterators.items()
+        }
 
     @classmethod
     def get_iterators(
