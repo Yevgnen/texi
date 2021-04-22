@@ -8,16 +8,30 @@ import torch
 
 
 def create_span_mask(
-    starts: List[int],
-    ends: List[int],
+    starts: Union[List[int], torch.Tensor],
+    ends: Union[List[int], torch.Tensor],
     length: int,
     dtype: torch.dtype = torch.int64,
-    device: torch.device = "cpu",
+    device: torch.device = torch.device("cpu"),
 ) -> torch.Tensor:
     if len(starts) != len(ends):
         raise ValueError(
             f"`start` and `end` should have same lengths: {len(starts)} != {len(ends)}"
         )
+
+    if isinstance(starts, torch.Tensor):
+        if starts.ndim != 1:
+            raise ValueError(
+                f"`starts` must be 1d if passed as tensor, got ndim == {starts.ndim}"
+            )
+        starts = starts.numpy()
+
+    if isinstance(ends, torch.Tensor):
+        if ends.ndim != 1:
+            raise ValueError(
+                f"`ends` must be 1d if passed as tensor, got ndim == {ends.ndim}"
+            )
+        ends = ends.numpy()
 
     if len(starts) == 0:
         return torch.zeros((0, length), dtype=dtype, device=device)
