@@ -1,7 +1,39 @@
 ---
+# Project
+project: "spert"
+
 # Datasets
 val_size: 0.1
 test_size: 0.2
+
+# Training
+seed: 1234
+save_path: 'output/'
+max_epochs: 100
+lr: 0.00005
+lr_warmup: 0.1
+weight_decay: 0.01
+max_grad_norm: 1.0
+schedule_steps: 1
+
+# Dataloader
+train_batch_size: 32
+eval_batch_size: 16
+device: 'cuda'
+pin_memory: true
+non_blocking: true
+
+# Evaluation & Early Stopping
+eval_steps: 5
+early_stopping: false
+eval_metric: 'f1'
+patience: 10
+
+# Logging
+log_steps: 10
+tensorboard: true
+wandb: true
+debug: false
 
 # Model
 pretrained_model: 'bert-base-uncased'
@@ -13,23 +45,3 @@ num_negative_entities: 100
 num_negative_relations: 100
 max_entity_length: 10
 relation_filter_threshold: 0.4
-
-# Training
-seed: 1234
-save_path: 'output/'
-lr: 5e-5
-lr_warmup: 0.1
-weight_decay: 0.01
-train_batch_size: 32
-eval_batch_size: 16
-clip_grad_norm: 1.0
-device: 'cuda'
-non_blocking: true
-max_epochs: 100
-log_freq: 10
-schedule_freq: 1
-eval_freq: 5
-eval_metric: 'f1'
-patience: 10
-tensorboard: false
-wandb: false
