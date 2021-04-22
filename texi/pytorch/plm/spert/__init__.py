@@ -11,12 +11,15 @@ from texi.pytorch.plm.spert.prediction import (
     predict_relations,
 )
 from texi.pytorch.plm.spert.sampler import SpERTSampler
+from texi.pytorch.plm.spert.training import SpERTParams, SpERTTrainer
 
 __all__ = [
     "SpERT",
     "SpERTDataset",
     "SpERTLoss",
     "SpERTSampler",
+    "SpERTParams",
+    "SpERTTrainer",
     "predict",
     "predict_entities",
     "predict_relations",
