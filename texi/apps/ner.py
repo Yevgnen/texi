@@ -43,7 +43,7 @@ class NerEvaluator(object):
         if len(targets) != len(predictions):
             raise ValueError(
                 "`targets` and `predictions`"
-                f" must have same lengths: {len(targets)} != len(predictions)"
+                f" must have same lengths: {len(targets)} != {len(predictions)}"
             )
 
         targets = set(self._flatten(targets))
@@ -124,7 +124,7 @@ class ReEvaluator(object):
         if len(targets) != len(predictions):
             raise ValueError(
                 "`targets` and `predictions`"
-                f" must have same lengths: {len(targets)} != len(predictions)"
+                f" must have same lengths: {len(targets)} != {len(predictions)}"
             )
 
         if self.strict:

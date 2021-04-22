@@ -42,9 +42,9 @@ class TestLabelEncoder(unittest.TestCase):
             encoder.encode_label("dog", return_tensors="pt"),
             torch.tensor(0, dtype=torch.int64),
         )
-        with self.assertRaises(ValueError) as e:
+        with self.assertRaises(ValueError) as ctx:
             encoder.encode_label("dog", return_tensors="tensor")
-            self.assertEqual(e.msg, '`return_tensors` should be "pt" or None')
+        self.assertEqual(str(ctx.exception), '`return_tensors` should be "pt" or None')
 
     def test_decode_label(self):
         tokens = ["dog"]
@@ -53,17 +53,17 @@ class TestLabelEncoder(unittest.TestCase):
         self.assertEqual(
             encoder.decode_label(torch.tensor(0, dtype=torch.int64)), "dog"
         )
-        with self.assertRaises(ValueError) as e:
+        with self.assertRaises(ValueError) as ctx:
             encoder.decode_label([0])
-            self.assertEqual(
-                e.msg, "`index` should be int or torch.LongTensor, got: list"
-            )
+        self.assertEqual(
+            str(ctx.exception), "`index` should be int or torch.LongTensor, got: list"
+        )
 
-        with self.assertRaises(ValueError) as e:
+        with self.assertRaises(ValueError) as ctx:
             encoder.decode_label(torch.tensor([0], dtype=torch.int64))
-            self.assertEqual(
-                e.msg, "tensor should be 0-d tensor, got: ndim == {index.ndim}"
-            )
+        self.assertEqual(
+            str(ctx.exception), "tensor should be 0-d tensor, got: ndim == 1"
+        )
 
     def test_encode(self):
         tokens = ["dog", "cat"]
@@ -75,9 +75,9 @@ class TestLabelEncoder(unittest.TestCase):
                 == torch.tensor([0, 1], dtype=torch.int64)
             ).all()
         )
-        with self.assertRaises(ValueError) as e:
+        with self.assertRaises(ValueError) as ctx:
             encoder.encode(["dog"], return_tensors="tensor")
-            self.assertEqual(e.msg, '`return_tensors` should be "pt" or None')
+        self.assertEqual(str(ctx.exception), '`return_tensors` should be "pt" or None')
 
     def test_decode(self):
         tokens = ["dog", "cat"]
@@ -88,9 +88,11 @@ class TestLabelEncoder(unittest.TestCase):
             ["dog", "cat"],
         )
 
-        with self.assertRaises(ValueError) as e:
+        with self.assertRaises(ValueError) as ctx:
             encoder.decode(torch.tensor([[0, 1]], dtype=torch.int64))
-            self.assertEqual(e.msg, '`return_tensors` should be "pt" or None')
+        self.assertEqual(
+            str(ctx.exception), "tensor should be 1-d tensor, got: ndim == 2"
+        )
 
     def test_from_iterable(self):
         tokens = [["dog"], ["cat"]]

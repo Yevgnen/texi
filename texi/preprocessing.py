@@ -146,13 +146,14 @@ class LabelEncoder(object):
         if isinstance(index, torch.LongTensor):
             if index.ndim > 0:
                 raise ValueError(
-                    "tensor should be 0-d tensor, got: ndim == {index.ndim}"
+                    f"tensor should be 0-d tensor, got: ndim == {index.ndim}"
                 )
             index = int(index.cpu().numpy())
 
         if not isinstance(index, int):
             raise ValueError(
-                f"`index` should be int or torch.LongTensor, got: {type(index)}"
+                "`index` should be int or torch.LongTensor, "
+                f"got: {index.__class__.__name__}"
             )
 
         return self.index2label[index]
@@ -173,7 +174,7 @@ class LabelEncoder(object):
         if isinstance(indices, torch.LongTensor):
             if indices.ndim != 1:
                 raise ValueError(
-                    "tensor should be 1-d tensor, got: ndim == {indices.ndim}"
+                    f"tensor should be 1-d tensor, got: ndim == {indices.ndim}"
                 )
             indices = indices.cpu().numpy()
 

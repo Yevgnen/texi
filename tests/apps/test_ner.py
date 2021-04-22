@@ -53,11 +53,12 @@ class TestNerEvaluator(unittest.TestCase):
         self.assertEqual(self.evaluator.counter["loc_fn"], 1)
 
     def test_update_inconsistent_lengths(self):
-        with self.assertRaises(ValueError) as e:
+        with self.assertRaises(ValueError) as ctx:
             self.evaluator.update([[]], [[], []])
-            self.assertEqual(
-                e.msg, "`targets` and `predictions` must have same lengths: 1 != 2"
-            )
+        self.assertEqual(
+            str(ctx.exception),
+            "`targets` and `predictions` must have same lengths: 1 != 2",
+        )
 
     def test_compute(self):
         self.evaluator.update(self.targets, self.predictions)
@@ -138,28 +139,30 @@ class TestReEvaluator(unittest.TestCase):
         self.assertEqual(self.evaluator.counter["born in_fn"], 0)
 
     def test_update_inconsistent_lengths(self):
-        with self.assertRaises(ValueError) as e:
+        with self.assertRaises(ValueError) as ctx:
             self.evaluator.update([[]], [[], []])
-            self.assertEqual(
-                e.msg, "`targets` and `predictions` must have same lengths: 1 != 2"
-            )
+        self.assertEqual(
+            str(ctx.exception),
+            "`targets` and `predictions` must have same lengths: 1 != 2",
+        )
 
-        with self.assertRaises(ValueError) as e:
+        with self.assertRaises(ValueError) as ctx:
             self.strict_evaluator.update([[], []], [[], []], [[]], [[], []])
-            self.assertEqual(
-                e.msg, "`targets` and `predictions` must have same lengths: 1 != 2"
-            )
+        self.assertEqual(
+            str(ctx.exception),
+            "`entity_targets` and `entity_predictions` must have same lengths: 1 != 2",
+        )
 
     def test_update_strict_no_entity(self):
-        with self.assertRaises(ValueError) as e:
-            self.strict_evaluator.update([[]], [[], []])
-            self.assertEqual(
-                e.msg,
-                (
-                    "`entity_targets` and `entity_predictions` must not be None"
-                    " when `self.strict` is True"
-                ),
-            )
+        with self.assertRaises(ValueError) as ctx:
+            self.strict_evaluator.update([[], []], [[], []])
+        self.assertEqual(
+            str(ctx.exception),
+            (
+                "`entity_targets` and `entity_predictions` must not be None"
+                " when `self.strict` is True"
+            ),
+        )
 
     def test_compute(self):
         self.evaluator.update(self.targets, self.predictions)
