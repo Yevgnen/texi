@@ -2,7 +2,7 @@
 
 import itertools
 from typing import Callable, Optional, Sequence, Union
-
+import collections
 import torch
 import torch.nn.functional as F
 from ignite.exceptions import NotComputableError
@@ -54,6 +54,16 @@ class GeneralAccuracy(Metric):
                 )
             )
         return self._num_correct.item() / self._num_examples
+
+
+class NerReMetrics(Metric):
+    def __init__(
+        self,
+        output_transform: Callable = lambda x: x,
+        device: Union[str, torch.device] = torch.device("cpu"),
+    ):
+        super().__init__(output_transform, device=device)
+        self.ner_counter = collection.Counter()
 
 
 class MeanReciprocalRank(Metric):
