@@ -6,8 +6,8 @@ import torch.nn as nn
 
 from texi.preprocessing import LabelEncoder
 from texi.pytorch.plm.spert.prediction import decode_entities, decode_relations, predict
-from texi.pytorch.training.trainer import Batch, MetricGroup, Trainer
 from texi.pytorch.training.params import Params
+from texi.pytorch.training.trainer import Batch, MetricGroup, Trainer
 
 
 class SpERTParams(Params):
@@ -85,7 +85,7 @@ class SpERTTrainer(Trainer):
                 *predict(
                     output["entity_logit"],
                     batch["entity_mask"],
-                    batch["entity_token_span"],
+                    batch["entity_span"],
                     self.entity_label_encoder,
                     self.negative_entity_index,
                     output["relation_logit"],
@@ -102,7 +102,7 @@ class SpERTTrainer(Trainer):
         entity_targets = decode_entities(
             batch["entity_label"],
             entity_sample_mask,
-            batch["entity_token_span"],
+            batch["entity_span"],
             self.entity_label_encoder,
             self.negative_entity_index,
         )

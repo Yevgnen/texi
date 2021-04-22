@@ -33,55 +33,128 @@ class SpERTDataset(Dataset):
         self.relation_label_encoder = relation_label_encoder
 
     def _encode_entities(self, entities, tokens):
+        num_tokens = sum(map(len, tokens))
+
+        if not entities:
+            mask = torch.zeros((0, num_tokens), dtype=torch.int64)
+            label = torch.zeros((0,), dtype=torch.int64)
+            entity_span = torch.zeros((0, 2), dtype=torch.int64)
+            sample_mask = torch.zeros((0,), dtype=torch.int64)
+
+            return mask, label, entity_span, sample_mask
+
+        # Compute encoded token offsets.
         offset, offsets = 0, []
         for token in tokens:
             offsets += [offset]
             offset += len(token)
 
-        encoded_entities = []
-        for i, entity in enumerate(entities):
+        # Collect `entity_mask`, `entity_label`, `entity_span` and
+        # `entity_sample_mask`.
+        outputs = []
+        for entity in entities:
+            # `start` and `end` are the boundaries of the encoded tokens.
             start = offsets[entity["start"] + 1]
             end = offsets[entity["end"] - 1 + 1] + len(tokens[entity["end"] - 1 + 1])
-            encoded_entities += [
-                {
-                    "start": start,
-                    "end": end,
-                    "label": self.entity_label_encoder.encode_label(entity["type"]),
-                    "token_span": [entity["start"], entity["end"]],
-                }
-            ]
+            token_span = [start, end]
 
-        return encoded_entities
+            label = self.entity_label_encoder.encode_label(entity["type"])
 
-    def _encode_relations(self, relations):
-        return [
-            {
-                "head": x["head"],
-                "tail": x["tail"],
-                "label": self.relation_label_encoder.encode_label(x["type"]),
-            }
-            for x in relations
-        ]
+            # `entity["start"]` and `entity["end"]` are the boundaries
+            # of the original tokens.
+            entity_span = [entity["start"], entity["end"]]
 
-    def encode_example(self, example, entities, relations):
+            outputs += [(token_span, label, entity_span, 1)]
+
+        outputs = [torch.tensor(x, dtype=torch.int64) for x in zip(*outputs)]
+        token_span, label, entity_span, sample_mask = outputs
+        mask = create_span_mask(token_span[:, 0], token_span[:, 1], num_tokens)
+
+        return mask, label, entity_span, sample_mask
+
+    def _encode_relations(self, relations, entity_mask, tokens):
+        def _compute_context_span(head_mask, tail_mask):
+            head_start, tail_start = head_mask.argmax(), tail_mask.argmax()
+            head_end = head_start + head_mask.sum()
+            tail_end = tail_start + tail_mask.sum()
+            assert (
+                head_start >= tail_end or tail_start >= head_end
+            ), "Relations of overlapped entities are not allowed"
+
+            return min(head_end, tail_end), max(head_start, tail_start)
+
+        num_tokens = sum(map(len, tokens))
+
+        if not relations:
+            mask = torch.zeros((0, num_tokens), dtype=torch.int64)
+            label = torch.zeros(
+                (0, len(self.relation_label_encoder)), dtype=torch.int64
+            )
+            entity_span = torch.zeros((0, 2), dtype=torch.int64)
+            sample_mask = torch.zeros((0,), dtype=torch.int64)
+
+            return mask, label, entity_span, sample_mask
+
+        # Collect `relation_context_mask`, `relation_label`,
+        # `relation_pair` and `relation_sample_mask`.
+        outputs = []
+        for relation in relations:
+            # Compute the relation context span based on encoded tokens.
+            head_mask = entity_mask[relation["head"]]
+            tail_mask = entity_mask[relation["tail"]]
+            context = _compute_context_span(head_mask, tail_mask)
+
+            label = self.relation_label_encoder.encode_label(relation["type"])
+            pair = [relation["head"], relation["tail"]]
+
+            outputs += [(context, label, pair, 1)]
+
+        outputs = [torch.tensor(x, dtype=torch.int64) for x in zip(*outputs)]
+        context, label, pair, sample_mask = outputs
+        num_tokens = sum(map(len, tokens))
+        mask = create_span_mask(context[:, 0], context[:, 1], num_tokens)
+        label = torch.nn.functional.one_hot(label)
+
+        return mask, label, pair, sample_mask
+
+    def encode_example(self, tokens, entities, relations):
         # Encode tokens.
-        tokens = (
-            [self.tokenizer.cls_token] + example["tokens"] + [self.tokenizer.sep_token]
-        )
+        tokens = [self.tokenizer.cls_token] + tokens + [self.tokenizer.sep_token]
         output = self.tokenizer(tokens, add_special_tokens=False)
 
         # Encode entities.
-        encoded_entities = self._encode_entities(entities, output["input_ids"])
+        (
+            entity_mask,
+            entity_label,
+            entity_span,
+            entity_sample_mask,
+        ) = self._encode_entities(entities, output["input_ids"])
 
         # Encode relations.
-        encoded_relations = self._encode_relations(relations)
+        (
+            relation_context_mask,
+            relation_label,
+            relation,
+            relation_sample_mask,
+        ) = self._encode_relations(relations, entity_mask, output["input_ids"])
 
-        output = {k: list(itertools.chain.from_iterable(v)) for k, v in output.items()}
+        output = {
+            k: torch.tensor(list(itertools.chain.from_iterable(v)), dtype=torch.int64)
+            for k, v in output.items()
+        }
 
         return {
-            "output": output,
-            "entities": encoded_entities,
-            "relations": encoded_relations,
+            "input_ids": output["input_ids"],
+            "attention_mask": output["attention_mask"],
+            "token_type_ids": output["token_type_ids"],
+            "entity_mask": entity_mask,
+            "entity_label": entity_label,
+            "entity_span": entity_span,
+            "entity_sample_mask": entity_sample_mask,
+            "relation_context_mask": relation_context_mask,
+            "relation_label": relation_label,
+            "relation": relation,
+            "relation_sample_mask": relation_sample_mask,
         }
 
     def encode(self, example):
@@ -97,159 +170,66 @@ class SpERTDataset(Dataset):
         )
         relations = positive_relations + negative_relations
 
-        return self.encode_example(example, entities, relations)
+        return self.encode_example(example["tokens"], entities, relations)
 
-    def _collate_entities(self, collated):
-        entity_masks, entity_labels, entity_token_spans = [], [], []
+    def collate(
+        self, batch: Iterable[Iterable[torch.Tensor]]
+    ) -> Dict[str, torch.Tensor]:
+        batch = [self.encode(x) for x in batch]
+        batch = collate(batch)
+
+        def _stack_1d(tensors, length):
+            return torch.stack(
+                [torch.nn.functional.pad(x, [0, length - len(x)]) for x in tensors]
+            )
+
+        def _stack_2d(tensors, max_rows, max_columns):
+            return torch.stack(
+                [
+                    torch.nn.functional.pad(
+                        x, [0, max_columns - x.size(1), 0, max_rows - x.size(0)]
+                    )
+                    for x in tensors
+                ]
+            )
+
         max_length, max_entities = 0, 0
-        for i, entities in enumerate(collated["entities"]):
-            assert len(entities) > 0, "There must be at least 1 negative entity."
-
-            entities = collate(entities)
-
-            num_tokens = len(collated["output"][i]["input_ids"])
-            mask = create_span_mask(entities["start"], entities["end"], num_tokens)
-            entity_masks += [mask]
-
-            label = torch.tensor(entities["label"], dtype=torch.int64)
-            entity_labels += [label]
-
-            token_span = torch.tensor(entities["token_span"], dtype=torch.int64)
-            entity_token_spans += [token_span]
-
+        for mask in batch["entity_mask"]:
             max_entities = max(max_entities, mask.size(0))
             max_length = max(max_length, mask.size(1))
 
-        entity_masks = [
-            torch.nn.functional.pad(
-                x, [0, max_length - x.size(1), 0, max_entities - x.size(0)]
-            )
-            for x in entity_masks
-        ]
-        entity_labels = [
-            torch.nn.functional.pad(x, [0, max_entities - len(x)])
-            for x in entity_labels
-        ]
-        entity_token_spans = [
-            torch.nn.functional.pad(x, [0, 0, 0, max_entities - len(x)])
-            for x in entity_token_spans
-        ]
+        max_relations = 0
+        for mask in batch["relation_context_mask"]:
+            max_relations = max(max_relations, mask.size(0))
 
-        entity_mask = torch.stack(entity_masks)
-        entity_label = torch.stack(entity_labels)
-        entity_sample_mask = (entity_mask.sum(dim=-1) > 0).long()
-        entity_token_span = torch.stack(entity_token_spans)
+        input_ids = _stack_1d(batch["input_ids"], max_length)
+        attention_mask = _stack_1d(batch["attention_mask"], max_length)
+        token_type_ids = _stack_1d(batch["token_type_ids"], max_length)
+
+        entity_mask = _stack_2d(batch["entity_mask"], max_entities, max_length)
+        entity_label = _stack_1d(batch["entity_label"], max_entities)
+        entity_span = _stack_2d(batch["entity_span"], max_entities, 2)
+        entity_sample_mask = _stack_1d(batch["entity_sample_mask"], max_entities)
+
+        relation_context_mask = _stack_2d(
+            batch["relation_context_mask"], max_relations, max_length
+        )
+        relation_label = _stack_2d(
+            batch["relation_label"], max_relations, len(self.relation_label_encoder)
+        )
+        relation = _stack_2d(batch["relation"], max_relations, 2)
+        relation_sample_mask = _stack_1d(batch["relation_sample_mask"], max_relations)
 
         return {
+            "input_ids": input_ids,
+            "attention_mask": attention_mask,
+            "token_type_ids": token_type_ids,
             "entity_mask": entity_mask,
             "entity_label": entity_label,
+            "entity_span": entity_span,
             "entity_sample_mask": entity_sample_mask,
-            "entity_token_span": entity_token_span,
-        }
-
-    def _collate_relations(self, collated):
-        def _create_context_mask(heads, tails, entity_spans, length):
-            head_starts, head_ends = zip(*[entity_spans[x] for x in heads])
-            tail_starts, tail_ends = zip(*[entity_spans[x] for x in tails])
-            starts, ends = [], []
-            for hs, he, ts, te in zip(head_starts, head_ends, tail_starts, tail_ends):
-                assert hs < he and ts < te and (he <= ts or te <= hs)
-                if hs < ts:
-                    starts += [he]
-                    ends += [ts]
-                else:
-                    starts += [te]
-                    ends += [hs]
-
-            return create_span_mask(starts, ends, length)
-
-        relation_args, relation_context_masks, relation_labels = [], [], []
-        max_relations, max_length = 0, 0
-        for output, entities, relations in zip(
-            collated["output"], collated["entities"], collated["relations"]
-        ):
-            num_tokens = len(output["input_ids"])
-            if len(relations) > 0:
-                relations = collate(relations)
-                head = torch.tensor(relations["head"], dtype=torch.int64)
-                tail = torch.tensor(relations["tail"], dtype=torch.int64)
-                entity_spans = {
-                    i: (x["start"], x["end"]) for i, x in enumerate(entities)
-                }
-                mask = _create_context_mask(
-                    relations["head"], relations["tail"], entity_spans, num_tokens
-                )
-                arg = torch.stack([head, tail], dim=1)
-                label = torch.nn.functional.one_hot(
-                    torch.tensor(relations["label"]), len(self.relation_label_encoder)
-                )
-            else:
-                arg = torch.zeros((0, 2), dtype=torch.int64)
-                mask = torch.zeros((0, num_tokens), dtype=torch.int64)
-                label = torch.zeros(
-                    (0, len(self.relation_label_encoder)), dtype=torch.int64
-                )
-
-            relation_args += [arg]
-            relation_context_masks += [mask]
-            relation_labels += [label]
-
-            max_relations = max(max_relations, arg.size(0))
-            max_length = max(max_length, num_tokens)
-        relation_sample_masks = [
-            torch.ones(len(x), dtype=torch.int64) for x in relation_labels
-        ]
-
-        relation_args = [
-            torch.nn.functional.pad(x, [0, 0, 0, max_relations - x.size(0)])
-            for x in relation_args
-        ]
-        relation_context_masks = [
-            torch.nn.functional.pad(
-                x, [0, max_length - x.size(1), 0, max_relations - x.size(0)]
-            )
-            for x in relation_context_masks
-        ]
-        relation_labels = [
-            torch.nn.functional.pad(x, [0, 0, 0, max_relations - x.size(0)])
-            for x in relation_labels
-        ]
-        relation_sample_masks = [
-            torch.nn.functional.pad(x, [0, max_relations - x.size(0)])
-            for x in relation_sample_masks
-        ]
-
-        relation_arg = torch.stack(relation_args)
-        relation_context_mask = torch.stack(relation_context_masks)
-        relation_label = torch.stack(relation_labels)
-        relation_sample_mask = torch.stack(relation_sample_masks)
-
-        return {
-            "relation": relation_arg,
             "relation_context_mask": relation_context_mask,
             "relation_label": relation_label,
+            "relation": relation,
             "relation_sample_mask": relation_sample_mask,
         }
-
-    def collate(self, batch: Dict) -> Dict[str, torch.Tensor]:
-        encoded_batch = [self.encode(x) for x in batch]
-        collated = collate(encoded_batch)
-
-        entities = self._collate_entities(collated)
-        relations = self._collate_relations(collated)
-
-        output = collate(collated["output"])
-        max_length = max(len(x) for x in output["input_ids"])
-        output = {
-            key: torch.stack(
-                [
-                    torch.nn.functional.pad(
-                        torch.tensor(x, dtype=torch.int64), [0, max_length - len(x)]
-                    )
-                    for x in value
-                ]
-            )
-            for key, value in output.items()
-        }
-
-        return {**output, **entities, **relations}

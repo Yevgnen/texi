@@ -10,21 +10,21 @@ from texi.preprocessing import LabelEncoder
 def decode_entities(
     entity_label: torch.LongTensor,
     entity_sample_mask: torch.LongTensor,
-    entity_token_span: torch.LongTensor,
+    entity_span: torch.LongTensor,
     entity_label_encoder: LabelEncoder,
     negative_entity_index: int,
 ) -> List[List[Dict[str, Any]]]:
     entity_label = entity_label.masked_fill(~entity_sample_mask, -1).long()
 
-    entity_token_span = entity_token_span.cpu().numpy().tolist()
+    entity_span = entity_span.cpu().numpy().tolist()
     entities = [
         [
             {
                 "type": entity_label_encoder.decode_label(
                     label if label >= 0 else negative_entity_index
                 ),
-                "start": entity_token_span[i][j][0],
-                "end": entity_token_span[i][j][1],
+                "start": entity_span[i][j][0],
+                "end": entity_span[i][j][1],
             }
             for j, label in enumerate(labels)
             if label >= 0
@@ -76,7 +76,7 @@ def decode_relations(
 def predict_entities(
     entity_logit: torch.FloatTensor,
     entity_mask: torch.LongTensor,
-    entity_token_span: torch.LongTensor,
+    entity_span: torch.LongTensor,
     entity_label_encoder: LabelEncoder,
     negative_entity_index: int,
 ) -> List[List[Dict[str, Any]]]:
@@ -88,7 +88,7 @@ def predict_entities(
     entity_prediction = decode_entities(
         entity_label,
         entity_sample_mask,
-        entity_token_span,
+        entity_span,
         entity_label_encoder,
         negative_entity_index,
     )
@@ -122,7 +122,7 @@ def predict_relations(
 def predict(
     entity_logit: torch.FloatTensor,
     entity_mask: torch.LongTensor,
-    entity_token_span: torch.LongTensor,
+    entity_span: torch.LongTensor,
     entity_label_encoder: LabelEncoder,
     negative_entity_index: int,
     relation_logit: torch.FloatTensor,
@@ -136,7 +136,7 @@ def predict(
     entity_prediction = predict_entities(
         entity_logit,
         entity_mask,
-        entity_token_span,
+        entity_span,
         entity_label_encoder,
         negative_entity_index,
     )
