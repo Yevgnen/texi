@@ -264,7 +264,7 @@ def build_train_step_function(
     train_step: TrainStepFunction,
     device: torch.device = "cpu",
     non_blocking: bool = False,
-    clip_grad_norm: Optional[int] = None,
+    max_grad_norm: Optional[int] = None,
     gradient_accumulation_steps: Optional[int] = None,
 ) -> UpdateFunction:
     def _step(engine, batch):
@@ -277,8 +277,8 @@ def build_train_step_function(
             not gradient_accumulation_steps
             or engine.state.iteration % gradient_accumulation_steps == 0
         ):
-            if clip_grad_norm is not None:
-                torch.nn.utils.clip_grad_norm_(net.parameters(), clip_grad_norm)
+            if max_grad_norm is not None:
+                torch.nn.utils.clip_grad_norm_(net.parameters(), max_grad_norm)
             optimizer.step()
             optimizer.zero_grad()
         engine.state.metrics["loss"] = loss.item()
@@ -341,7 +341,7 @@ class Trainer(metaclass=abc.ABCMeta):
         optimizer: Optimizer,
         loss_function: nn.Module,
         train_step: Optional[TrainStepFunction] = None,
-        clip_grad_norm: Optional[int] = None,
+        max_grad_norm: Optional[int] = None,
         gradient_accumulation_steps: Optional[int] = None,
         device: torch.device = "cpu",
         non_blocking: bool = False,
@@ -359,7 +359,7 @@ class Trainer(metaclass=abc.ABCMeta):
                 train_step or self.train_step,
                 device=device,
                 non_blocking=non_blocking,
-                clip_grad_norm=clip_grad_norm,
+                max_grad_norm=max_grad_norm,
                 gradient_accumulation_steps=gradient_accumulation_steps,
             )
         )
