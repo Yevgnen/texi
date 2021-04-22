@@ -17,6 +17,7 @@ from ignite.contrib.engines.common import (
     setup_wandb_logging,
 )
 from ignite.contrib.handlers import ProgressBar
+from ignite.contrib.handlers.base_logger import BaseLogger
 from ignite.engine import Engine, Events
 from ignite.handlers import Checkpoint, EarlyStopping, TerminateOnNan
 from ignite.metrics import BatchWise, EpochWise, Metric
@@ -35,6 +36,7 @@ from texi.pytorch.metrics import (
     sequence_labeling_metrics,
 )
 from texi.pytorch.optim import optim
+from texi.pytorch.training.params import Params
 from texi.pytorch.utils import get_default_arguments
 
 logger = logging.getLogger(__name__)
@@ -85,50 +87,96 @@ def setup_save_handlers(
     trainer: Engine,
     evaluator: Engine,
     net: nn.Module,
-    eval_metric: Optional[str] = None,
-    save_path: str = ".",
-    patience: int = 5,
+    eval_metric: str,
+    patience: int,
+    save_path: str,
 ) -> Tuple[Checkpoint, EarlyStopping]:
-    best_model_handler = None
-    early_stopping_handler = None
-    if eval_metric:
-        best_model_handler = save_best_model_by_val_score(
-            save_path, evaluator, net, eval_metric, trainer=trainer
-        )
-        if patience > 0:
-            early_stopping_handler = add_early_stopping_by_val_score(
-                patience, evaluator, trainer, eval_metric
-            )
+    best_model_handler = save_best_model_by_val_score(
+        save_path, evaluator, net, eval_metric, trainer=trainer
+    )
+    early_stopping_handler = add_early_stopping_by_val_score(
+        patience, evaluator, trainer, eval_metric
+    )
 
     return best_model_handler, early_stopping_handler
 
 
-def setup_handlers(
+def setup_logger_handlers(
+    save_path: str,
+    log_steps: int,
+    params: Mapping,
     trainer: Engine,
-    train_evaluator: Engine,
-    val_evaluator: Engine,
-    train_loader: DataLoader,
-    val_loader: DataLoader,
     net: nn.Module,
     optimizer: Optimizer,
-    eval_metric: str,
-    save_path: str,
+    evaluators: Mapping[str, Engine],
+    tensorboard: bool = False,
+    wandb: bool = False,
+    debug: bool = False,
+) -> Dict[str, BaseLogger]:
+    handlers = {}
+
+    if tensorboard:
+        tensorboard_dir = os.path.join(save_path, "tensorboard")
+        os.makedirs(tensorboard_dir, exist_ok=True)
+        tensorboard_logger = setup_tb_logging(
+            tensorboard_dir,
+            trainer,
+            optimizers=optimizer,
+            evaluators=evaluators,
+            log_steps=log_steps,
+            net=net,
+            include_weights_and_grads=debug,
+        )
+        handlers["tensorboard_logger"] = tensorboard_logger
+
+    if wandb:
+        wandb_dir = os.path.join(save_path, "wandb")
+        os.makedirs(wandb_dir, exist_ok=True)
+        wandb_logger = setup_wandb_logging(
+            trainer,
+            optimizers=optimizer,
+            evaluators=evaluators,
+            log_every_iters=log_steps,
+            dir=wandb_dir,
+            config=params,
+            project=params["project"],
+            reinit=True,
+        )
+        wandb_logger.attach(
+            trainer, lambda *args, **kwargs: wandb_logger.close, Events.COMPLETED
+        )
+        if debug:
+            wandb_logger.watch(net, log="all", log_steps=log_steps)
+        handlers["wandb_logger"] = wandb_logger
+
+    return handlers
+
+
+def setup_handlers(
+    params: Params,
+    trainer: Engine,
+    evaluators: Mapping[str, Engine],
+    data_loaders: Mapping[str, DataLoader],
+    net: nn.Module,
+    optimizer: Optimizer,
     lr_scheduler: Optional[_LRScheduler] = None,
-    log_freq: int = 1,
-    eval_freq: int = 1,
-    schedule_freq: int = 1,
-    patience: int = 10,
-    eval_event_name: Events = Events.EPOCH_COMPLETED,
-    schedule_event_name: Events = Events.EPOCH_COMPLETED,
-    test_evaluator: Optional[Engine] = None,
-    test_loader: Optional[DataLoader] = None,
-    tensorboard: bool = True,
-    wandb: bool = True,
-    watch: bool = False,
-    params: Optional[Mapping] = None,
 ) -> Dict:
     # pylint: disable=not-callable, unused-argument, unused-variable
-    # pylint: disable=too-many-arguments, too-many-locals
+    # pylint: disable=too-many-locals, too-many-arguments
+
+    def get_event(steps):
+        if isinstance(steps, int):
+            return Events.ITERATION_COMPLETED
+        elif steps == "epoch":
+            return Events.EPOCH_COMPLETED
+
+        raise ValueError(
+            (
+                "Event frequency should be either"
+                " integer for Events.ITERATION_COMPLETED"
+                ' or "epoch" for Events.EPOCH_COMPLETED'
+            )
+        )
 
     # Other event handlers.
     def step_schedulers(engine):
@@ -167,92 +215,103 @@ def setup_handlers(
         else:
             traceback.print_exc()
 
-    # Setup handlers.
+    # Setup general handlers.
     handlers = {}
-    ProgressBar(ncols=0).attach(
-        trainer,
-        metric_names="all",
-        event_name=Events.ITERATION_COMPLETED(every=log_freq),
-    )
-
     trainer.add_event_handler(Events.EXCEPTION_RAISED, handle_exceptions)
     trainer.add_event_handler(Events.ITERATION_COMPLETED, TerminateOnNan())
 
-    if lr_scheduler is not None:
-        trainer.add_event_handler(
-            schedule_event_name(every=schedule_freq), step_schedulers
+    # Setup loggers.
+    if params.log_steps > 0:
+        ProgressBar(ncols=0).attach(
+            trainer,
+            metric_names="all",
+            event_name=Events.ITERATION_COMPLETED(every=params.log_steps),
         )
+        logger_handlers = setup_logger_handlers(
+            params.save_path,
+            params.log_steps,
+            params.to_dict(),
+            trainer,
+            net,
+            optimizer,
+            evaluators,
+            tensorboard=params.tensorboard,
+            wandb=params.wandb,
+            debug=params.debug,
+        )
+        handlers.update(logger_handlers)
 
-    trainer.add_event_handler(
-        eval_event_name(every=eval_freq),
-        build_evaluate_handler("train", train_evaluator, train_loader),
-    )
+        for evaluator in evaluators.values():
+            ProgressBar(ncols=0).attach(
+                evaluator,
+                event_name=Events.ITERATION_COMPLETED(every=params.log_steps),
+            )
+    else:
+        logger.warning("Logger handlers not set")
 
-    trainer.add_event_handler(
-        eval_event_name(every=eval_freq),
-        build_evaluate_handler("val", val_evaluator, val_loader),
-    )
+    # Setup scheduler.
+    if lr_scheduler is not None:
+        if params.schedule_steps > 0:
+            schedule_event = get_event(params.schedule_steps)
+            trainer.add_event_handler(
+                schedule_event(every=params.schedule_steps), step_schedulers
+            )
+        else:
+            raise ValueError(
+                "`schedule_steps` must be positve when `lr_scheduler` is passed"
+            )
 
-    best_model_handler, early_stopping_handler = setup_save_handlers(
-        trainer,
-        val_evaluator,
-        net,
-        eval_metric,
-        save_path,
-        patience,
-    )
-    handlers["best_model_handler"] = best_model_handler
-    handlers["early_stopping_handler"] = early_stopping_handler
+    else:
+        logger.warning("LR scheduler not set")
 
+    # Setup evaluate handlers.
+    if params.eval_steps > 0:
+        for mode in ["train", "val"]:
+            eval_event = get_event(params.eval_steps)
+            trainer.add_event_handler(
+                eval_event(every=params.eval_steps),
+                build_evaluate_handler(
+                    mode, evaluators[f"{mode}_evaluator"], data_loaders[mode]
+                ),
+            )
+
+        if params.early_stopping:
+            if params.eval_metric is None or params.patience is None:
+                raise ValueError(
+                    "`eval_metric` and `patience` must set when `early_stopping` is set"
+                )
+            best_model_handler, early_stopping_handler = setup_save_handlers(
+                trainer,
+                evaluators["val_evaluator"],
+                net,
+                params.eval_metric,
+                params.patience,
+                params.save_path,
+            )
+            handlers["best_model_handler"] = best_model_handler
+            handlers["early_stopping_handler"] = early_stopping_handler
+    else:
+        logger.warning("Evaluate handlers not set")
+        if params.early_stopping:
+            raise ValueError(
+                "Evaluate handlers must set when `early_stopping` is set"
+                ", check `eval_steps`, `eval_metric` and `patience`"
+            )
+
+    # Setup test evaluate handlers.
+    test_evaluator = evaluators.get("test_evaluator")
     if test_evaluator is not None:
+        test_loader = data_loaders.get("test")
+        if test_loader is None:
+            raise ValueError(
+                "`test_loader` must not be None when `test_evaluator` is passed"
+            )
         test_evaluate_handler = build_evaluate_handler(
-            "test", test_evaluator, test_loader, best_model_handler
+            "test", test_evaluator, test_loader, handlers.get("best_model_handler")
         )
         trainer.add_event_handler(Events.COMPLETED, test_evaluate_handler)
-
-    # Setup loggers.
-    evaluators = {"validating/train": train_evaluator, "validating/val": val_evaluator}
-    if test_evaluator is not None:
-        evaluators.update({"testing": test_evaluator})
-
-    for evaluator in evaluators.values():
-        ProgressBar(ncols=0).attach(
-            evaluator,
-            event_name=Events.ITERATION_COMPLETED(every=log_freq),
-        )
-
-    log_dir = os.path.join(save_path, "log/")
-    os.makedirs(log_dir, exist_ok=True)
-    if tensorboard:
-        tensorboard_logger = setup_tb_logging(
-            log_dir,
-            trainer,
-            optimizers=optimizer,
-            evaluators=evaluators,
-            log_freq=log_freq,
-            net=net,
-            include_weights_and_grads=watch,
-        )
-        handlers["tensorboard_logger"] = tensorboard_logger
-
-    if wandb:
-        wandb_logger = setup_wandb_logging(
-            trainer,
-            optimizers=optimizer,
-            evaluators=evaluators,
-            log_every_iters=log_freq,
-            dir=log_dir,
-            config=params,
-            project=params["project"],
-            name=params["test_name"],
-            reinit=True,
-        )
-        wandb_logger.attach(
-            trainer, lambda *args, **kwargs: wandb_logger.close, Events.COMPLETED
-        )
-        if watch:
-            wandb_logger.watch(net, log="all", log_freq=log_freq)
-        handlers["wandb_logger"] = wandb_logger
+    else:
+        logger.warning("Test evaluate handlers not set")
 
     return handlers
 
@@ -429,12 +488,12 @@ class Trainer(metaclass=abc.ABCMeta):
 
     def get_engines(
         self,
+        params: Params,
         net: nn.Module,
         optimizer: Optimizer,
         loss_function: nn.Module,
         train_step: Optional[TrainStepFunction] = None,
         eval_step: Optional[EvalStepFunction] = None,
-        params: Optional[Mapping] = None,
     ) -> Tuple[Engine, Dict[str, Engine]]:
         # Try to get engine params. Can't pass **params to
         # `self.get_trainer` or `self.get_evaluators` because `params`
@@ -447,8 +506,7 @@ class Trainer(metaclass=abc.ABCMeta):
 
             return default_arguments
 
-        if not params:
-            params = {}
+        params = params.to_dict()
 
         trainer_params = _get_default_arguments(self.get_trainer, params)
         trainer_params.update(train_step=train_step)
@@ -462,6 +520,7 @@ class Trainer(metaclass=abc.ABCMeta):
 
     def setup(
         self,
+        params: Params,
         data_loaders: Mapping[str, DataLoader],
         net: nn.Module,
         loss_fn: nn.Module,
@@ -469,18 +528,9 @@ class Trainer(metaclass=abc.ABCMeta):
         lr_scheduler: Optional[_LRScheduler] = None,
         train_step: Optional[TrainStepFunction] = None,
         eval_step: Optional[EvalStepFunction] = None,
-        params: Optional[Mapping] = None,
     ) -> None:
-        if not params:
-            raise ValueError("`params` must not be None")
-
         self.trainer, self.evaluators = self.get_engines(
-            net,
-            optimizer,
-            loss_fn,
-            train_step=train_step,
-            eval_step=eval_step,
-            params=params,
+            params, net, optimizer, loss_fn, train_step=train_step, eval_step=eval_step
         )
         self.data_loaders = data_loaders
 
@@ -488,29 +538,17 @@ class Trainer(metaclass=abc.ABCMeta):
         self.optimizer = optimizer
         self.lr_scheduler = lr_scheduler
 
-        self.params = params
-
         setup_handlers(
+            params,
             self.trainer,
-            self.evaluators["train_evaluator"],
-            self.evaluators["val_evaluator"],
-            self.data_loaders["train"],
-            self.data_loaders["val"],
+            self.evaluators,
+            self.data_loaders,
             net,
             optimizer,
-            params["eval_metric"],
-            params["save_path"],
             lr_scheduler=lr_scheduler,
-            eval_freq=params["eval_freq"],
-            log_freq=params["log_freq"],
-            schedule_freq=params["schedule_freq"],
-            patience=params["patience"],
-            test_evaluator=self.evaluators["test_evaluator"],
-            test_loader=self.data_loaders["test"],
-            tensorboard=params["tensorboard"],
-            wandb=params["wandb"],
-            params=params,
         )
+
+        self.params = params
 
     def run(self, *args, **kwargs) -> None:
         logger.info("Start training with params:")

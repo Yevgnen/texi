@@ -40,6 +40,9 @@ setup(
         "pytorch-nlp",
         "torch",
     ],
+    entry_points={
+        "console_scripts": ["texi-params=texi.pytorch.training.params:main"],
+    },
     test_suite="tests",
     zip_safe=False,
 )
