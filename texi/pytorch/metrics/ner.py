@@ -7,13 +7,14 @@ from ignite.metrics import Metric
 from ignite.metrics.metric import reinit__is_reduced, sync_all_reduce
 
 from texi.metrics import prf1
+from texi.preprocessing import LabelEncoder
 
 
 class NerMetrics(Metric):
     def __init__(
         self,
-        entity_label_encoder,
-        negative_entity_index,
+        entity_label_encoder: LabelEncoder,
+        negative_entity_index: int,
         output_transform: Callable = lambda x: x,
         device: Union[str, torch.device] = torch.device("cpu"),
     ):
@@ -33,9 +34,9 @@ class NerMetrics(Metric):
     @reinit__is_reduced
     def update(self, output: Dict) -> None:
         def _combine_span_and_label(y):
-            # label: [B, R]
-            # span: [B, R, 2]
-            # mask: [B, R]
+            # label: [B, E]
+            # span: [B, E, 2]
+            # mask: [B, E]
             span_with_label = torch.cat(
                 [y["label"].unsqueeze(dim=-1), y["span"]], axis=-1
             )
