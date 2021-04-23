@@ -15,9 +15,9 @@ def prf1(tp: int, fp: int, fn: int) -> Dict[str, float]:
     f1 = 2 * precision * recall / pr if pr > 0 else 0
 
     return {
-        "precision": precision,
-        "recall": recall,
-        "f1": f1,
+        "precision": float(precision),
+        "recall": float(recall),
+        "f1": float(f1),
     }
 
 
