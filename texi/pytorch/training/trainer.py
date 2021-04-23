@@ -166,9 +166,10 @@ def setup_handlers(
 
     def get_event(steps):
         if isinstance(steps, int):
-            return Events.ITERATION_COMPLETED
-        elif steps == "epoch":
-            return Events.EPOCH_COMPLETED
+            return Events.ITERATION_COMPLETED(every=steps)
+
+        if steps == "epoch":
+            return Events.EPOCH_COMPLETED(every=1)
 
         raise ValueError(
             (
@@ -251,25 +252,22 @@ def setup_handlers(
 
     # Setup scheduler.
     if lr_scheduler is not None:
-        if params.schedule_steps > 0:
-            schedule_event = get_event(params.schedule_steps)
-            trainer.add_event_handler(
-                schedule_event(every=params.schedule_steps), step_schedulers
-            )
+        if params.schedule_steps == "epoch" or params.schedule_steps > 0:
+            trainer.add_event_handler(get_event(params.schedule_steps), step_schedulers)
         else:
             raise ValueError(
-                "`schedule_steps` must be positve when `lr_scheduler` is passed"
+                '`schedule_steps` must be positve or "epoch"'
+                " when `lr_scheduler` is passed"
             )
 
     else:
         logger.warning("LR scheduler not set")
 
     # Setup evaluate handlers.
-    if params.eval_steps > 0:
+    if params.eval_steps == "epoch" or params.eval_steps > 0:
         for mode in ["train", "val"]:
-            eval_event = get_event(params.eval_steps)
             trainer.add_event_handler(
-                eval_event(every=params.eval_steps),
+                get_event(params.eval_steps),
                 build_evaluate_handler(
                     mode, evaluators[f"{mode}_evaluator"], data_loaders[mode]
                 ),
