@@ -5,7 +5,7 @@ from typing import Dict
 import torch.nn as nn
 
 from texi.preprocessing import LabelEncoder
-from texi.pytorch.metrics import NerMetrics
+from texi.pytorch.metrics import NerMetrics, ReMetrics
 from texi.pytorch.training.params import Params
 from texi.pytorch.training.trainer import Batch, MetricGroup, Trainer
 
@@ -65,7 +65,26 @@ class SpERTTrainer(Trainer):
                         "mask": outputs["input"]["entity_sample_mask"],
                     },
                 },
-            )
+            ),
+            "re": ReMetrics(
+                self.relation_label_encoder,
+                self.negative_relation_index,
+                self.relation_filter_threshold,
+                output_transform=lambda outputs: {
+                    "y": {
+                        "label": outputs["target"]["relation_label"],
+                        "pair": outputs["target"]["relation"],
+                        "mask": outputs["target"]["relation_sample_mask"],
+                        "entity_span": outputs["target"]["entity_span"],
+                    },
+                    "y_pred": {
+                        "label": outputs["output"]["relation_logit"],
+                        "pair": outputs["output"]["relation"],
+                        "mask": outputs["output"]["relation_sample_mask"],
+                        "entity_span": outputs["input"]["entity_span"],
+                    },
+                },
+            ),
         }
 
     def train_step(
