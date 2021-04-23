@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 
+import argparse
 import copy
 import os
-from typing import Dict
+from typing import Dict, Optional
 
+from carton.params import Params as ParamDict
 from carton.random import random_state
 
 from texi.pytorch.utils import device
@@ -60,12 +62,27 @@ class Params(object):
     def to_dict(self) -> Dict:
         return copy.deepcopy(self.__dict__)
 
+    def to_yaml(self, filename: Optional[str] = None) -> None:
+        if not filename:
+            filename = os.path.join(self.save_path, "params.yaml")
+
+        ParamDict(**self.to_dict()).to_yaml(filename)
+
+    def to_json(self, filename: Optional[str] = None) -> None:
+        if not filename:
+            filename = os.path.join(self.save_path, "params.json")
+
+        ParamDict(**self.to_dict()).to_json(filename)
+
+    def to_toml(self, filename: Optional[str] = None) -> None:
+        if not filename:
+            filename = os.path.join(self.save_path, "params.toml")
+
+        ParamDict(**self.to_dict()).to_toml(filename)
+
 
 def main():
     # pylint: disable=import-outside-toplevel
-    import argparse
-
-    from carton.params import Params as ParamDict
 
     def parse_args():
         parser = argparse.ArgumentParser(

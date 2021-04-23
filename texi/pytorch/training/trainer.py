@@ -556,6 +556,7 @@ class Trainer(metaclass=abc.ABCMeta):
     def run(self, *args, **kwargs) -> None:
         logger.info("Start training with params:")
         logger.info(pprint.pformat(params.to_dict()))
+        self.params.to_yaml()
 
         kwargs.setdefault("max_epochs", self.params["max_epochs"])
         self.trainer.run(self.data_loaders["train"], *args, **kwargs)
