@@ -40,7 +40,8 @@ class NerMetrics(Metric):
             span_with_label = torch.cat(
                 [y["label"].unsqueeze(dim=-1), y["span"]], axis=-1
             )
-            span_with_label.masked_fill(y["mask"].unsqueeze(dim=-1).bool(), -1)
+            negative_mask = ~y["mask"].unsqueeze(dim=-1).bool()
+            span_with_label.masked_fill_(negative_mask, -1)
 
             return span_with_label
 
