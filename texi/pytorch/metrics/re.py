@@ -52,16 +52,19 @@ class ReMetrics(Metric):
 
             return pair_with_one_hot_label  # [B, R, R']
 
-        def _to_tuples(pair_with_one_hot_label, entity_spans):
+        def _to_tuples(pair_with_one_hot_label, entity_span, entity_label):
             pair_with_one_hot_labels = (
                 pair_with_one_hot_label.detach().cpu().numpy().tolist()
             )
-            entity_spans = entity_spans.detach().cpu().numpy().tolist()
+            entity_spans = entity_span.detach().cpu().numpy().tolist()
+            entity_labels = entity_label.detach().cpu().numpy()
 
             tuples = []
-            for sample_pair_with_one_hot_labels, sample_entity_spans in zip(
-                pair_with_one_hot_labels, entity_spans
-            ):
+            for (
+                sample_pair_with_one_hot_labels,
+                sample_entity_spans,
+                sample_entity_labels,
+            ) in zip(pair_with_one_hot_labels, entity_spans, entity_labels):
                 sample_tuples = []
                 for pair_with_labels in sample_pair_with_one_hot_labels:
                     for k, (label, head, tail) in enumerate(pair_with_labels):
@@ -77,9 +80,13 @@ class ReMetrics(Metric):
                         # in target and prediction.
                         head_span = tuple(sample_entity_spans[head])
                         tail_span = tuple(sample_entity_spans[tail])
+                        head_type = sample_entity_labels[head]
+                        tail_type = sample_entity_labels[tail]
 
                         if label > 0 and k != self.negative_relation_index:
-                            sample_tuples += [(k, head_span, tail_span, label)]
+                            sample_tuples += [
+                                (k, head_span, tail_span, head_type, tail_type, label)
+                            ]
 
                 tuples += [sample_tuples]
 
@@ -106,8 +113,10 @@ class ReMetrics(Metric):
         target = _combine_pair_and_label(y)
         prediction = _combine_pair_and_label(y_pred)
 
-        targets = _to_tuples(target, y["entity_span"])
-        predictions = _to_tuples(prediction, y_pred["entity_span"])
+        targets = _to_tuples(target, y["entity_span"], y["entity_label"])
+        predictions = _to_tuples(
+            prediction, y_pred["entity_span"], y_pred["entity_label"]
+        )
 
         _update(targets, predictions)
 

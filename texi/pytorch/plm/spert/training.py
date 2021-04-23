@@ -76,12 +76,16 @@ class SpERTTrainer(Trainer):
                         "pair": outputs["target"]["relation"],
                         "mask": outputs["target"]["relation_sample_mask"],
                         "entity_span": outputs["target"]["entity_span"],
+                        "entity_label": outputs["target"]["entity_label"],
                     },
                     "y_pred": {
                         "label": outputs["output"]["relation_logit"],
                         "pair": outputs["output"]["relation"],
                         "mask": outputs["output"]["relation_sample_mask"],
                         "entity_span": outputs["input"]["entity_span"],
+                        "entity_label": outputs["output"]["entity_logit"].argmax(
+                            dim=-1
+                        ),
                     },
                 },
             ),
