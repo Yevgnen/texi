@@ -3,6 +3,7 @@
 from typing import Callable, Dict, Union
 
 import torch
+from carton.collections import flatten_dict
 from ignite.metrics import Metric
 from ignite.metrics.metric import reinit__is_reduced, sync_all_reduce
 
@@ -16,12 +17,14 @@ class ReMetrics(Metric):
         relation_label_encoder: LabelEncoder,
         negative_relation_index: int,
         relation_filter_threshold: float,
+        prefix: str = "",
         output_transform: Callable = lambda x: x,
         device: Union[str, torch.device] = torch.device("cpu"),
     ):
         self.relation_label_encoder = relation_label_encoder
         self.negative_relation_index = negative_relation_index
         self.relation_filter_threshold = relation_filter_threshold
+        self.prefix = prefix
 
         super().__init__(output_transform, device=device)
 
@@ -135,4 +138,9 @@ class ReMetrics(Metric):
             if i != self.negative_relation_index
         }
 
-        return {"re_all": metrics, **typed_metrics}
+        outputs = {"all": metrics, **typed_metrics}
+        outputs = flatten_dict(outputs, "/")
+        if self.prefix:
+            outputs = {f"{self.prefix}/{k}": v for k, v in outputs.items()}
+
+        return outputs

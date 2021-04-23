@@ -53,6 +53,7 @@ class SpERTTrainer(Trainer):
             "ner": NerMetrics(
                 self.entity_label_encoder,
                 self.negative_entity_index,
+                prefix="ner",
                 output_transform=lambda outputs: {
                     "y": {
                         "label": outputs["target"]["entity_label"],
@@ -70,6 +71,7 @@ class SpERTTrainer(Trainer):
                 self.relation_label_encoder,
                 self.negative_relation_index,
                 self.relation_filter_threshold,
+                prefix="re",
                 output_transform=lambda outputs: {
                     "y": {
                         "label": outputs["target"]["relation_label"],
