@@ -132,6 +132,7 @@ class ReMetrics(Metric):
                 self.typed_relation_stat[i][2],
             )
             for i in range(len(self.relation_label_encoder))
+            if i != self.negative_relation_index
         }
 
         return {"re_all": metrics, **typed_metrics}

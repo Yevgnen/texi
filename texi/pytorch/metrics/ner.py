@@ -102,6 +102,7 @@ class NerMetrics(Metric):
                 self.typed_entity_stat[i][2],
             )
             for i in range(len(self.entity_label_encoder))
+            if i != self.negative_entity_index
         }
 
         return {"all": metrics, **typed_metrics}
