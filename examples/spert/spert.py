@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import argparse
+import json
 import logging
 import os
 
@@ -23,11 +24,8 @@ logger = logging.getLogger(__name__)
 
 
 def read_dataset(path):
-    import json
-
     with open(path) as f:
-        examples = json.load(f)
-    return examples
+        return json.load(f)
 
 
 def get_label_encoders(train, negative_entity_type, negative_relation_type):
@@ -88,10 +86,6 @@ def get_dataloaders(
     return loaders
 
 
-def get_model():
-    return
-
-
 def parse_args():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
@@ -109,45 +103,11 @@ def main():
     os.makedirs(os.path.dirname(params.log_file), exist_ok=True)
     setup_logger(level=logging.INFO, filename=params.log_file)
 
-    # parser = BratParser(error="ignore")
-    # examples = parser.parse("../../../projects/mc/data/all/")
-    # examples = list(map(dataclasses.asdict, examples))
-    # for example in examples:
-    #     example["text"] = list(example["text"])
-    #
-    # train_val, test = train_test_split(examples, test_size=params["test_size"])
-    # train, val = train_test_split(train_val, test_size=params["val_size"])
-    #
-    # # train = read_dataset("../../spert/data/datasets/conll04/conll04_train.json")
-    # # val = read_dataset("../../spert/data/datasets/conll04/conll04_dev.json")
-    # # test = val
-
-    train = [
-        {
-            "tokens": ["BillGates", "was", "born", "in", "America", "."],
-            "entities": [
-                {"type": "per", "start": 0, "end": 1},
-                {"type": "prep", "start": 3, "end": 4},
-                {"type": "loc", "start": 4, "end": 5},
-            ],
-            "relations": [{"type": "born in", "head": 0, "tail": 2}],
-        },
-        {
-            "tokens": ["John", "loves", "Mary", "."],
-            "entities": [
-                {"type": "per", "start": 0, "end": 1},
-                {"type": "per", "start": 2, "end": 3},
-            ],
-            "relations": [{"type": "loves", "head": 0, "tail": 1}],
-        },
-        {
-            "tokens": ["Stop", "talking", "and", "get", "out", "here"],
-            "entities": [],
-            "relations": [],
-        },
-    ]
-    val = train
-    test = train
+    train = read_dataset(
+        "../../../repos/spert/data/datasets/conll04/conll04_train.json"
+    )
+    val = read_dataset("../../../repos/spert/data/datasets/conll04/conll04_dev.json")
+    test = read_dataset("../../../repos/spert/data/datasets/conll04/conll04_test.json")
 
     logger.info("Train size: %d", len(train))
     logger.info("Val size: %d", len(val))
@@ -183,7 +143,9 @@ def main():
     model = model.to(params["device"])
 
     criteria = SpERTLoss()
-    optimizer = AdamW(model.parameters(), lr=params["lr"])
+    optimizer = AdamW(
+        model.parameters(), lr=params["lr"], weight_decay=params["weight_decay"]
+    )
 
     trainer = SpERTTrainer(
         entity_label_encoder,

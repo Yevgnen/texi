@@ -17,22 +17,23 @@ max_grad_norm: 1.0
 schedule_steps: 1
 
 # Dataloader
-train_batch_size: 32
-eval_batch_size: 16
+train_batch_size: 2
+eval_batch_size: 1
 device: 'cuda'
 pin_memory: true
 non_blocking: true
 
 # Evaluation & Early Stopping
-eval_steps: 50
+eval_train: false
+eval_steps: 'epoch'
 early_stopping: false
 eval_metric: 'f1'
 patience: 10
 
 # Logging
 log_steps: 10
-tensorboard: false
-wandb: false
+tensorboard: true
+wandb: true
 debug: false
 
 # Model
