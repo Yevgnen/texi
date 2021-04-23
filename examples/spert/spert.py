@@ -8,7 +8,7 @@ import os
 from carton.logger import setup_logger
 from carton.params import Params
 from carton.random import set_seed
-from transformers import AdamW, BertModel, BertTokenizerFast
+from transformers import BertModel, BertTokenizerFast
 
 from texi.preprocessing import LabelEncoder
 from texi.pytorch.plm.spert import (
@@ -19,6 +19,7 @@ from texi.pytorch.plm.spert import (
     SpERTSampler,
     SpERTTrainer,
 )
+from texi.pytorch.plm.utils import get_pretrained_optimizer_and_scheduler
 
 logger = logging.getLogger(__name__)
 
@@ -141,10 +142,16 @@ def main():
         dropout=params["dropout"],
     )
     model = model.to(params["device"])
-
     criteria = SpERTLoss()
-    optimizer = AdamW(
-        model.parameters(), lr=params["lr"], weight_decay=params["weight_decay"]
+
+    num_training_steps = (
+        len(loaders["train"].dataset)
+        // params["train_batch_size"]
+        * params["max_epochs"]
+    )
+    warmup_steps = params["lr_warmup"] * num_training_steps
+    optimizer, lr_scheduler = get_pretrained_optimizer_and_scheduler(
+        model, params["lr"], params["weight_decay"], warmup_steps, num_training_steps
     )
 
     trainer = SpERTTrainer(
@@ -154,7 +161,9 @@ def main():
         negative_relation_index,
         params["relation_filter_threshold"],
     )
-    trainer.setup(params, loaders, model, criteria, optimizer)
+    trainer.setup(
+        params, loaders, model, criteria, optimizer, lr_scheduler=lr_scheduler
+    )
     trainer.run()
 
 
