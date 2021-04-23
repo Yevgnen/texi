@@ -93,20 +93,14 @@ class NerMetrics(Metric):
 
     @sync_all_reduce("entity_stat:SUM", "typed_entity_stat:SUM")
     def compute(self) -> Dict[str, float]:
-        def _compute_with_entities():
-            metrics = prf1(
-                self.entity_stat[0], self.entity_stat[1], self.entity_stat[2]
+        metrics = prf1(self.entity_stat[0], self.entity_stat[1], self.entity_stat[2])
+        typed_metrics = {
+            self.entity_label_encoder.decode_label(i): prf1(
+                self.typed_entity_stat[i][0],
+                self.typed_entity_stat[i][1],
+                self.typed_entity_stat[i][2],
             )
-            typed_metrics = {
-                self.entity_label_encoder.decode_label(i): prf1(
-                    self.typed_entity_stat[i][0],
-                    self.typed_entity_stat[i][1],
-                    self.typed_entity_stat[i][2],
-                )
-                for i in range(len(self.entity_label_encoder))
-            }
-            return {**metrics, **typed_metrics}
+            for i in range(len(self.entity_label_encoder))
+        }
 
-        output = {**_compute_with_entities()}
-
-        return output
+        return {"all": metrics, **typed_metrics}
