@@ -32,6 +32,14 @@ class SpERTDataset(Dataset):
         self.entity_label_encoder = entity_label_encoder
         self.relation_label_encoder = relation_label_encoder
 
+    def train(self):
+        super().train()
+        self.negative_sampler.train()
+
+    def eval(self):
+        super().eval()
+        self.negative_sampler.eval()
+
     def _encode_entities(self, entities, tokens):
         num_tokens = sum(map(len, tokens))
 
@@ -158,24 +166,28 @@ class SpERTDataset(Dataset):
         }
 
     def encode(self, example):
-        # Collect entities.
+        tokens = example["tokens"]
+
         positive_entities = example["entities"]
         negative_entities = self.negative_sampler.sample_negative_entities(example)
-        entities = positive_entities + negative_entities
 
-        # Collect relations.
         positive_relations = example["relations"]
         negative_relations = self.negative_sampler.sample_negative_relations(
-            example, positive_entities
+            example, positive_entities  # FIXME
         )
-        relations = positive_relations + negative_relations
 
-        return self.encode_example(example["tokens"], entities, relations)
+        if self.is_train:
+            entities = positive_entities + negative_entities
+            relations = positive_relations + negative_relations
 
-    def collate(
-        self, batch: Iterable[Iterable[torch.Tensor]]
-    ) -> Dict[str, torch.Tensor]:
-        batch = [self.encode(x) for x in batch]
+            return self.encode_example(tokens, entities, relations)
+
+        return (
+            self.encode_example(tokens, positive_entities, positive_relations),
+            self.encode_example(tokens, negative_entities, negative_relations),
+        )
+
+    def _collate_internal(self, batch):
         batch = collate(batch)
 
         def _stack_1d(tensors, length):
@@ -233,3 +245,33 @@ class SpERTDataset(Dataset):
             "relation": relation,
             "relation_sample_mask": relation_sample_mask,
         }
+
+    def collate_train(
+        self, batch: Iterable[Iterable[torch.Tensor]]
+    ) -> Dict[str, torch.Tensor]:
+        assert self.is_train, "`collate_train` must be called in train mode"
+
+        encoded = self.encode_batch(batch)
+        collated = self._collate_internal(encoded)
+
+        return collated
+
+    def collate_eval(
+        self, batch: Iterable[Iterable[torch.Tensor]]
+    ) -> Dict[str, torch.Tensor]:
+        assert not self.is_train, "`collate_train` must NOT be called in train mode"
+
+        encoded = self.encode_batch(batch)
+        positives, negatives = zip(*encoded)
+
+        return (
+            self._collate_internal(positives),
+            self._collate_internal(negatives),
+        )
+
+    def collate(
+        self, batch: Iterable[Iterable[torch.Tensor]]
+    ) -> Dict[str, torch.Tensor]:
+        fn = self.collate_train if self.is_train else self.collate_eval
+
+        return fn(batch)

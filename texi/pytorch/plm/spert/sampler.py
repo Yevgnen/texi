@@ -13,12 +13,20 @@ class SpERTSampler(object):
         max_entity_length: int,
         negative_entity_type: str = "NOT_ENTITY",
         negative_relation_type: str = "NO_RELATION",
+        train: bool = True,
     ):
         self.num_negative_entities = num_negative_entities
         self.num_negative_relations = num_negative_relations
         self.max_entity_length = max_entity_length
         self.negative_entity_type = negative_entity_type
         self.negative_relation_type = negative_relation_type
+        self.is_train = train
+
+    def train(self):
+        self.is_train = True
+
+    def eval(self):
+        self.is_train = False
 
     def sample_negative_entities(self, example: Mapping) -> List[Dict]:
         text = example["tokens"]
@@ -28,17 +36,20 @@ class SpERTSampler(object):
         for length in range(1, self.max_entity_length + 1):
             for i in range(0, len(text) - length + 1):
                 negative_tuple = (i, i + length)
-                if negative_tuple not in positive_tuples:
-                    negative = {
-                        "type": self.negative_entity_type,
-                        "start": i,
-                        "end": i + length,
-                    }
-                    negatives += [negative]
+                if self.is_train and negative_tuple in positive_tuples:
+                    continue
 
-        negatives = random.sample(
-            negatives, min(len(negatives), self.num_negative_entities)
-        )
+                negative = {
+                    "type": self.negative_entity_type,
+                    "start": i,
+                    "end": i + length,
+                }
+                negatives += [negative]
+
+        if self.is_train:
+            negatives = random.sample(
+                negatives, min(len(negatives), self.num_negative_entities)
+            )
 
         return negatives
 
@@ -51,6 +62,8 @@ class SpERTSampler(object):
         if not entities:
             return []
 
+        # TODO: Should better return [] when `self.is_train` is False?
+
         positives = example["relations"]
         positive_tuples = {(r["head"], r["tail"]) for r in positives}
 
@@ -59,14 +72,15 @@ class SpERTSampler(object):
             if i == j:
                 continue
 
-            if (i, j) in positive_tuples:
+            if self.is_train and (i, j) in positive_tuples:
                 continue
 
             negative = {"head": i, "tail": j, "type": self.negative_relation_type}
             negatives += [negative]
 
-        negatives = random.sample(
-            negatives, min(len(negatives), self.num_negative_relations)
-        )
+        if self.is_train:
+            negatives = random.sample(
+                negatives, min(len(negatives), self.num_negative_relations)
+            )
 
         return negatives

@@ -43,8 +43,8 @@ def get_label_encoders(train, negative_entity_type, negative_relation_type):
     return entity_label_encoder, relation_label_encoder
 
 
-def get_dataloaders(
-    datasets, tokenizer, entity_label_encoder, relation_label_encoder, params
+def get_dataset(
+    examples, tokenizer, entity_label_encoder, relation_label_encoder, params, train
 ):
     negative_sampler = SpERTSampler(
         num_negative_entities=params["num_negative_entities"],
@@ -52,35 +52,34 @@ def get_dataloaders(
         max_entity_length=params["max_entity_length"],
         negative_entity_type=params["negative_entity_type"],
         negative_relation_type=params["negative_relation_type"],
+        train=train,
     )
-    train_dataset = SpERTDataset(
-        datasets["train"],
+    dataset = SpERTDataset(
+        examples,
         negative_sampler,
         entity_label_encoder,
         relation_label_encoder,
         tokenizer,
-        train=True,
-    )
-    val_dataset = SpERTDataset(
-        datasets["val"],
-        negative_sampler,
-        train_dataset.entity_label_encoder,
-        train_dataset.relation_label_encoder,
-        tokenizer,
-    )
-    test_dataset = SpERTDataset(
-        datasets["test"],
-        negative_sampler,
-        train_dataset.entity_label_encoder,
-        train_dataset.relation_label_encoder,
-        tokenizer,
+        train=train,
     )
 
+    return dataset
+
+
+def get_dataloaders(
+    datasets, tokenizer, entity_label_encoder, relation_label_encoder, params
+):
     loaders = SpERTDataset.get_dataloaders(
         {
-            "train": train_dataset,
-            "val": val_dataset,
-            "test": test_dataset,
+            mode: get_dataset(
+                datasets[mode],
+                tokenizer,
+                entity_label_encoder,
+                relation_label_encoder,
+                params,
+                mode == "train",
+            )
+            for mode in datasets
         },
         train_batch_size=params["train_batch_size"],
         eval_batch_size=params["eval_batch_size"],

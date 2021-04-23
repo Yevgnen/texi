@@ -27,7 +27,7 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data import DataLoader
 
-from texi.pytorch.dataset.dataset import Batch
+from texi.pytorch.dataset.dataset import Batch, Dataset
 from texi.pytorch.logger import setup_tb_logging
 from texi.pytorch.metrics import (
     classification_metrics,
@@ -203,6 +203,11 @@ def setup_handlers(
                         checkpoint,
                     )
                     net.load_state_dict(torch.load(checkpoint))
+
+            if isinstance(data_loader.dataset, Dataset):
+                data_loader.dataset.eval()
+                logger.info("Dataset [%s] switched to eval mode.", dataset)
+
             evaluator.run(data_loader)
             evaluator.logger.info(pprint.pformat(evaluator.state.metrics))
 
@@ -216,8 +221,15 @@ def setup_handlers(
         else:
             traceback.print_exc()
 
+    def handel_dataset_mode(_):
+        train_dataset = data_loaders["train"].dataset
+        if isinstance(data_loaders["train"].dataset, Dataset):
+            train_dataset.train()
+            logger.info("Dataset [train] switched to train mode.")
+
     # Setup general handlers.
     handlers = {}
+    trainer.add_event_handler(Events.EPOCH_STARTED, handel_dataset_mode)
     trainer.add_event_handler(Events.EXCEPTION_RAISED, handle_exceptions)
     trainer.add_event_handler(Events.ITERATION_COMPLETED, TerminateOnNan())
 

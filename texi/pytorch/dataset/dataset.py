@@ -39,7 +39,7 @@ class Dataset(metaclass=abc.ABCMeta):
         self.tokenizer = tokenizer
         self.label_encoder = None
 
-        self.train = train
+        self.is_train = train
 
     def __len__(self):
         return len(self.examples)
@@ -49,6 +49,12 @@ class Dataset(metaclass=abc.ABCMeta):
 
     def __iter__(self):
         yield from iter(self.examples)
+
+    def train(self):
+        self.is_train = True
+
+    def eval(self):
+        self.is_train = False
 
     def encode(self, example: Mapping) -> Dict:
         raise NotImplementedError()
@@ -69,7 +75,7 @@ class Dataset(metaclass=abc.ABCMeta):
         self, batch_size: int, drop_last: bool = False, **kwargs
     ) -> DataLoader:
         sampler = get_sampler(
-            self.examples, self.train, batch_size, drop_last=drop_last
+            self.examples, self.is_train, batch_size, drop_last=drop_last
         )
 
         collate_fn = kwargs.pop("collate_fn", self.collate)

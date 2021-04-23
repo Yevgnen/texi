@@ -5,7 +5,7 @@ from typing import Dict
 import torch.nn as nn
 
 from texi.preprocessing import LabelEncoder
-from texi.pytorch.plm.spert.prediction import decode_entities, decode_relations, predict
+from texi.pytorch.metrics import NerMetrics
 from texi.pytorch.training.params import Params
 from texi.pytorch.training.trainer import Batch, MetricGroup, Trainer
 
@@ -46,7 +46,27 @@ class SpERTTrainer(Trainer):
         self.relation_filter_threshold = relation_filter_threshold
 
     def get_metrics(self, train: bool = True) -> MetricGroup:
-        return {}
+        if train:
+            return {}
+
+        return {
+            "ner": NerMetrics(
+                self.entity_label_encoder,
+                self.negative_entity_index,
+                output_transform=lambda outputs: {
+                    "y": {
+                        "label": outputs["target"]["entity_label"],
+                        "span": outputs["target"]["entity_span"],
+                        "mask": outputs["target"]["entity_sample_mask"],
+                    },
+                    "y_pred": {
+                        "label": outputs["output"]["entity_logit"].argmax(dim=-1),
+                        "span": outputs["input"]["entity_span"],
+                        "mask": outputs["input"]["entity_sample_mask"],
+                    },
+                },
+            )
+        }
 
     def train_step(
         self, net: nn.Module, batch: Batch, loss_function: nn.Module
@@ -73,52 +93,16 @@ class SpERTTrainer(Trainer):
         return {"batch": batch, "loss": loss}
 
     def eval_step(self, net: nn.Module, batch: Batch) -> Dict:
+        target, input_ = batch
         output = net.infer(
-            batch["input_ids"],
-            batch["attention_mask"],
-            batch["token_type_ids"],
-            batch["entity_mask"],
+            input_["input_ids"],
+            input_["attention_mask"],
+            input_["token_type_ids"],
+            input_["entity_mask"],
         )
 
-        entity_predictions, relation_predictions = list(
-            zip(
-                *predict(
-                    output["entity_logit"],
-                    batch["entity_mask"],
-                    batch["entity_span"],
-                    self.entity_label_encoder,
-                    self.negative_entity_index,
-                    output["relation_logit"],
-                    output["relation"],
-                    output["relation_sample_mask"],
-                    self.relation_label_encoder,
-                    self.negative_relation_index,
-                    self.relation_filter_threshold,
-                )
-            )
-        )
-
-        entity_sample_mask = batch["entity_mask"].sum(dim=-1) > 0
-        entity_targets = decode_entities(
-            batch["entity_label"],
-            entity_sample_mask,
-            batch["entity_span"],
-            self.entity_label_encoder,
-            self.negative_entity_index,
-        )
-
-        relation_targets = decode_relations(
-            batch["relation_label"],
-            batch["relation"],
-            batch["relation_sample_mask"],
-            self.relation_label_encoder,
-            self.negative_relation_index,
-            self.relation_filter_threshold,
-        )
-
-        return (
-            entity_targets,
-            entity_predictions,
-            relation_targets,
-            relation_predictions,
-        )
+        return {
+            "target": target,
+            "input": input_,
+            "output": output,
+        }

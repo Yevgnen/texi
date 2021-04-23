@@ -9,7 +9,7 @@ test_size: 0.2
 # Training
 seed: 1234
 save_path: 'output/'
-max_epochs: 100
+max_epochs: 1000
 lr: 0.00005
 lr_warmup: 0.1
 weight_decay: 0.01
@@ -24,15 +24,15 @@ pin_memory: true
 non_blocking: true
 
 # Evaluation & Early Stopping
-eval_steps: 5
+eval_steps: 50
 early_stopping: false
 eval_metric: 'f1'
 patience: 10
 
 # Logging
 log_steps: 10
-tensorboard: true
-wandb: true
+tensorboard: false
+wandb: false
 debug: false
 
 # Model
