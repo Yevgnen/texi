@@ -31,7 +31,7 @@ class NerMetrics(Metric):
         )
 
     @reinit__is_reduced
-    def update(self, outputs: Dict) -> None:
+    def update(self, output: Dict) -> None:
         def _combine_span_and_label(y):
             # label: [B, R]
             # span: [B, R, 2]
@@ -80,7 +80,7 @@ class NerMetrics(Metric):
                     self.entity_stat[2] += 1
                     self.typed_entity_stat[entity[0]][2] += 1
 
-        y_pred, y = outputs
+        y_pred, y = output
 
         target = _combine_span_and_label(y)
         prediction = _combine_span_and_label(y_pred)
