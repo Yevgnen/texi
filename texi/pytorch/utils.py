@@ -1,15 +1,12 @@
 # -*- coding: utf-8 -*-
 
 import inspect
-from typing import Callable, Dict, Sequence, Tuple, Union
+from typing import Callable, Dict, Sequence, Union
 
 import torch
-import torch.nn as nn
-import torch.optim as optim
 from torch.utils.data import BatchSampler
 from torch.utils.data.sampler import RandomSampler, SequentialSampler
 from torchnlp.samplers import BucketBatchSampler
-from transformers.optimization import AdamW, get_linear_schedule_with_warmup
 
 
 def cuda(enable: bool) -> bool:
@@ -56,43 +53,3 @@ def get_default_arguments(f: Callable) -> Dict:
         for key, value in inspect.signature(f).parameters.items()
         if value.default is not value.empty
     }
-
-
-def get_pretrained_optimizer_and_scheduler(
-    model: nn.Module,
-    lr: float,
-    weight_decay: float,
-    warmup_steps: int,
-    num_training_steps: int,
-    optimizer_kwargs: Dict,
-    scheduler_kwargs: Dict,
-) -> Tuple[optim.Optimizer, optim.lr_scheduler._LRScheduler]:
-    no_decay = ["bias", "LayerNorm.weight"]
-    optimizer_grouped_parameters = [
-        {
-            "params": [
-                p
-                for n, p in model.named_parameters()
-                if not any(nd in n for nd in no_decay)
-            ],
-            "weight_decay": weight_decay,
-        },
-        {
-            "params": [
-                p
-                for n, p in model.named_parameters()
-                if any(nd in n for nd in no_decay)
-            ],
-            "weight_decay": 0.0,
-        },
-    ]
-    optimizer = AdamW(optimizer_grouped_parameters, lr=lr, **optimizer_kwargs)
-
-    lr_scheduler = get_linear_schedule_with_warmup(
-        optimizer,
-        num_warmup_steps=warmup_steps,
-        num_training_steps=num_training_steps,
-        **scheduler_kwargs
-    )
-
-    return (optimizer, lr_scheduler)
