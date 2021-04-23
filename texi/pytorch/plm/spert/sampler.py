@@ -56,13 +56,15 @@ class SpERTSampler(object):
     def sample_negative_relations(
         self, example: Mapping, entities: Optional[List[int]] = None
     ) -> List[Dict]:
+        # No need to sample negative relations when evaluation.
+        if not self.is_train:
+            return []
+
         if entities is None:
             entities = example["entities"]
 
         if not entities:
             return []
-
-        # TODO: Should better return [] when `self.is_train` is False?
 
         positives = example["relations"]
         positive_tuples = {(r["head"], r["tail"]) for r in positives}

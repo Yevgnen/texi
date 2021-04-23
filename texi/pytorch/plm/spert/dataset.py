@@ -173,7 +173,7 @@ class SpERTDataset(Dataset):
 
         positive_relations = example["relations"]
         negative_relations = self.negative_sampler.sample_negative_relations(
-            example, positive_entities  # FIXME
+            example, positive_entities
         )
 
         if self.is_train:
@@ -196,6 +196,10 @@ class SpERTDataset(Dataset):
             )
 
         def _stack_2d(tensors, max_rows, max_columns):
+            # https://discuss.pytorch.org/t/padding-zero-size-tensors/118777
+            if max_rows == 0:
+                return tensors[0].new_zeros(len(tensors), max_rows, max_columns)
+
             return torch.stack(
                 [
                     torch.nn.functional.pad(
