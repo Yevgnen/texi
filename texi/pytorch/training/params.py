@@ -42,6 +42,7 @@ class Params(object):
         self.non_blocking = kwargs.get("non_blocking", True)
 
         # Evaluation & Early Stopping
+        self.eval_train = kwargs.get("eval_train", False)
         self.eval_steps = kwargs.get("eval_steps", -1)
         self.early_stopping = kwargs.get("early_stopping", False)
         self.eval_metric = kwargs.get("eval_metric")

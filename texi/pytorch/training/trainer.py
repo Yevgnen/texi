@@ -266,12 +266,16 @@ def setup_handlers(
     # Setup evaluate handlers.
     if params.eval_steps == "epoch" or params.eval_steps > 0:
         for mode in ["train", "val"]:
+            if mode == "train" and not params.eval_train:
+                continue
+
             trainer.add_event_handler(
                 get_event(params.eval_steps),
                 build_evaluate_handler(
                     mode, evaluators[f"{mode}_evaluator"], data_loaders[mode]
                 ),
             )
+            logger.info("Setup evaluator for [%s]", mode)
 
         if params.early_stopping:
             if params.eval_metric is None or params.patience is None:
@@ -308,6 +312,7 @@ def setup_handlers(
             "test", test_evaluator, test_loader, handlers.get("best_model_handler")
         )
         trainer.add_event_handler(Events.COMPLETED, test_evaluate_handler)
+        logger.info("Setup evaluator for [test]")
     else:
         logger.warning("Test evaluate handlers not set")
 
