@@ -74,7 +74,7 @@ class Dataset(metaclass=abc.ABCMeta):
 
         collate_fn = kwargs.pop("collate_fn", self.collate)
         dataloader = DataLoader(
-            self.examples, batch_sampler=sampler, collate_fn=collate_fn, **kwargs
+            self, batch_sampler=sampler, collate_fn=collate_fn, **kwargs
         )
 
         return dataloader
