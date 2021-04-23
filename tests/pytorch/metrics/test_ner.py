@@ -24,7 +24,7 @@ class TestNerMetrics(unittest.TestCase):
             {
                 "label": torch.tensor(
                     [
-                        [1, 2, 2],  # T, #, #
+                        [0, 2, 2],  # FP, #, #
                         [1, 1, 1],  # T, FP, FP
                     ]
                 ),
@@ -57,7 +57,7 @@ class TestNerMetrics(unittest.TestCase):
                 ),
                 "mask": torch.tensor(
                     [
-                        [1, 1, 0],  # T, FN, #
+                        [1, 1, 0],  # FN, FN, #
                         [1, 0, 0],  # T, #, #
                     ]
                 ),
@@ -92,7 +92,7 @@ class TestNerMetrics(unittest.TestCase):
         self.metric.update(self.output)
         self.assertTrue(
             torch.all(
-                self.metric.entity_stat == torch.tensor([2, 2, 1]),
+                self.metric.entity_stat == torch.tensor([1, 2, 2]),
             )
         )
         self.assertTrue(
@@ -100,8 +100,8 @@ class TestNerMetrics(unittest.TestCase):
                 self.metric.typed_entity_stat
                 == torch.tensor(
                     [
-                        [0, 0, 1],
-                        [2, 2, 0],
+                        [0, 1, 1],
+                        [1, 1, 1],
                         [0, 0, 0],
                     ],
                 )
@@ -111,19 +111,19 @@ class TestNerMetrics(unittest.TestCase):
     def test_compute(self):
         self.metric.update(self.output)
         metrics = self.metric.compute()
-        precision = 2 / (2 + 2)
-        recall = 2 / (2 + 1)
+        precision = 1 / (1 + 2)
+        recall = 1 / (1 + 2)
         f1 = 2 * precision * recall / (precision + recall)
         self.assertAlmostEqual(metrics["all"]["precision"], precision)
         self.assertAlmostEqual(metrics["all"]["recall"], recall)
         self.assertAlmostEqual(metrics["all"]["f1"], f1)
 
         relations = ["per", "loc", "NON_ENTITY"]
-        precisions = [0, 2 / (2 + 2), 0]
-        recalls = [0, 2 / (2 + 0), 0]
+        precisions = [0, 1 / (1 + 1), 0]
+        recalls = [0, 1 / (1 + 1), 0]
         f1s = [
             0,
-            2 * 2 / (2 + 2) * 2 / (2 + 0) / (2 / (2 + 2) + 2 / (2 + 0)),
+            2 * 1 / (1 + 1) * 1 / (1 + 1) / (1 / (1 + 1) + 1 / (1 + 1)),
             0,
         ]
         for relation, p, r, f1 in zip(relations, precisions, recalls, f1s):
