@@ -103,7 +103,6 @@ class SpERTTrainer(Trainer):
             batch["entity_mask"],
             batch["relation"],
             batch["relation_context_mask"],
-            batch["relation_sample_mask"],
         )
 
         loss = loss_function(

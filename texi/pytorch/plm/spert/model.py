@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 
 from texi.pytorch.masking import create_span_mask
-from texi.pytorch.plm.pooling import cls_pooling
+from texi.pytorch.plm.pooling import cls_pooling, max_pooling
 
 if TYPE_CHECKING:
     from transformers import BertModel
@@ -69,7 +69,6 @@ class SpERT(nn.Module):
         last_hidden_state,
         relation,
         relation_context_mask,
-        relation_sample_mask,
         entity,
         entity_size,
     ):
@@ -81,7 +80,6 @@ class SpERT(nn.Module):
             last_hidden_state, relation_context_mask
         )
         relation_context, _ = relation_context.max(dim=-2)
-        relation_context.masked_fill_(relation_sample_mask.unsqueeze(dim=-1) == 1, 0)
 
         # entity_pair: [B, R, 2H]
         batch_size, num_relations, _ = relation.size()
@@ -121,7 +119,7 @@ class SpERT(nn.Module):
         last_hidden_state = bert_output.last_hidden_state
 
         # context: [B, H]
-        context = cls_pooling(bert_output, attention_mask)
+        context = max_pooling(bert_output, attention_mask)
 
         # entity_size: [B, E, D]
         entity_size = self.size_embedding(entity_mask.sum(-1))
@@ -142,7 +140,6 @@ class SpERT(nn.Module):
         entity_mask: torch.LongTensor,  # [B, E, L]
         relations: torch.LongTensor,  # [B, R, 2]
         relation_context_mask: torch.LongTensor,  # [B, R, L]
-        relation_sample_mask: torch.LongTensor,  # [B, R]
     ) -> Dict[str, torch.FloatTensor]:
         # last_hidden_state: [B, L, H]
         # entity_logit: [B, E, NE]
@@ -157,7 +154,6 @@ class SpERT(nn.Module):
             last_hidden_state,
             relations,
             relation_context_mask,
-            relation_sample_mask,
             entity,
             entity_size,
         )
@@ -271,7 +267,6 @@ class SpERT(nn.Module):
             last_hidden_state,
             relation,
             relation_context_mask,
-            relation_sample_mask,
             entity,
             entity_size,
         )
