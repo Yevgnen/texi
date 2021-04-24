@@ -117,3 +117,53 @@ def merge_examples(examples: Sequence[Mapping]) -> Dict[str, List]:
         "entities": entities,
         "relations": relations,
     }
+
+
+def texify_example(example: Dict, delimiter: str) -> Dict:
+    entities = example["entities"]
+    if not entities:
+        return {
+            "tokens": delimiter.join(example["tokens"]),
+            "entities": entities,
+            "relations": example["relations"],
+        }
+
+    num_tokens = len(example["tokens"])
+    delimiter_length = len(delimiter)
+    entity_index = 0
+    entity = entities[entity_index]
+    new_tokens, new_entities = [], []
+    start = -1
+    char_offset = 0
+    for i, token in enumerate(example["tokens"]):
+        if i == entity["end"]:
+            if start < 0:
+                raise ValueError(f"Invalid entity: {entity}")
+
+            new_enitty = {
+                "type": entity["type"],
+                "start": start,
+                "end": char_offset - delimiter_length,
+            }
+            new_entities += [new_enitty]
+
+            entity_index += 1
+            if entity_index < len(entities):
+                start = -1
+                entity = entities[entity_index]
+
+        if i == entity["start"]:
+            start = char_offset
+
+        new_tokens += [token]
+        char_offset += len(token)
+
+        if i < num_tokens - 1:
+            new_tokens += [delimiter]
+            char_offset += delimiter_length
+
+    return {
+        "tokens": "".join(new_tokens),
+        "entities": new_entities,
+        "relations": example["relations"],
+    }

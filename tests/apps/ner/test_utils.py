@@ -2,7 +2,7 @@
 
 import unittest
 
-from texi.apps.ner.utils import merge_examples, split_example
+from texi.apps.ner.utils import merge_examples, split_example, texify_example
 
 
 class TestFunctions(unittest.TestCase):
@@ -302,6 +302,78 @@ class TestFunctions(unittest.TestCase):
         self.assertEqual(
             str(ctx.exception), "At least one example must be given to merge"
         )
+
+    def test_texify_example_no_entities(self):
+        example = {
+            "tokens": [
+                "Bill",
+                "was",
+                "born",
+                "in",
+                "USA",
+                ".",
+                "Jack",
+                "Loves",
+                "Mary",
+                ".",
+            ],
+            "entities": [],
+            "relations": [
+                {"type": "born in", "head": 0, "tail": 1},
+                {"type": "loves", "head": 2, "tail": 3},
+            ],
+        }
+        output = texify_example(example, " ")
+        expected = {
+            "tokens": "Bill was born in USA . Jack Loves Mary .",
+            "entities": [],
+            "relations": [
+                {"type": "born in", "head": 0, "tail": 1},
+                {"type": "loves", "head": 2, "tail": 3},
+            ],
+        }
+        self.assertEqual(output, expected)
+
+    def test_texify_example_normal(self):
+        example = {
+            "tokens": [
+                "Bill",
+                "was",
+                "born",
+                "in",
+                "USA",
+                ".",
+                "Jack",
+                "Loves",
+                "Mary",
+                ".",
+            ],
+            "entities": [
+                {"type": "per", "start": 0, "end": 1},
+                {"type": "loc", "start": 4, "end": 5},
+                {"type": "per", "start": 6, "end": 7},
+                {"type": "per", "start": 8, "end": 9},
+            ],
+            "relations": [
+                {"type": "born in", "head": 0, "tail": 1},
+                {"type": "loves", "head": 2, "tail": 3},
+            ],
+        }
+        output = texify_example(example, " ")
+        expected = {
+            "tokens": "Bill was born in USA . Jack Loves Mary .",
+            "entities": [
+                {"type": "per", "start": 0, "end": 4},
+                {"type": "loc", "start": 17, "end": 20},
+                {"type": "per", "start": 23, "end": 27},
+                {"type": "per", "start": 34, "end": 38},
+            ],
+            "relations": [
+                {"type": "born in", "head": 0, "tail": 1},
+                {"type": "loves", "head": 2, "tail": 3},
+            ],
+        }
+        self.assertEqual(output, expected)
 
 
 if __name__ == "__main__":
