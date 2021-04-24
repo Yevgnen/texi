@@ -37,7 +37,7 @@ wandb: true
 debug: false
 
 # Model
-pretrained_model: 'bert-base-uncased'
+pretrained_model: 'bert-base-cased'
 embedding_dim: 25
 dropout: 0.1
 negative_entity_type: 'NON_ENTITY'
