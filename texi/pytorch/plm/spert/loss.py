@@ -30,7 +30,9 @@ class SpERTLoss(nn.Module):
 
         relation_loss = self.relation_loss(relation_logits, relation_labels.float())
         relation_loss.masked_fill_(relation_sample_masks.unsqueeze(-1) == 0, 0)
-        relation_loss = relation_loss.sum() / relation_sample_masks.sum()
+        relation_loss = (
+            relation_loss.sum() / relation_sample_masks.sum() / relation_labels.size(-1)
+        )
 
         return relation_loss
 
