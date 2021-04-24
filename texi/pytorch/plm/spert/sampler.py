@@ -2,7 +2,7 @@
 
 import itertools
 import random
-from typing import Dict, List, Mapping, Optional
+from typing import Dict, List, Mapping
 
 
 class SpERTSampler(object):
@@ -53,36 +53,29 @@ class SpERTSampler(object):
 
         return negatives
 
-    def sample_negative_relations(
-        self, example: Mapping, entities: Optional[List[int]] = None
-    ) -> List[Dict]:
+    def sample_negative_relations(self, example: Mapping) -> List[Dict]:
         # No need to sample negative relations when evaluation.
         if not self.is_train:
             return []
 
-        if entities is None:
-            entities = example["entities"]
-
+        entities = example["entities"]
         if not entities:
             return []
 
-        positives = example["relations"]
-        positive_tuples = {(r["head"], r["tail"]) for r in positives}
+        positive_tuples = {(r["head"], r["tail"]) for r in example["relations"]}
 
         negatives = []
         for i, j in itertools.product(range(len(entities)), repeat=2):
-            if i == j:
-                continue
+            if i != j and (i, j) not in positive_tuples:
+                negative = {
+                    "head": i,
+                    "tail": j,
+                    "type": self.negative_relation_type,
+                }
+                negatives += [negative]
 
-            if self.is_train and (i, j) in positive_tuples:
-                continue
-
-            negative = {"head": i, "tail": j, "type": self.negative_relation_type}
-            negatives += [negative]
-
-        if self.is_train:
-            negatives = random.sample(
-                negatives, min(len(negatives), self.num_negative_relations)
-            )
+        negatives = random.sample(
+            negatives, min(len(negatives), self.num_negative_relations)
+        )
 
         return negatives

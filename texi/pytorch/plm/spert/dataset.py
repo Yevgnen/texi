@@ -172,9 +172,7 @@ class SpERTDataset(Dataset):
         negative_entities = self.negative_sampler.sample_negative_entities(example)
 
         positive_relations = example["relations"]
-        negative_relations = self.negative_sampler.sample_negative_relations(
-            example, positive_entities
-        )
+        negative_relations = self.negative_sampler.sample_negative_relations(example)
 
         if self.is_train:
             entities = positive_entities + negative_entities
