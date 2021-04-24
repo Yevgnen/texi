@@ -2,7 +2,7 @@
 
 import unittest
 
-from texi.apps.ner.utils import split_example
+from texi.apps.ner.utils import merge_examples, split_example
 
 
 class TestFunctions(unittest.TestCase):
@@ -233,6 +233,74 @@ class TestFunctions(unittest.TestCase):
                 "entities": [],
                 "relations": [],
             },
+        )
+
+    def test_merge_examples_normal(self):
+        examples = [
+            {
+                "tokens": ["Bill", "was", "born", "in", "USA", "."],
+                "entities": [
+                    {"type": "per", "start": 0, "end": 1},
+                    {"type": "loc", "start": 4, "end": 5},
+                ],
+                "relations": [{"type": "born in", "head": 0, "tail": 1}],
+            },
+            {
+                "tokens": ["Jack", "Loves", "Mary", "."],
+                "entities": [
+                    {"type": "per", "start": 0, "end": 1},
+                    {"type": "per", "start": 2, "end": 3},
+                ],
+                "relations": [{"type": "loves", "head": 0, "tail": 1}],
+            },
+        ]
+        output = merge_examples(examples)
+        expected = {
+            "tokens": [
+                "Bill",
+                "was",
+                "born",
+                "in",
+                "USA",
+                ".",
+                "Jack",
+                "Loves",
+                "Mary",
+                ".",
+            ],
+            "entities": [
+                {"type": "per", "start": 0, "end": 1},
+                {"type": "loc", "start": 4, "end": 5},
+                {"type": "per", "start": 6, "end": 7},
+                {"type": "per", "start": 8, "end": 9},
+            ],
+            "relations": [
+                {"type": "born in", "head": 0, "tail": 1},
+                {"type": "loves", "head": 2, "tail": 3},
+            ],
+        }
+        self.assertEqual(expected, output)
+
+    def test_merge_examples_single_example(self):
+        examples = [
+            {
+                "tokens": ["Bill", "was", "born", "in", "USA", "."],
+                "entities": [
+                    {"type": "per", "start": 0, "end": 1},
+                    {"type": "loc", "start": 4, "end": 5},
+                ],
+                "relations": [{"type": "born in", "head": 0, "tail": 1}],
+            }
+        ]
+        output = merge_examples(examples)
+        self.assertEqual(examples[0], output)
+
+    def test_merge_examples_no_example(self):
+        examples = []
+        with self.assertRaises(ValueError) as ctx:
+            merge_examples(examples)
+        self.assertEqual(
+            str(ctx.exception), "At least one example must be given to merge"
         )
 
 

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from typing import Dict, Iterable, List, Mapping, Union
+from typing import Dict, Iterable, List, Mapping, Sequence, Union
 
 
 def split_example(
@@ -74,3 +74,46 @@ def split_example(
         splits[-1]["tokens"].pop()
 
     return splits
+
+
+def merge_examples(examples: Sequence[Mapping]) -> Dict[str, List]:
+    if len(examples) < 1:
+        raise ValueError("At least one example must be given to merge")
+
+    tokens = []  # type: List[Dict]
+    entities = []  # type: List[Dict]
+    relations = []  # type: List[Dict]
+
+    for example in examples:
+        token_offset = len(tokens)
+
+        # Collect tokens.
+        tokens += example["tokens"]
+
+        # Collect entities.
+        entity_indices = {}
+        num_entities_so_far = len(entities)
+        for i, entity in enumerate(example["entities"]):
+            new_entity = {
+                "type": entity["type"],
+                "start": entity["start"] + token_offset,
+                "end": entity["end"] + token_offset,
+            }
+            entity_indices[i] = i + num_entities_so_far
+            entities += [new_entity]
+
+        # Collect relations.
+        for relation in example["relations"]:
+            new_relation = {
+                "type": relation["type"],
+                # `dict.get` is not used implies invalid relations should fail.
+                "head": entity_indices[relation["head"]],
+                "tail": entity_indices[relation["tail"]],
+            }
+            relations += [new_relation]
+
+    return {
+        "tokens": tokens,
+        "entities": entities,
+        "relations": relations,
+    }
