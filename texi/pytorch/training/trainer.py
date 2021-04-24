@@ -5,7 +5,6 @@ import abc
 import enum
 import logging
 import os
-import pprint
 import traceback
 from typing import Callable, Dict, Mapping, Optional, Tuple
 
@@ -580,7 +579,9 @@ class Trainer(metaclass=abc.ABCMeta):
 
     def run(self, *args, **kwargs) -> None:
         logger.info("Start training with params:")
-        logger.info(pprint.pformat(self.params.to_dict()))
+        for key, value in self.params.items():
+            logger.info("%s = %s", key, value)
+
         self.params.to_yaml()
 
         kwargs.setdefault("max_epochs", self.params["max_epochs"])

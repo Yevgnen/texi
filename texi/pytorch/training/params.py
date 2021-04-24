@@ -3,7 +3,7 @@
 import argparse
 import copy
 import os
-from typing import Dict, Optional, TypeVar
+from typing import Dict, ItemsView, KeysView, Optional, TypeVar, ValuesView
 
 from carton.params import Params as ParamDict
 from carton.random import random_state
@@ -63,6 +63,15 @@ class Params(object):
 
     def to_dict(self) -> Dict:
         return copy.deepcopy(self.__dict__)
+
+    def keys(self) -> KeysView:
+        return self.__dict__.keys()
+
+    def values(self) -> ValuesView:
+        return self.__dict__.values()
+
+    def items(self) -> ItemsView:
+        return self.__dict__.items()
 
     def to_yaml(self, filename: Optional[str] = None) -> None:
         if not filename:
