@@ -5,6 +5,8 @@ from typing import Mapping, Optional, Sequence
 from carton.palette import Colors
 from carton.random import random_colors
 
+from texi.apps.ner.utils import texify_example
+
 
 def spacy_visual_ner(
     examples: Sequence[Mapping],
@@ -12,15 +14,14 @@ def spacy_visual_ner(
     colors: Optional[Mapping[str, str]] = None,
     token_sep: str = " ",
 ):
-    # FIXME: Does not work for token inputs.
-
     # pylint: disable=import-outside-toplevel
     from spacy import displacy
 
     # Generate spacy inputs.
+    examples = [texify_example(x, token_sep) for x in examples]
     spacy_data = [
         {
-            "text": token_sep.join(example["tokens"]),
+            "text": example["tokens"],
             "ents": [
                 {"start": x["start"], "end": x["end"], "label": x["type"]}
                 for x in example["entities"]
