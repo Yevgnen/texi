@@ -6,7 +6,6 @@ import logging
 import os
 
 from carton.logger import setup_logger
-from carton.params import Params
 from carton.random import set_seed
 from transformers import BertModel, BertTokenizerFast
 
@@ -91,18 +90,18 @@ def parse_args():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-    parser.add_argument("--params", type=Params.from_yaml, default="spert.yaml")
+    parser.add_argument("--params", type=SpERTParams.from_yaml, default="spert.yaml")
 
     return parser.parse_args()  # pylint: disable=redefined-outer-name
 
 
 def main():
     args = parse_args()
-    params = SpERTParams(**args.params)
+    params = args.params
     set_seed(params["seed"])
 
-    os.makedirs(os.path.dirname(params.log_file), exist_ok=True)
-    setup_logger(level=logging.INFO, filename=params.log_file)
+    os.makedirs(os.path.dirname(params["log_file"]), exist_ok=True)
+    setup_logger(level=logging.INFO, filename=params["log_file"])
 
     train = read_dataset(
         "../../../repos/spert/data/datasets/conll04/conll04_train.json"

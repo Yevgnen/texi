@@ -3,12 +3,14 @@
 import argparse
 import copy
 import os
-from typing import Dict, Optional
+from typing import Dict, Optional, TypeVar
 
 from carton.params import Params as ParamDict
 from carton.random import random_state
 
 from texi.pytorch.utils import device
+
+_T = TypeVar("_T", bound="Params")
 
 
 class Params(object):
@@ -79,6 +81,18 @@ class Params(object):
             filename = os.path.join(self.save_path, "params.toml")
 
         ParamDict(**self.to_dict()).to_toml(filename)
+
+    @classmethod
+    def from_yaml(cls, filename: str) -> _T:
+        return cls(**ParamDict.from_yaml(filename))
+
+    @classmethod
+    def from_json(cls, filename: str) -> _T:
+        return cls(**ParamDict.from_json(filename))
+
+    @classmethod
+    def from_toml(cls, filename: str) -> _T:
+        return cls(**ParamDict.from_toml(filename))
 
 
 def main():
