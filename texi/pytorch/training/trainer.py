@@ -205,7 +205,16 @@ def setup_handlers(
                 logger.info("Dataset [%s] switched to eval mode.", dataset)
 
             evaluator.run(data_loader)
-            evaluator.logger.info(pprint.pformat(evaluator.state.metrics))
+
+            evaluator.logger.info("Evaluate metrics [%s]", dataset)
+            for key, metric in sorted(
+                evaluator.state.metrics.items(), key=lambda x: x[0]
+            ):
+                # Ignote Dict metrics flattend by ignite.`
+                if isinstance(metric, Mapping):
+                    continue
+
+                evaluator.logger.info("%s = %s", key, metric)
 
         return evaluate_handler
 
