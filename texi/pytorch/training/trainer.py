@@ -332,7 +332,7 @@ def build_train_step_function(
     optimizer: Optimizer,
     loss_function: nn.Module,
     train_step: TrainStepFunction,
-    device: torch.device = "cpu",
+    device: torch.device = torch.device("cpu"),
     non_blocking: bool = False,
     max_grad_norm: Optional[float] = None,
     gradient_accumulation_steps: Optional[int] = None,
@@ -361,7 +361,7 @@ def build_train_step_function(
 def build_eval_step_function(
     net: nn.Module,
     eval_step: EvalStepFunction,
-    device: torch.device = "cpu",
+    device: torch.device = torch.device("cpu"),
     non_blocking: bool = False,
 ) -> UpdateFunction:
     def _step(engine, batch):
@@ -413,7 +413,7 @@ class Trainer(metaclass=abc.ABCMeta):
         train_step: Optional[TrainStepFunction] = None,
         max_grad_norm: Optional[float] = None,
         gradient_accumulation_steps: Optional[int] = None,
-        device: torch.device = "cpu",
+        device: torch.device = torch.device("cpu"),
         non_blocking: bool = False,
         metrics: Optional[MetricGroup] = None,
         log_file: Optional[str] = None,
@@ -457,7 +457,7 @@ class Trainer(metaclass=abc.ABCMeta):
         net: nn.Module,
         eval_step: Optional[EvalStepFunction] = None,
         metrics: Optional[MetricGroup] = None,
-        device: torch.device = "cpu",
+        device: torch.device = torch.device("cpu"),
         non_blocking: bool = False,
         log_file: Optional[str] = None,
         name: str = "evaluator",
@@ -486,7 +486,7 @@ class Trainer(metaclass=abc.ABCMeta):
         net: nn.Module,
         eval_step: EvalStepFunction = None,
         metrics: Optional[MetricGroup] = None,
-        device: torch.device = "cpu",
+        device: torch.device = torch.device("cpu"),
         non_blocking: bool = False,
         log_file: Optional[str] = None,
     ) -> Dict[str, Engine]:
