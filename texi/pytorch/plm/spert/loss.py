@@ -9,7 +9,7 @@ class SpERTLoss(nn.Module):
         self, entity_loss_weight: float = 1.0, relation_loss_weight: float = 1.0
     ):
         super().__init__()
-        total_weight = entity_loss_weight + relation_loss_weight
+        total_weight = float(entity_loss_weight + relation_loss_weight)
         self.entity_loss_weight = entity_loss_weight / total_weight
         self.relation_loss_weight = relation_loss_weight / total_weight
 
@@ -26,7 +26,7 @@ class SpERTLoss(nn.Module):
 
     def _relation_loss(self, relation_logits, relation_labels, relation_sample_masks):
         if relation_logits.size(1) == 0:
-            return relation_logits.new_zeros(1)
+            return relation_logits.new_zeros(1, dtype=torch.float32)
 
         relation_loss = self.relation_loss(relation_logits, relation_labels.float())
         relation_loss.masked_fill_(relation_sample_masks.unsqueeze(-1) == 0, 0)
