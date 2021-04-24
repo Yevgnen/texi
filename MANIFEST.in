@@ -1,1 +1,1 @@
-include texi/apps/conlleval.pl
+include texi/apps/ner/conlleval.pl
