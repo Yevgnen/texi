@@ -7,6 +7,7 @@ from texi.apps.ner.eval import (
     conlleval,
     conlleval_file,
 )
+from texi.apps.ner.utils import split_example
 from texi.apps.ner.visualization import visualize_ner, visualize_ner_prediction
 
 __all__ = [
@@ -15,6 +16,7 @@ __all__ = [
     "confusion_matrix",
     "conlleval",
     "conlleval_file",
+    "split_example",
     "visualize_ner_prediction",
     "visualize_ner",
 ]
