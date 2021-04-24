@@ -1,25 +1,29 @@
 # -*- coding: utf-8 -*-
 
-import itertools
-from typing import Dict, Mapping, Optional, Sequence
+from typing import Mapping, Optional, Sequence
 
 from carton.palette import Colors
 from carton.random import random_colors
 
-from texi.tagger import Tagger
 
+def spacy_visual_ner(
+    examples: Sequence[Mapping],
+    filename: Optional[str] = None,
+    colors: Optional[Mapping[str, str]] = None,
+    token_sep: str = " ",
+):
+    # FIXME: Does not work for token inputs.
 
-def _spacy_visual_ner(examples, filename, colors):
     # pylint: disable=import-outside-toplevel
     from spacy import displacy
 
     # Generate spacy inputs.
     spacy_data = [
         {
-            "tokens": example["tokens"],
+            "text": token_sep.join(example["tokens"]),
             "ents": [
-                {"start": x["start"], "end": x["end"], "label": x["tag"]}
-                for x in example["chunks"]
+                {"start": x["start"], "end": x["end"], "label": x["type"]}
+                for x in example["entities"]
             ],
             "title": example.get("id", f"#{i}"),
         }
@@ -28,7 +32,7 @@ def _spacy_visual_ner(examples, filename, colors):
 
     # Give each type a color.
     if not colors:
-        types = set(x["tag"] for example in examples for x in example["chunks"])
+        types = set(x["type"] for example in examples for x in example["entities"])
         colors = random_colors(Colors.PRESETS, num=len(types))
         colors = dict(zip(types, colors))
 
@@ -40,42 +44,3 @@ def _spacy_visual_ner(examples, filename, colors):
     if filename:
         with open(filename, mode="w") as f:
             f.writelines(rendered)
-
-
-def visualize_ner(
-    examples: Sequence[Mapping],
-    filename: Optional[str] = None,
-    colors: Optional[Mapping[str, str]] = None,
-    sort: bool = False,
-    drop_duplicates: bool = False,
-) -> None:
-    if drop_duplicates:
-        tagger = Tagger("iob2")
-        examples = [
-            dict(x)
-            for x in {
-                (("tokens", x["tokens"]), ("tag", tuple(x["tag"])))
-                for x in map(tagger.encode, examples)
-            }
-        ]
-        examples = [*map(tagger.decode, examples)]
-
-    if sort:
-        examples = sorted(examples, key=lambda x: len(x["tokens"]))
-
-    _spacy_visual_ner(examples, filename, colors)
-
-
-def visualize_ner_prediction(
-    y: Sequence[Mapping],
-    y_pred: Sequence[Mapping],
-    filename: Optional[str] = None,
-    colors: Optional[Mapping[str, str]] = None,
-    ignore_corrections: bool = False,
-) -> None:
-    if ignore_corrections:
-        y, y_pred = zip(*[(yi, yi_pred) for yi, yi_pred in zip(y, y_pred)])
-
-    data = itertools.chain.from_iterable(zip(y, y_pred))
-
-    _spacy_visual_ner(data, filename, colors)
