@@ -182,10 +182,6 @@ def setup_handlers(
     # Other event handlers.
     def step_schedulers(engine):
         lr_scheduler.step()
-        engine.logger.info(
-            "Learning rate updated: %s",
-            ", ".join(str(x) for x in lr_scheduler.get_last_lr()),
-        )
 
     def build_evaluate_handler(
         dataset, evaluator, data_loader, best_model_handler=None
