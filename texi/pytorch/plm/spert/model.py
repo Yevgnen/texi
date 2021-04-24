@@ -45,7 +45,6 @@ class SpERT(nn.Module):
 
         mask = mask.unsqueeze(dim=-1)
         masked = last_hidden_state.unsqueeze(dim=1) * mask
-        masked.masked_fill_(mask == 0, -1e20)
 
         return masked
 
