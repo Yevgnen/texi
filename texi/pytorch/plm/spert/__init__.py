@@ -4,7 +4,6 @@ from texi.pytorch.plm.spert.dataset import SpERTDataset
 from texi.pytorch.plm.spert.loss import SpERTLoss
 from texi.pytorch.plm.spert.model import SpERT
 from texi.pytorch.plm.spert.prediction import (
-    decode_relations,
     predict,
     predict_entities,
     predict_relations,
@@ -22,5 +21,4 @@ __all__ = [
     "predict",
     "predict_entities",
     "predict_relations",
-    "decode_relations",
 ]
