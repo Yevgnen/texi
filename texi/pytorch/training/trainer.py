@@ -219,34 +219,19 @@ def setup_handlers(
     trainer.add_event_handler(Events.EXCEPTION_RAISED, handle_exceptions)
     trainer.add_event_handler(Events.ITERATION_COMPLETED, TerminateOnNan())
 
-    # Setup loggers.
-    if params.log_steps > 0:
+    # Setup progress bars.
+    if params.pbar_steps > 0:
         ProgressBar(ncols=0).attach(
             trainer,
             metric_names="all",
-            event_name=Events.ITERATION_COMPLETED(every=params.log_steps),
+            event_name=Events.ITERATION_COMPLETED(every=params.pbar_steps),
         )
-        logger_handlers = setup_logger_handlers(
-            params.save_path,
-            params.log_steps,
-            params.to_dict(),
-            trainer,
-            net,
-            optimizer,
-            evaluators,
-            tensorboard=params.tensorboard,
-            wandb=params.wandb,
-            debug=params.debug,
-        )
-        handlers.update(logger_handlers)
 
         for evaluator in evaluators.values():
             ProgressBar(ncols=0).attach(
                 evaluator,
-                event_name=Events.ITERATION_COMPLETED(every=params.log_steps),
+                event_name=Events.ITERATION_COMPLETED(every=params.pbar_steps),
             )
-    else:
-        logger.warning("Logger handlers not set")
 
     # Setup scheduler.
     if lr_scheduler is not None:
@@ -333,6 +318,23 @@ def setup_handlers(
         logger.info("Setup evaluator for [test]")
     else:
         logger.warning("Test evaluate handlers not set")
+
+    if params.log_steps > 0:
+        logger_handlers = setup_logger_handlers(
+            params.save_path,
+            params.log_steps,
+            params.to_dict(),
+            trainer,
+            net,
+            optimizer,
+            evaluators,
+            tensorboard=params.tensorboard,
+            wandb=params.wandb,
+            debug=params.debug,
+        )
+        handlers.update(logger_handlers)
+    else:
+        logger.warning("Logger handlers not set")
 
     return handlers
 
