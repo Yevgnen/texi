@@ -7,26 +7,37 @@ from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Union
 
 
 def convert_pybrat_example(example: Mapping) -> Dict:
-    # NOTE: This function does NOT sort entities and relation.
+    # NOTE:
+    # 1. ID fields are kept.
+    # 2. Entities are sort before conversion.
 
     # Convert tokens.
     tokens = list(example["text"])
 
-    # Convert entities.
-    entities = [
-        {"type": x["type"], "start": x["start"], "end": x["end"]}
-        for x in example["entities"]
-    ]
+    # Record entity indices.
+    entities = sorted(example["entities"], key=lambda x: x["start"])
 
     # Convert relation.
-    entity_indices = {(x["start"], x["end"]): i for i, x in enumerate(entities)}
+    entity_indices = {x["id"]: i for i, x in enumerate(entities)}
     relation = [
         {
+            "id": x["id"],
             "type": x["type"],
-            "head": entity_indices[(x["arg1"]["start"], x["arg1"]["end"])],
-            "tail": entity_indices[(x["arg2"]["start"], x["arg2"]["end"])],
+            "head": entity_indices[x["arg1"]["id"]],
+            "tail": entity_indices[x["arg2"]["id"]],
         }
         for x in example["relations"]
+    ]
+
+    # Convert entities.
+    entities = [
+        {
+            "id": x["id"],
+            "type": x["type"],
+            "start": x["start"],
+            "end": x["end"],
+        }
+        for x in entities
     ]
 
     example = {
