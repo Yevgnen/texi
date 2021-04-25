@@ -179,13 +179,15 @@ class SpERT(nn.Module):
         return entity_label, entity_span
 
     def _filter_relations(self, entity_label, entity_span, max_length):
+        # NOTE: Filtered entities should have label -1.
+
         relations, relation_context_masks, relation_sample_masks = [], [], []
         max_relations = 0
         for i, labels in enumerate(entity_label):
             pairs, context_starts, context_ends = [], [], []
-            indices = entity_label.new_tensor(range(len(labels)))
+            indices = (labels >= 0).nonzero(as_tuple=True)[0]
             for head, tail in torch.cartesian_prod(indices, indices):
-                if labels[head] >= 0 and labels[tail] >= 0 and head != tail:
+                if head != tail:
                     head_start, head_end = entity_span[i][head]
                     tail_start, tail_end = entity_span[i][tail]
 
@@ -196,8 +198,6 @@ class SpERT(nn.Module):
                         context_starts += [start]
                         context_ends += [end]
                         pairs += [(head, tail)]
-
-            assert len(pairs) == len(context_starts) == len(context_ends)
 
             relation_context_masks += [
                 create_span_mask(
