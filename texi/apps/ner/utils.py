@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 
 import dataclasses
-from typing import Dict, Iterable, List, Mapping, Sequence, Union
+import json
+import os
+from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Union
 
 
 def convert_pybrat_example(example: Mapping) -> Dict:
@@ -51,6 +53,49 @@ def load_pybrat_examples(dirname: str, *args, **kwargs) -> List[Dict]:
         examples += [example]
 
     return examples
+
+
+def convert_pybrat_examples(
+    input_dir: str,
+    output_dir: str,
+    test_size: float = 0.2,
+    val_size: float = 0.1,
+    shuffle: bool = True,
+    random_state: Optional[int] = None,
+    **kwargs,
+) -> None:
+    # pylint: disable=import-outside-toplevel
+    from sklearn.model_selection import train_test_split
+
+    def _optional_split(data, size):
+        if size > 0:
+            first, second = train_test_split(
+                data, test_size=size, shuffle=shuffle, random_state=random_state
+            )
+        else:
+            first, second = data, None
+
+        return first, second
+
+    # Load examples.
+    examples = load_pybrat_examples(input_dir, **kwargs)
+
+    # Split examples.
+    train, test = _optional_split(examples, test_size)
+    train, val = _optional_split(train, val_size)
+
+    # Dump examples.
+    prefix = os.path.basename(input_dir)
+    os.makedirs(output_dir, exist_ok=True)
+    datasets = {
+        "train": train,
+        "val": val,
+        "test": test,
+    }
+    for mode, dataset in datasets.items():
+        if dataset is not None:
+            with open(os.path.join(output_dir, f"{prefix}_{mode}.json"), mode="w") as f:
+                json.dump(dataset, f, ensure_ascii=False)
 
 
 def split_example(

@@ -9,6 +9,7 @@ from texi.apps.ner.eval import (
 )
 from texi.apps.ner.utils import (
     convert_pybrat_example,
+    convert_pybrat_examples,
     load_pybrat_examples,
     split_example,
 )
@@ -21,6 +22,7 @@ __all__ = [
     "conlleval",
     "conlleval_file",
     "convert_pybrat_example",
+    "convert_pybrat_examples",
     "load_pybrat_examples",
     "split_example",
     "spacy_visual_ner",
