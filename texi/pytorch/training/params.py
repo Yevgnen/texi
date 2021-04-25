@@ -2,6 +2,7 @@
 
 import argparse
 import copy
+import datetime
 import os
 from typing import Dict, ItemsView, KeysView, Optional, TypeVar, ValuesView
 
@@ -27,7 +28,9 @@ class Params(object):
 
         # Training
         self.seed = random_state(kwargs.get("seed"))
-        self.save_path = kwargs.get("save_path", "output/")
+        self.save_path = os.path.join(
+            kwargs.get("save_path", "output/"), datetime.datetime.now().isoformat()
+        )
         self.log_file = os.path.join(self.save_path, "output.log")
         self.max_epochs = kwargs.get("max_epochs")
         self.lr = kwargs.get("lr")
