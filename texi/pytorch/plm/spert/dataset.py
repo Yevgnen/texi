@@ -98,10 +98,10 @@ class SpERTDataset(Dataset):
             label = torch.zeros(
                 (0, len(self.relation_label_encoder)), dtype=torch.int64
             )
-            entity_span = torch.zeros((0, 2), dtype=torch.int64)
+            pair = torch.zeros((0, 2), dtype=torch.int64)
             sample_mask = torch.zeros((0,), dtype=torch.int64)
 
-            return mask, label, entity_span, sample_mask
+            return mask, label, pair, sample_mask
 
         # Collect `relation_context_mask`, `relation_label`,
         # `relation_pair` and `relation_sample_mask`.
