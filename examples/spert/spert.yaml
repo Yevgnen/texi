@@ -7,7 +7,7 @@ val_size: 0.1
 test_size: 0.2
 
 # Training
-seed: 1234
+seed: null
 save_path: 'output/'
 max_epochs: 20
 lr: 0.00005
