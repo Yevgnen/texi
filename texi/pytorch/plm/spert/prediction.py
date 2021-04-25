@@ -7,34 +7,6 @@ import torch
 from texi.preprocessing import LabelEncoder
 
 
-def decode_entities(
-    entity_label: torch.LongTensor,
-    entity_sample_mask: torch.LongTensor,
-    entity_span: torch.LongTensor,
-    entity_label_encoder: LabelEncoder,
-    negative_entity_index: int,
-) -> List[List[Dict[str, Any]]]:
-    entity_label = entity_label.masked_fill(~entity_sample_mask, -1).long()
-
-    entity_span = entity_span.cpu().numpy().tolist()
-    entities = [
-        [
-            {
-                "type": entity_label_encoder.decode_label(
-                    label if label >= 0 else negative_entity_index
-                ),
-                "start": entity_span[i][j][0],
-                "end": entity_span[i][j][1],
-            }
-            for j, label in enumerate(labels)
-            if label >= 0
-        ]
-        for i, labels in enumerate(entity_label.detach().cpu().numpy().tolist())
-    ]
-
-    return entities
-
-
 def decode_relations(
     relation_prob: torch.Tensor,
     relation: torch.LongTensor,
@@ -74,26 +46,38 @@ def decode_relations(
 
 
 def predict_entities(
-    entity_logit: torch.FloatTensor,
-    entity_mask: torch.LongTensor,
+    entity_logit: torch.Tensor,
+    entity_sample_mask: torch.LongTensor,
     entity_span: torch.LongTensor,
     entity_label_encoder: LabelEncoder,
-    negative_entity_index: int,
 ) -> List[List[Dict[str, Any]]]:
-    # Predict entity labels.
-    entity_sample_mask = entity_mask.sum(dim=-1) > 0
-    entity_label = entity_logit.argmax(dim=-1)
+    if entity_logit.ndim == 3:
+        entity_label = entity_logit.argmax(dim=-1)
+    elif entity_logit.ndim == 2:
+        entity_label = entity_logit
+    else:
+        raise ValueError("`entity_logit` should have 2 or 3 dimensions")
+
+    entity_label.masked_fill_(~entity_sample_mask.bool(), -1).long()
 
     # Decode entities.
-    entity_prediction = decode_entities(
-        entity_label,
-        entity_sample_mask,
-        entity_span,
-        entity_label_encoder,
-        negative_entity_index,
-    )
+    entity_labels = entity_label.tolist()
+    entity_spans = entity_span.tolist()
 
-    return entity_prediction
+    entities = [
+        [
+            {
+                "type": entity_label_encoder.decode_label(label),
+                "start": entity_spans[i][j][0],
+                "end": entity_spans[i][j][1],
+            }
+            for j, label in enumerate(labels)
+            if label >= 0
+        ]
+        for i, labels in enumerate(entity_labels)
+    ]
+
+    return entities
 
 
 def predict_relations(
