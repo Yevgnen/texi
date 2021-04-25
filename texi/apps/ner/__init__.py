@@ -13,7 +13,7 @@ from texi.apps.ner.utils import (
     load_pybrat_examples,
     split_example,
 )
-from texi.apps.ner.visualization import spacy_visual_ner
+from texi.apps.ner.visualization import SpERTVisualizer, spacy_visual_ner
 
 __all__ = [
     "NERDataReport",
@@ -25,5 +25,6 @@ __all__ = [
     "convert_pybrat_examples",
     "load_pybrat_examples",
     "split_example",
+    "SpERTVisualizer",
     "spacy_visual_ner",
 ]
