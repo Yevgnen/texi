@@ -41,6 +41,7 @@ debug: false
 pretrained_model: 'bert-base-cased'
 embedding_dim: 25
 dropout: 0.1
+global_context_pooling: 'cls'
 negative_entity_type: 'NON_ENTITY'
 negative_relation_type: 'NO_RELATION'
 num_negative_entities: 100

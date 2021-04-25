@@ -16,6 +16,7 @@ class SpERTParams(Params):
         self.pretrained_model = kwargs.pop("pretrained_model", "bert-base-uncased")
         self.embedding_dim = kwargs.pop("embedding_dim", 25)
         self.dropout = kwargs.pop("dropout", 0.1)
+        self.global_context_pooling = kwargs.get("global_context_pooling", "cls")
         self.negative_entity_type = kwargs.pop("negative_entity_type", "NON_ENTITY")
         self.negative_relation_type = kwargs.pop(
             "negative_relation_type", "NO_RELATION"

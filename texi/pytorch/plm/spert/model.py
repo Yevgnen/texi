@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 
 from texi.pytorch.masking import create_span_mask
-from texi.pytorch.plm.pooling import cls_pooling, max_pooling
+from texi.pytorch.plm.pooling import get_pooling
 from texi.pytorch.plm.spert.dataset import stack_1d, stack_2d
 
 if TYPE_CHECKING:
@@ -26,6 +26,7 @@ class SpERT(nn.Module):
         negative_entity_index: int,
         max_entity_length: int = 100,
         dropout: float = 0.2,
+        global_context_pooling: str = "cls",
     ):
         super().__init__()
         self.bert = bert
@@ -41,6 +42,7 @@ class SpERT(nn.Module):
         self.negative_entity_index = negative_entity_index
         self.max_entity_length = max_entity_length
         self.dropout = nn.Dropout(p=dropout)
+        self.global_context_pooling = get_pooling(global_context_pooling)
 
     def _mask_hidden_states(self, last_hidden_state, mask):
         # pylint: disable=no-self-use
@@ -120,7 +122,7 @@ class SpERT(nn.Module):
         last_hidden_state = bert_output.last_hidden_state
 
         # context: [B, H]
-        context = max_pooling(bert_output, attention_mask)
+        context = self.global_context_pooling(bert_output, attention_mask)
 
         # entity_size: [B, E, D]
         entity_size = self.size_embedding(entity_mask.sum(-1))

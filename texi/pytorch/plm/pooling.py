@@ -1,8 +1,27 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Callable
+
 import torch
 from torch import Tensor
-from transformers.file_utils import ModelOutput
+
+if TYPE_CHECKING:
+    from transformers.file_utils import ModelOutput
+
+
+def get_pooling(method: str) -> Callable[[ModelOutput, Tensor], Tensor]:
+    methods = {
+        "cls": cls_pooling,
+        "mean": mean_pooling,
+        "max": max_pooling,
+    }
+    pooling = methods.get(method)
+    if pooling is None:
+        raise ValueError(f"Pooling `method` should be one of {list(methods)}")
+
+    return pooling
 
 
 def mean_pooling(model_output: ModelOutput, attention_mask: Tensor) -> Tensor:

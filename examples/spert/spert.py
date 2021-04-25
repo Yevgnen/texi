@@ -142,6 +142,7 @@ def main():
         len(relation_label_encoder),
         negative_entity_index=negative_entity_index,
         dropout=params["dropout"],
+        global_context_pooling=params["global_context_pooling"],
     )
     model = model.to(params["device"])
     criteria = SpERTLoss()
