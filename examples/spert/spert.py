@@ -81,6 +81,7 @@ def get_dataloaders(
         },
         train_batch_size=params["train_batch_size"],
         eval_batch_size=params["eval_batch_size"],
+        num_workers=params["num_workers"],
     )
 
     return loaders

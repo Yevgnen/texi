@@ -47,6 +47,7 @@ class Params(object):
         self.device = device(kwargs.get("device", "cuda"))
         self.pin_memory = kwargs.get("pin_memory", True)
         self.non_blocking = kwargs.get("non_blocking", True)
+        self.num_workers = kwargs.get("num_workers", 0)
 
         # Evaluation & Early Stopping
         self.eval_train = kwargs.get("eval_train", False)
