@@ -99,7 +99,7 @@ def convert_pybrat_examples(
 
 
 def split_example(
-    example: Mapping, delimiters: Union[str, Iterable[str]]
+    example: Mapping, delimiters: Union[str, Iterable[str]], ignore_errors: bool = False
 ) -> List[Dict]:
     if isinstance(delimiters, str):
         delimiters = {delimiters}
@@ -128,10 +128,13 @@ def split_example(
                 entity_index += 1
 
             if entity_index < len(entities) and entities[entity_index]["start"] <= i:
-                raise RuntimeError(
-                    "Entity must not contains delimiters,"
-                    f" delimiters: {delimiters}, entity: {entities[entity_index]}"
-                )
+                if ignore_errors:
+                    entity_index += 1
+                else:
+                    raise RuntimeError(
+                        "Entity must not contains delimiters,"
+                        f" delimiters: {delimiters}, entity: {entities[entity_index]}"
+                    )
 
             # Collect relations.
             while relation_index < len(relations):
@@ -140,10 +143,13 @@ def split_example(
                 tail_index = entity_indices.get(relation["tail"])
                 in_range = bool(head_index is None) + bool(tail_index is None)
                 if in_range == 1:
-                    raise RuntimeError(
-                        "Relation must not across delimiters,"
-                        f" delimiters: {delimiters}, relation: {relation}"
-                    )
+                    if ignore_errors:
+                        relation_index += 1
+                    else:
+                        raise RuntimeError(
+                            "Relation must not across delimiters,"
+                            f" delimiters: {delimiters}, relation: {relation}"
+                        )
 
                 if in_range == 0:
                     current_relations += [relation]

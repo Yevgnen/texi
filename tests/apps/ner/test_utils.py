@@ -131,6 +131,60 @@ class TestFunctions(unittest.TestCase):
             " delimiters: {'.'}, entity: {'type': 'per', 'start': 0, 'end': 2}",
         )
 
+    def test_split_example_entity_contains_delimiters_ignore_error(self):
+        example = {
+            "tokens": [
+                "Bill",
+                ".",
+                "Gates",
+                "was",
+                "born",
+                "in",
+                "USA",
+                ".",
+                "Jack",
+                "Loves",
+                "Mary",
+            ],
+            "entities": [
+                {"type": "per", "start": 0, "end": 3},
+                {"type": "loc", "start": 6, "end": 7},
+                {"type": "per", "start": 8, "end": 9},
+                {"type": "per", "start": 10, "end": 11},
+            ],
+            "relations": [],
+        }
+        splits = split_example(example, ".", ignore_errors=True)
+        self.assertEqual(len(splits), 3)
+        self.assertEqual(
+            splits[0], {"tokens": ["Bill", "."], "entities": [], "relations": []}
+        )
+        self.assertEqual(
+            splits[1],
+            {
+                "tokens": ["Gates", "was", "born", "in", "USA", "."],
+                "entities": [
+                    {"type": "loc", "start": 6, "end": 7},
+                ],
+                "relations": [],
+            },
+        )
+        self.assertEqual(
+            splits[2],
+            {
+                "tokens": [
+                    "Jack",
+                    "Loves",
+                    "Mary",
+                ],
+                "entities": [
+                    {"type": "per", "start": 8, "end": 9},
+                    {"type": "per", "start": 10, "end": 11},
+                ],
+                "relations": [],
+            },
+        )
+
     def test_split_example_relation_cross_splits(self):
         example = {
             "tokens": [
@@ -161,6 +215,71 @@ class TestFunctions(unittest.TestCase):
             str(ctx.exception),
             "Relation must not across delimiters,"
             " delimiters: {'.'}, relation: {'type': 'born in', 'head': 1, 'tail': 3}",
+        )
+
+    def test_split_example_relation_cross_splits_ignore_error(self):
+        example = {
+            "tokens": [
+                "Bill",
+                "was",
+                "born",
+                "in",
+                "USA",
+                ".",
+                "Jack",
+                "Loves",
+                "Mary",
+            ],
+            "entities": [
+                {"type": "per", "start": 0, "end": 1},
+                {"type": "loc", "start": 4, "end": 5},
+                {"type": "per", "start": 6, "end": 7},
+                {"type": "per", "start": 8, "end": 9},
+            ],
+            "relations": [
+                {"type": "born in", "head": 1, "tail": 3},
+                {"type": "fake", "head": 1, "tail": 0},
+                {"type": "fake", "head": 2, "tail": 3},
+            ],
+        }
+        splits = split_example(example, ".", ignore_errors=True)
+        self.assertEqual(len(splits), 2)
+        self.assertEqual(
+            splits[0],
+            {
+                "tokens": [
+                    "Bill",
+                    "was",
+                    "born",
+                    "in",
+                    "USA",
+                    ".",
+                ],
+                "entities": [
+                    {"type": "per", "start": 0, "end": 1},
+                    {"type": "loc", "start": 4, "end": 5},
+                ],
+                "relations": [
+                    {"type": "fake", "head": 1, "tail": 0},
+                ],
+            },
+        )
+        self.assertEqual(
+            splits[1],
+            {
+                "tokens": [
+                    "Jack",
+                    "Loves",
+                    "Mary",
+                ],
+                "entities": [
+                    {"type": "per", "start": 6, "end": 7},
+                    {"type": "per", "start": 8, "end": 9},
+                ],
+                "relations": [
+                    {"type": "fake", "head": 2, "tail": 3},
+                ],
+            },
         )
 
     def test_split_example_empty_entities_and_relations(self):
