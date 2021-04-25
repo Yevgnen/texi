@@ -52,6 +52,10 @@ class Params(object):
         # Evaluation & Early Stopping
         self.eval_train = kwargs.get("eval_train", False)
         self.eval_steps = kwargs.get("eval_steps", -1)
+        self.num_save_models = kwargs.get(
+            "num_save_models",
+            1 if self.eval_steps == "epoch" or self.eval_steps > 0 else 0,
+        )
         self.early_stopping = kwargs.get("early_stopping", False)
         self.eval_metric = kwargs.get("eval_metric")
         self.patience = kwargs.get("patience")
