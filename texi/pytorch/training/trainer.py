@@ -320,6 +320,20 @@ def setup_handlers(
         logger.warning("Test evaluate handlers not set")
 
     if params.log_steps > 0:
+        # FIXME: Duplicated code with evaluator setup.
+        # https://github.com/pytorch/ignite/issues/1476#issuecomment-826317167
+        if params.eval_steps == "epoch" or params.eval_steps > 0:
+
+            def filter_metrics(engine):
+                engine.state.metrics = {
+                    k: v for k, v in engine.state.metrics.items() if isinstance(v, dict)
+                }
+
+            for evaluator in evaluators.values():
+                evaluator.add_event_handler(
+                    Events.ITERATION_COMPLETED(every=params.log_steps), filter_metrics
+                )
+
         logger_handlers = setup_logger_handlers(
             params.save_path,
             params.log_steps,
