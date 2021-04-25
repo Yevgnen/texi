@@ -24,14 +24,14 @@ def create_span_mask(
             raise ValueError(
                 f"`starts` must be 1d if passed as tensor, got ndim == {starts.ndim}"
             )
-        starts = starts.numpy()
+        starts = starts.tolist()
 
     if isinstance(ends, torch.Tensor):
         if ends.ndim != 1:
             raise ValueError(
                 f"`ends` must be 1d if passed as tensor, got ndim == {ends.ndim}"
             )
-        ends = ends.numpy()
+        ends = ends.tolist()
 
     if len(starts) == 0:
         return torch.zeros((0, length), dtype=dtype, device=device)
