@@ -1,6 +1,56 @@
 # -*- coding: utf-8 -*-
 
+import dataclasses
 from typing import Dict, Iterable, List, Mapping, Sequence, Union
+
+
+def convert_pybrat_example(example: Mapping) -> Dict:
+    # NOTE: This function does NOT sort entities and relation.
+
+    # Convert tokens.
+    tokens = list(example["text"])
+
+    # Convert entities.
+    entities = [
+        {"type": x["type"], "start": x["start"], "end": x["end"]}
+        for x in example["entities"]
+    ]
+
+    # Convert relation.
+    entity_indices = {(x["start"], x["end"]): i for i, x in enumerate(entities)}
+    relation = [
+        {
+            "type": x["type"],
+            "head": entity_indices[(x["arg1"]["start"], x["arg1"]["end"])],
+            "tail": entity_indices[(x["arg2"]["start"], x["arg2"]["end"])],
+        }
+        for x in example["relations"]
+    ]
+
+    example = {
+        "id": example["id"],
+        "tokens": tokens,
+        "entities": entities,
+        "relations": relation,
+    }
+
+    return example
+
+
+def load_pybrat_examples(dirname: str, *args, **kwargs) -> List[Dict]:
+    # pylint: disable=import-outside-toplevel
+    from pybrat.parser import BratParser
+
+    parser = BratParser(*args, **kwargs)
+    parsed = parser.parse(dirname)
+
+    examples = []
+    for parsed_example in parsed:
+        example = dataclasses.asdict(parsed_example)
+        example = convert_pybrat_example(example)
+        examples += [example]
+
+    return examples
 
 
 def split_example(
