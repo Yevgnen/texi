@@ -124,8 +124,17 @@ def split_example(
             entity_indices = {}  # type: Dict[int, int]
             while entity_index < len(entities) and entities[entity_index]["end"] <= i:
                 entity_indices[entity_index] = len(entity_indices)
-                current_entities += [entities[entity_index]]
+                entity = entities[entity_index]
+                entity_start = len(current_tokens) - (i - entity["start"]) - 1
+                entity_end = len(current_tokens) - (i - entity["end"]) - 1
+                current_entity = {
+                    "type": entities[entity_index]["type"],
+                    "start": entity_start,
+                    "end": entity_end,
+                }
+                current_entities += [current_entity]
                 entity_index += 1
+                entity_start += 1
 
             if entity_index < len(entities) and entities[entity_index]["start"] <= i:
                 if ignore_errors:

@@ -57,8 +57,8 @@ class TestFunctions(unittest.TestCase):
             {
                 "tokens": ["Jack", "Loves", "Mary", "."],
                 "entities": [
-                    {"type": "per", "start": 6, "end": 7},
-                    {"type": "per", "start": 8, "end": 9},
+                    {"type": "per", "start": 0, "end": 1},
+                    {"type": "per", "start": 2, "end": 3},
                 ],
                 "relations": [{"type": "loves", "head": 0, "tail": 1}],
             },
@@ -107,8 +107,8 @@ class TestFunctions(unittest.TestCase):
             {
                 "tokens": ["Jack", "Loves", "Mary"],
                 "entities": [
-                    {"type": "per", "start": 6, "end": 7},
-                    {"type": "per", "start": 8, "end": 9},
+                    {"type": "per", "start": 0, "end": 1},
+                    {"type": "per", "start": 2, "end": 3},
                 ],
                 "relations": [{"type": "loves", "head": 0, "tail": 1}],
             },
@@ -164,7 +164,7 @@ class TestFunctions(unittest.TestCase):
             {
                 "tokens": ["Gates", "was", "born", "in", "USA", "."],
                 "entities": [
-                    {"type": "loc", "start": 6, "end": 7},
+                    {"type": "loc", "start": 4, "end": 5},
                 ],
                 "relations": [],
             },
@@ -178,8 +178,8 @@ class TestFunctions(unittest.TestCase):
                     "Mary",
                 ],
                 "entities": [
-                    {"type": "per", "start": 8, "end": 9},
-                    {"type": "per", "start": 10, "end": 11},
+                    {"type": "per", "start": 0, "end": 1},
+                    {"type": "per", "start": 2, "end": 3},
                 ],
                 "relations": [],
             },
@@ -273,8 +273,8 @@ class TestFunctions(unittest.TestCase):
                     "Mary",
                 ],
                 "entities": [
-                    {"type": "per", "start": 6, "end": 7},
-                    {"type": "per", "start": 8, "end": 9},
+                    {"type": "per", "start": 0, "end": 1},
+                    {"type": "per", "start": 2, "end": 3},
                 ],
                 "relations": [
                     {"type": "fake", "head": 0, "tail": 1},
