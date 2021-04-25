@@ -109,8 +109,8 @@ class NerMetrics(Metric):
         }
 
         outputs = {"all": metrics, **typed_metrics}
-        outputs = flatten_dict(outputs, "/")
+        outputs = flatten_dict(outputs, ".")
         if self.prefix:
-            outputs = {f"{self.prefix}/{k}": v for k, v in outputs.items()}
+            outputs = {f"{self.prefix}.{k}": v for k, v in outputs.items()}
 
         return outputs
