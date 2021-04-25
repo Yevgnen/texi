@@ -27,6 +27,7 @@ non_blocking: true
 # Evaluation & Early Stopping
 eval_train: false
 eval_steps: 'epoch'
+num_save_models: 1
 early_stopping: false
 eval_metric: 'f1'
 patience: 10

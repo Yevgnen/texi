@@ -18,7 +18,7 @@ from ignite.contrib.engines.common import (
 from ignite.contrib.handlers import ProgressBar
 from ignite.contrib.handlers.base_logger import BaseLogger
 from ignite.engine import Engine, Events
-from ignite.handlers import Checkpoint, EarlyStopping, TerminateOnNan
+from ignite.handlers import TerminateOnNan
 from ignite.metrics import BatchWise, EpochWise, Metric
 from ignite.utils import convert_tensor as ignite_convert_tensor
 from ignite.utils import setup_logger
@@ -80,24 +80,6 @@ def setup_engine(
                 engine, metric_name, usage=BatchWise() if train else EpochWise()
             )
     return engine
-
-
-def setup_save_handlers(
-    trainer: Engine,
-    evaluator: Engine,
-    net: nn.Module,
-    eval_metric: str,
-    patience: int,
-    save_path: str,
-) -> Tuple[Checkpoint, EarlyStopping]:
-    best_model_handler = save_best_model_by_val_score(
-        save_path, evaluator, net, eval_metric, trainer=trainer
-    )
-    early_stopping_handler = add_early_stopping_by_val_score(
-        patience, evaluator, trainer, eval_metric
-    )
-
-    return best_model_handler, early_stopping_handler
 
 
 def setup_logger_handlers(
@@ -293,21 +275,41 @@ def setup_handlers(
             )
             logger.info("Setup evaluator for [%s]", mode)
 
+        if params.num_save_models > 0:
+            handlers["best_model_handler"] = save_best_model_by_val_score(
+                params.save_path,
+                evaluators["val_evaluator"],
+                net,
+                params.eval_metric,
+                n_saved=params.num_save_models,
+                trainer=trainer,
+            )
+            logger.info(
+                "Save best model hander set with `num_save_models` = %d",
+                params.num_save_models,
+            )
+        else:
+            logger.warning("Save best model handler not set")
+
         if params.early_stopping:
             if params.eval_metric is None or params.patience is None:
                 raise ValueError(
                     "`eval_metric` and `patience` must set when `early_stopping` is set"
                 )
-            best_model_handler, early_stopping_handler = setup_save_handlers(
-                trainer,
+            if params.num_save_models < 0:
+                logger.warning("Early stopping is set, but best model is not saved")
+
+            handlers["early_stopping_handler"] = add_early_stopping_by_val_score(
+                params.patience,
                 evaluators["val_evaluator"],
-                net,
+                trainer,
+                params.eval_metric,
+            )
+            logger.info(
+                "Early stopping is set with `eval_metric` = %s and `patience` = %d",
                 params.eval_metric,
                 params.patience,
-                params.save_path,
             )
-            handlers["best_model_handler"] = best_model_handler
-            handlers["early_stopping_handler"] = early_stopping_handler
     else:
         logger.warning("Evaluate handlers not set")
         if params.early_stopping:
