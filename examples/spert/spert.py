@@ -105,10 +105,12 @@ def main():
     setup_logger(level=logging.INFO, filename=params["log_file"])
 
     train = read_dataset(
-        "../../../repos/spert/data/datasets/conll04/conll04_train.json"
+        "../../../../repos/spert/data/datasets/conll04/conll04_train.json"
     )
-    val = read_dataset("../../../repos/spert/data/datasets/conll04/conll04_dev.json")
-    test = read_dataset("../../../repos/spert/data/datasets/conll04/conll04_test.json")
+    val = read_dataset("../../../../repos/spert/data/datasets/conll04/conll04_dev.json")
+    test = read_dataset(
+        "../../../../repos/spert/data/datasets/conll04/conll04_test.json"
+    )
 
     logger.info("Train size: %d", len(train))
     logger.info("Val size: %d", len(val))

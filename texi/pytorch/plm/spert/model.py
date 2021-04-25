@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import itertools
 from typing import TYPE_CHECKING, Dict
 
 import torch
@@ -9,6 +10,7 @@ import torch.nn as nn
 
 from texi.pytorch.masking import create_span_mask
 from texi.pytorch.plm.pooling import cls_pooling, max_pooling
+from texi.pytorch.plm.spert.dataset import stack_1d, stack_2d
 
 if TYPE_CHECKING:
     from transformers import BertModel
@@ -179,59 +181,49 @@ class SpERT(nn.Module):
         return entity_label, entity_span
 
     def _filter_relations(self, entity_label, entity_span, max_length):
+        # pylint: disable=no-self-use
         # NOTE: Filtered entities should have label -1.
 
-        relations, relation_context_masks, relation_sample_masks = [], [], []
-        max_relations = 0
-        for i, labels in enumerate(entity_label):
-            pairs, context_starts, context_ends = [], [], []
-            indices = (labels >= 0).nonzero(as_tuple=True)[0]
-            for head, tail in torch.cartesian_prod(indices, indices):
-                if head != tail:
-                    head_start, head_end = entity_span[i][head]
-                    tail_start, tail_end = entity_span[i][tail]
+        def _create_candidates(labels, spans):
+            indices = (labels >= 0).nonzero(as_tuple=True)[0].tolist()
+            spans = spans[indices].tolist()
+            pairs = itertools.product(zip(indices, spans), repeat=2)
 
-                    # Ignore relations of overlapped entities.
-                    if head_start >= tail_end or tail_start >= head_end:
-                        start = min(head_end, tail_end)
-                        end = max(head_start, tail_start)
-                        context_starts += [start]
-                        context_ends += [end]
-                        pairs += [(head, tail)]
+            outputs = []
+            for (head, (head_start, head_end)), (tail, (tail_start, tail_end)) in pairs:
+                # Ignore relations of overlapped entities.
+                if head != tail and (head_start >= tail_end or tail_start >= head_end):
+                    context = [min(head_end, tail_end), max(head_start, tail_start)]
+                    pair = [head, tail]
 
-            relation_context_masks += [
-                create_span_mask(
-                    context_starts,
-                    context_ends,
-                    max_length,
-                    device=entity_label.device,
-                )
-            ]
-            relation_sample_masks += [entity_label.new_ones(len(pairs))]
-            if len(pairs) > 0:
-                relations += [entity_label.new_tensor(pairs)]
+                    outputs += [(context, pair, 1)]
+
+            if not outputs:
+                mask = entity_label.new_zeros((0, max_length))
+                pair = entity_label.new_zeros((0, 2))
+                sample_mask = entity_label.new_zeros((0,))
             else:
-                relations += [entity_label.new_zeros((0, 2))]
-            max_relations = max(max_relations, len(pairs))
+                outputs = [entity_label.new_tensor(x) for x in zip(*outputs)]
+                context, pair, sample_mask = outputs
+                mask = create_span_mask(
+                    context[:, 0], context[:, 1], max_length, device=entity_label.device
+                )
 
-        relations = [
-            torch.nn.functional.pad(x, [0, 0, 0, max_relations - len(x)])
-            for x in relations
-        ]
-        relation_context_masks = [
-            torch.nn.functional.pad(x, [0, 0, 0, max_relations - len(x)])
-            for x in relation_context_masks
-        ]
-        relation_sample_masks = [
-            torch.nn.functional.pad(x, [0, max_relations - x.size(0)])
-            for x in relation_sample_masks
-        ]
+            return mask, pair, sample_mask
 
-        relation = torch.stack(relations)
-        relation_context_mask = torch.stack(relation_context_masks)
-        relation_sample_mask = torch.stack(relation_sample_masks)
+        masks, pairs, sample_masks = zip(
+            *[
+                _create_candidates(sample_label, sample_span)
+                for sample_label, sample_span in zip(entity_label, entity_span)
+            ]
+        )
 
-        return relation, relation_context_mask, relation_sample_mask
+        max_relations = max(len(x) for x in pairs)
+        mask = stack_2d(masks, max_relations, max_length)
+        relation = stack_2d(pairs, max_relations, 2)
+        sample_mask = stack_1d(sample_masks, max_relations)
+
+        return relation, mask, sample_mask
 
     def infer(
         self,
