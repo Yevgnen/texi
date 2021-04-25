@@ -152,7 +152,12 @@ def split_example(
                         )
 
                 if in_range == 0:
-                    current_relations += [relation]
+                    current_relation = {
+                        "type": relation["type"],
+                        "head": head_index,
+                        "tail": tail_index,
+                    }
+                    current_relations += [current_relation]
                     relation_index += 1
                 else:
                     # This also implies that invalid relations will be drop.

@@ -60,7 +60,7 @@ class TestFunctions(unittest.TestCase):
                     {"type": "per", "start": 6, "end": 7},
                     {"type": "per", "start": 8, "end": 9},
                 ],
-                "relations": [{"type": "loves", "head": 2, "tail": 3}],
+                "relations": [{"type": "loves", "head": 0, "tail": 1}],
             },
         )
 
@@ -110,7 +110,7 @@ class TestFunctions(unittest.TestCase):
                     {"type": "per", "start": 6, "end": 7},
                     {"type": "per", "start": 8, "end": 9},
                 ],
-                "relations": [{"type": "loves", "head": 2, "tail": 3}],
+                "relations": [{"type": "loves", "head": 0, "tail": 1}],
             },
         )
 
@@ -277,7 +277,7 @@ class TestFunctions(unittest.TestCase):
                     {"type": "per", "start": 8, "end": 9},
                 ],
                 "relations": [
-                    {"type": "fake", "head": 2, "tail": 3},
+                    {"type": "fake", "head": 0, "tail": 1},
                 ],
             },
         )
