@@ -176,6 +176,7 @@ class SpERTDataset(Dataset):
         }
 
         return {
+            "tokens": tokens,
             "input_ids": output["input_ids"],
             "attention_mask": output["attention_mask"],
             "token_type_ids": output["token_type_ids"],
@@ -240,6 +241,7 @@ class SpERTDataset(Dataset):
         relation_sample_mask = stack_1d(batch["relation_sample_mask"], max_relations)
 
         return {
+            "tokens": batch["tokens"],
             "input_ids": input_ids,
             "attention_mask": attention_mask,
             "token_type_ids": token_type_ids,

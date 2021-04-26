@@ -26,7 +26,7 @@ def predict_entities(
     else:
         raise ValueError("`entity_logit` should have 2 or 3 dimensions")
 
-    entity_label.masked_fill_(~entity_sample_mask.bool(), -1).long()
+    entity_label = entity_label.masked_fill(~entity_sample_mask.bool(), -1).long()
 
     # Decode entities.
     entity_labels = entity_label.tolist()
@@ -74,7 +74,7 @@ def predict_relations(
         relation_proba = relation_logit
     else:
         raise TypeError(
-            "`relation_proba` should `torch.int64` dtype when target is passed"
+            "`relation_logit` should `torch.int64` dtype when target is passed"
             " or `torch.float32` dtype when logit is passed"
         )
 
@@ -89,7 +89,7 @@ def predict_relations(
 
     filter_mask = relation_proba < relation_filter_threshold
     sample_mask = relation_sample_mask.unsqueeze(dim=-1).bool()
-    relation_proba.masked_fill_(~sample_mask | filter_mask, -1)
+    relation_proba = relation_proba.masked_fill(~sample_mask | filter_mask, -1)
 
     pairs = relation_pair.tolist()
     relations, scores = [], []
