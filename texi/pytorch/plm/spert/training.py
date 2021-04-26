@@ -13,18 +13,18 @@ from texi.pytorch.training.trainer import Batch, MetricGroup, Trainer
 class SpERTParams(Params):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.pretrained_model = kwargs.pop("pretrained_model", "bert-base-uncased")
-        self.embedding_dim = kwargs.pop("embedding_dim", 25)
-        self.dropout = kwargs.pop("dropout", 0.1)
+        self.pretrained_model = kwargs.get("pretrained_model", "bert-base-uncased")
+        self.embedding_dim = kwargs.get("embedding_dim", 25)
+        self.dropout = kwargs.get("dropout", 0.1)
         self.global_context_pooling = kwargs.get("global_context_pooling", "cls")
-        self.negative_entity_type = kwargs.pop("negative_entity_type", "NON_ENTITY")
-        self.negative_relation_type = kwargs.pop(
+        self.negative_entity_type = kwargs.get("negative_entity_type", "NON_ENTITY")
+        self.negative_relation_type = kwargs.get(
             "negative_relation_type", "NO_RELATION"
         )
-        self.num_negative_entities = kwargs.pop("num_negative_entities", 100)
-        self.num_negative_relations = kwargs.pop("num_negative_relations", 100)
-        self.max_entity_length = kwargs.pop("max_entity_length", 10)
-        self.relation_filter_threshold = kwargs.pop("relation_filter_threshold", 0.4)
+        self.num_negative_entities = kwargs.get("num_negative_entities", 100)
+        self.num_negative_relations = kwargs.get("num_negative_relations", 100)
+        self.max_entity_length = kwargs.get("max_entity_length", 10)
+        self.relation_filter_threshold = kwargs.get("relation_filter_threshold", 0.4)
 
     def __getitem__(self, key):
         return self.__dict__[key]
