@@ -3,12 +3,13 @@
 project: "spert"
 
 # Datasets
+data_dir: "./data"
 val_size: 0.1
 test_size: 0.2
 
 # Training
 seed: null
-save_path: 'output/'
+save_path: "output/"
 max_epochs: 20
 lr: 0.00005
 lr_warmup: 0.1
@@ -26,10 +27,10 @@ non_blocking: true
 
 # Evaluation & Early Stopping
 eval_train: false
-eval_steps: 'epoch'
+eval_steps: "epoch"
 num_save_models: 1
 early_stopping: false
-eval_metric: 'RE.all.f1'
+eval_metric: "RE.all.f1"
 patience: 10
 
 # Logging
@@ -39,12 +40,12 @@ wandb: true
 debug: false
 
 # Model
-pretrained_model: 'bert-base-cased'
+pretrained_model: "bert-base-cased"
 embedding_dim: 25
 dropout: 0.1
-global_context_pooling: 'cls'
-negative_entity_type: 'NON_ENTITY'
-negative_relation_type: 'NO_RELATION'
+global_context_pooling: "cls"
+negative_entity_type: "NON_ENTITY"
+negative_relation_type: "NO_RELATION"
 num_negative_entities: 100
 num_negative_relations: 100
 max_entity_length: 10
