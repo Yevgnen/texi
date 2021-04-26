@@ -3,7 +3,28 @@
 import dataclasses
 import json
 import os
-from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Union
+from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
+
+
+def entity_to_tuple(entity: Mapping) -> Tuple:
+    return entity["type"], entity["start"], entity["end"]
+
+
+def relation_to_tuple(relation: Mapping, entities: Optional[Mapping] = None) -> Tuple:
+    def _convert_entity(entity):
+        if isinstance(entity, Mapping):
+            return entity_to_tuple(entity)
+
+        if entities:
+            return entities[entity]
+
+        return entity
+
+    return (
+        relation["type"],
+        _convert_entity(relation["head"]),
+        _convert_entity(relation["tail"]),
+    )
 
 
 def convert_pybrat_example(example: Mapping) -> Dict:
