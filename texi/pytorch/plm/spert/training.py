@@ -95,7 +95,7 @@ class SpERTTrainer(Trainer):
         }
 
     def train_step(
-        self, net: nn.Module, batch: Batch, loss_function: nn.Module
+        self, _: Engine, net: nn.Module, batch: Batch, loss_function: nn.Module
     ) -> Dict:
         output = net(
             batch["input_ids"],
@@ -117,7 +117,7 @@ class SpERTTrainer(Trainer):
 
         return {"batch": batch, "loss": loss}
 
-    def eval_step(self, net: nn.Module, batch: Batch) -> Dict:
+    def eval_step(self, _: Engine, net: nn.Module, batch: Batch) -> Dict:
         target, input_ = batch
         output = net.infer(
             input_["input_ids"],

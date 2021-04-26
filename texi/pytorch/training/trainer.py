@@ -41,8 +41,8 @@ from texi.pytorch.utils import get_default_arguments
 logger = logging.getLogger(__name__)
 
 MetricGroup = Mapping[str, Metric]
-TrainStepFunction = Callable[[nn.Module, Batch, nn.Module], Dict]
-EvalStepFunction = Callable[[nn.Module, Batch], Dict]
+TrainStepFunction = Callable[[Engine, nn.Module, Batch, nn.Module], Dict]
+EvalStepFunction = Callable[[Engine, nn.Module, Batch], Dict]
 UpdateFunction = Callable[[Engine, Batch], Dict]
 
 
@@ -366,7 +366,7 @@ def build_train_step_function(
     def _step(engine, batch):
         net.train()
         batch = convert_tensor(batch, device=device, non_blocking=non_blocking)
-        output = train_step(net, batch, loss_function)
+        output = train_step(engine, net, batch, loss_function)
         loss = output["loss"]
         loss.backward()
         if (
@@ -396,7 +396,7 @@ def build_eval_step_function(
         net.eval()
         with torch.no_grad():
             batch = convert_tensor(batch, device=device, non_blocking=non_blocking)
-            output = eval_step(net, batch)
+            output = eval_step(engine, net, batch)
 
             return output
 
@@ -413,7 +413,7 @@ class Trainer(metaclass=abc.ABCMeta):
         return output["logit"].argmax(dim=-1)
 
     def train_step(
-        self, net: nn.Module, batch: Batch, loss_function: nn.Module
+        self, _: Engine, net: nn.Module, batch: Batch, loss_function: nn.Module
     ) -> Dict:
         x, y = batch
         logit = net(x)
@@ -423,7 +423,7 @@ class Trainer(metaclass=abc.ABCMeta):
 
         return output
 
-    def eval_step(self, net: nn.Module, batch: Batch) -> Dict:
+    def eval_step(self, _: Engine, net: nn.Module, batch: Batch) -> Dict:
         x, y = batch
         logit = net(x)
         output = {"x": x, "y": y, "logit": logit}
@@ -620,7 +620,7 @@ class TrainerForClassification(Trainer):
         return metrics
 
     def train_step(
-        self, net: nn.Module, batch: Batch, loss_function: nn.Module
+        self, _: Engine, net: nn.Module, batch: Batch, loss_function: nn.Module
     ) -> Dict:
         x, y = batch
         logit = net(x)
@@ -634,7 +634,7 @@ class TrainerForClassification(Trainer):
 
         return {"x": x, "y": y, "y_pred": y_pred, "logit": logit, "loss": loss}
 
-    def eval_step(self, net: nn.Module, batch: Batch) -> Dict:
+    def eval_step(self, _: Engine, net: nn.Module, batch: Batch) -> Dict:
         x, y = batch
         logit = net(batch)
         logit = logit.squeeze(dim=1)
@@ -687,7 +687,7 @@ class TrainerForRanking(Trainer):
         return metrics
 
     def train_step(
-        self, net: nn.Module, batch: Batch, loss_function: nn.Module
+        self, _: Engine, net: nn.Module, batch: Batch, loss_function: nn.Module
     ) -> Dict:
         train_steps = {
             "pointwise": self._pointwise_step,
@@ -697,7 +697,7 @@ class TrainerForRanking(Trainer):
 
         return train_steps[self.mode](net, batch, loss_function)
 
-    def eval_step(self, net: nn.Module, batch: Batch) -> Dict:
+    def eval_step(self, _: Engine, net: nn.Module, batch: Batch) -> Dict:
         y, y_pred = [], []
         for sample_x, sample_y in batch:
             logit = net(sample_x)
@@ -728,7 +728,7 @@ class TrainerForSequenceLabeling(Trainer):
         return metrics
 
     def train_step(
-        self, net: nn.Module, batch: Batch, loss_function: nn.Module
+        self, _: Engine, net: nn.Module, batch: Batch, loss_function: nn.Module
     ) -> Dict:
         x, y = batch
         logit = net(x)
