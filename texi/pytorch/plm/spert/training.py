@@ -1,13 +1,24 @@
 # -*- coding: utf-8 -*-
 
-from typing import Dict
+from __future__ import annotations
+
+import os
+import random
+from typing import TYPE_CHECKING, Callable, Dict, Optional, Union
 
 import torch.nn as nn
+from ignite.engine import Engine, Events
+from ignite.handlers import global_step_from_engine
 
+from texi.apps.ner import SpERTVisualizer, entity_to_tuple, relation_to_tuple
 from texi.preprocessing import LabelEncoder
 from texi.pytorch.metrics import NerMetrics, ReMetrics
+from texi.pytorch.plm.spert import predict
 from texi.pytorch.training.params import Params
 from texi.pytorch.training.trainer import Batch, MetricGroup, Trainer
+
+if TYPE_CHECKING:
+    from transformers import BertTokenizer, BertTokenizerFast
 
 
 class SpERTParams(Params):
@@ -131,3 +142,169 @@ class SpERTTrainer(Trainer):
             "input": input_,
             "output": output,
         }
+
+
+class SpERTEvalSampler(object):
+    # pylint: disable=no-self-use
+    def __init__(
+        self,
+        visualizer: SpERTVisualizer,
+        tokenizer: Union[BertTokenizer, BertTokenizerFast],
+        entity_label_encoder: LabelEncoder,
+        negative_entity_index: int,
+        relation_label_encoder: LabelEncoder,
+        negative_relation_index: int,
+        relation_filter_threshold: float,
+        save_dir: str,
+        sample_size: Optional[int] = None,
+    ):
+        self.visualizer = visualizer
+        self.tokenizer = tokenizer
+        self.entity_label_encoder = entity_label_encoder
+        self.negative_entity_index = negative_entity_index
+        self.relation_label_encoder = relation_label_encoder
+        self.negative_relation_index = negative_relation_index
+        self.relation_filter_threshold = relation_filter_threshold
+        self.save_dir = save_dir
+        os.makedirs(self.save_dir, exist_ok=True)
+        self.sample_size = sample_size
+
+        self.global_step_transform = None  # type: Callable
+        self.reset()
+
+    def reset(self):
+        self.entity_samples = []
+        self.relation_samples = []
+
+    def started(self, _: Engine):
+        self.reset()
+
+    def _expand_entities(self, relations, entities):
+        return [
+            [
+                {
+                    "type": r["type"],
+                    "head": sample_entities[r["head"]],
+                    "tail": sample_entities[r["tail"]],
+                }
+                for r in sample_relations
+            ]
+            for sample_relations, sample_entities in zip(relations, entities)
+        ]
+
+    def _compare(self, y, y_pred, f, scores):
+        y_trans = {*map(f, y)}
+        y_pred_trans = {*map(f, y_pred)}
+
+        items = []
+        for yi_pred, yi_pred_tran, score in zip(y_pred, y_pred_trans, scores):
+            if yi_pred_tran in y_trans:
+                items += [(yi_pred, 0, score)]
+            else:
+                items += [(yi_pred, 1, -1)]
+
+        for yi, yi_tran in zip(y, y_trans):
+            if yi_tran not in y_pred_trans:
+                items += [(yi, -1, -1)]
+
+        return items
+
+    def update(self, engine: Engine):
+        target = engine.state.output["target"]
+        input_ = engine.state.output["input"]
+        output = engine.state.output["output"]
+
+        (
+            entity_predictions,
+            entity_scores,
+            relation_predictions,
+            relation_scores,
+        ) = predict(
+            output["entity_logit"],
+            input_["entity_sample_mask"],
+            input_["entity_span"],
+            self.entity_label_encoder,
+            self.negative_entity_index,
+            output["relation_logit"],
+            output["relation"],
+            output["relation_sample_mask"],
+            self.relation_label_encoder,
+            self.negative_relation_index,
+            self.relation_filter_threshold,
+            return_scores=True,
+        )
+
+        entity_targets, relation_targets = predict(
+            target["entity_label"],
+            target["entity_sample_mask"],
+            target["entity_span"],
+            self.entity_label_encoder,
+            self.negative_entity_index,
+            target["relation_label"],
+            target["relation"],
+            target["relation_sample_mask"],
+            self.relation_label_encoder,
+            self.negative_relation_index,
+            self.relation_filter_threshold,
+            return_scores=False,
+        )
+
+        relation_targets = self._expand_entities(relation_targets, entity_targets)
+        relation_predictions = self._expand_entities(
+            relation_predictions, entity_predictions
+        )
+
+        entity_samples, relation_samples = [], []
+        for ts, e, e_pred, e_score, r, r_pred, r_score, in zip(
+            input_["tokens"],
+            entity_targets,
+            entity_predictions,
+            entity_scores,
+            relation_targets,
+            relation_predictions,
+            relation_scores,
+        ):
+            entity_samples += [
+                {
+                    "tokens": ts[1:-1],
+                    "entities": self._compare(e, e_pred, entity_to_tuple, e_score),
+                }
+            ]
+            relation_samples += [
+                {
+                    "tokens": ts[1:-1],
+                    "relations": self._compare(r, r_pred, relation_to_tuple, r_score),
+                }
+            ]
+
+        self.entity_samples += entity_samples
+        self.relation_samples += relation_samples
+
+    def _sample(self, examples):
+        if self.sample_size is not None:
+            examples = random.sample(examples, min(len(examples), self.sample_size))
+
+        return examples
+
+    def export(self, _: Engine):
+        epoch = self.global_step_transform(_, Events.EPOCH_COMPLETED)
+        iteration = self.global_step_transform(_, Events.ITERATION_COMPLETED)
+
+        entity_html = os.path.join(
+            self.save_dir, f"entity_sample_epoch_{epoch}_iteration_{iteration}.html"
+        )
+        self.visualizer.export_entities(self._sample(self.entity_samples), entity_html)
+
+        relation_html = os.path.join(
+            self.save_dir, f"relation_sample_epoch_{epoch}_iteration_{iteration}.html"
+        )
+        self.visualizer.export_relations(
+            self._sample(self.relation_samples), relation_html
+        )
+
+    def setup(self, trainer: Engine, evaluator: Engine):
+        self.global_step_transform = global_step_from_engine(trainer)
+
+        evaluator.add_event_handler(Events.EPOCH_STARTED, self.reset)
+        evaluator.add_event_handler(Events.ITERATION_COMPLETED, self.update)
+        evaluator.add_event_handler(Events.EPOCH_COMPLETED, self.export)
