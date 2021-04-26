@@ -76,7 +76,9 @@ class SpERT(nn.Module):
         entity_size,
     ):
         if relation.size(1) == 0:
-            return relation.new_zeros(*relation.size()[:2], self.num_relation_types)
+            return relation.new_zeros(
+                *relation.size()[:2], self.num_relation_types
+            ).float()
 
         # relation_context: [B, R, L, H] -> [B, R, H]
         relation_context = self._mask_hidden_states(
