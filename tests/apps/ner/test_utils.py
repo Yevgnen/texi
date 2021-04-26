@@ -2,10 +2,187 @@
 
 import unittest
 
-from texi.apps.ner.utils import merge_examples, split_example, texify_example
+from texi.apps.ner.utils import (
+    check_example,
+    merge_examples,
+    split_example,
+    texify_example,
+)
 
 
 class TestFunctions(unittest.TestCase):
+    def test_check_example(self):
+        example = {
+            "tokens": [
+                "Bill",
+                "was",
+                "born",
+                "in",
+                "USA",
+                ".",
+            ],
+            "entities": [
+                {"type": "per", "start": 0, "end": 1},
+                {"type": "loc", "start": 4, "end": 5},
+            ],
+            "relations": [
+                {"type": "born in", "head": 0, "tail": 1},
+            ],
+        }
+        self.assertTrue(check_example(example))
+
+    def test_check_example_empty_tokens(self):
+        example = {
+            "tokens": [],
+            "entities": [],
+            "relations": [],
+        }
+        with self.assertRaises(ValueError) as ctx:
+            check_example(example)
+        self.assertEqual(str(ctx.exception), "`example` has no tokens")
+
+    def test_check_example_invalid_entity(self):
+        example = {
+            "tokens": [
+                "Bill",
+                "was",
+                "born",
+                "in",
+                "USA",
+                ".",
+            ],
+            "entities": [
+                {"type": "per", "start": 1, "end": 0},
+                {"type": "loc", "start": 4, "end": 5},
+            ],
+            "relations": [
+                {"type": "born in", "head": 0, "tail": 1},
+            ],
+        }
+        with self.assertRaises(ValueError) as ctx:
+            check_example(example)
+        self.assertEqual(
+            str(ctx.exception),
+            "Invalid entity span: {'type': 'per', 'start': 1, 'end': 0}",
+        )
+
+    def test_check_example_example_out_of_bound(self):
+        example = {
+            "tokens": [
+                "Bill",
+                "was",
+                "born",
+                "in",
+                "USA",
+                ".",
+            ],
+            "entities": [
+                {"type": "per", "start": 0, "end": 20},
+            ],
+            "relations": [],
+        }
+        with self.assertRaises(ValueError) as ctx:
+            check_example(example)
+        self.assertEqual(
+            str(ctx.exception),
+            "Entity token out of bound: {'type': 'per', 'start': 0, 'end': 20}",
+        )
+
+        example = {
+            "tokens": [
+                "Bill",
+                "was",
+                "born",
+                "in",
+                "USA",
+                ".",
+            ],
+            "entities": [
+                {"type": "per", "start": -1, "end": 1},
+            ],
+            "relations": [],
+        }
+        with self.assertRaises(ValueError) as ctx:
+            check_example(example)
+        self.assertEqual(
+            str(ctx.exception),
+            "Entity token out of bound: {'type': 'per', 'start': -1, 'end': 1}",
+        )
+
+    def test_check_example_invalid_relation(self):
+        example = {
+            "tokens": [
+                "Bill",
+                "was",
+                "born",
+                "in",
+                "USA",
+                ".",
+            ],
+            "entities": [
+                {"type": "per", "start": 0, "end": 1},
+                {"type": "loc", "start": 4, "end": 5},
+            ],
+            "relations": [
+                {"type": "born in", "head": 0, "tail": 0},
+            ],
+        }
+        with self.assertRaises(ValueError) as ctx:
+            check_example(example)
+        self.assertEqual(
+            str(ctx.exception),
+            "Relation should have different head and tail:"
+            " {'type': 'born in', 'head': 0, 'tail': 0}",
+        )
+
+    def test_check_example_relation_out_of_bound(self):
+        example = {
+            "tokens": [
+                "Bill",
+                "was",
+                "born",
+                "in",
+                "USA",
+                ".",
+            ],
+            "entities": [
+                {"type": "per", "start": 0, "end": 1},
+                {"type": "loc", "start": 4, "end": 5},
+            ],
+            "relations": [
+                {"type": "born in", "head": 0, "tail": 3},
+            ],
+        }
+        with self.assertRaises(ValueError) as ctx:
+            check_example(example)
+        self.assertEqual(
+            str(ctx.exception),
+            "Entity not found for relation: {'type': 'born in', 'head': 0, 'tail': 3}",
+        )
+        example = {
+            "tokens": [
+                "Bill",
+                "was",
+                "born",
+                "in",
+                "USA",
+                ".",
+            ],
+            "entities": [
+                {"type": "per", "start": 0, "end": 1},
+                {"type": "loc", "start": 4, "end": 5},
+            ],
+            "relations": [
+                {"type": "born in", "head": -1, "tail": 3},
+            ],
+        }
+        with self.assertRaises(ValueError) as ctx:
+            check_example(example)
+        self.assertEqual(
+            str(ctx.exception),
+            "Entity not found for relation: {'type': 'born in', 'head': -1, 'tail': 3}",
+        )
+
     def test_split_example_empty_tokens(self):
         with self.assertRaises(ValueError) as ctx:
             split_example({"tokens": []}, ".")

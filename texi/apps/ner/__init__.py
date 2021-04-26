@@ -8,6 +8,7 @@ from texi.apps.ner.eval import (
     conlleval_file,
 )
 from texi.apps.ner.utils import (
+    check_example,
     convert_pybrat_example,
     convert_pybrat_examples,
     entity_to_tuple,
@@ -23,6 +24,7 @@ __all__ = [
     "confusion_matrix",
     "conlleval",
     "conlleval_file",
+    "check_example",
     "entity_to_tuple",
     "relation_to_tuple",
     "convert_pybrat_example",
