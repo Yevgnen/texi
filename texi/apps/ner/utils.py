@@ -130,6 +130,36 @@ def convert_pybrat_examples(
                 json.dump(dataset, f, ensure_ascii=False)
 
 
+def check_example(example: Mapping) -> bool:
+    if len(example["tokens"]) < 1:
+        raise ValueError("`example` has no tokens")
+
+    num_tokens = len(example["tokens"])
+    for entity in example["entities"]:
+        if entity["start"] >= entity["end"]:
+            raise ValueError(f"Invalid entity span: {entity}")
+
+        if (
+            entity["start"] >= num_tokens
+            or entity["end"] >= num_tokens
+            or entity["start"] < 0
+            or entity["end"] < 0
+        ):
+            raise ValueError(f"Entity token out of bound: {entity}")
+
+    num_entities = len(example["entities"])
+    for relation in example["relations"]:
+        if relation["head"] >= num_entities or relation["tail"] >= num_entities:
+            raise ValueError(f"Entity not found for relation: {relation}")
+
+        if relation["head"] == relation["tail"]:
+            raise ValueError(
+                f"Relation should have different head and tail: {relation}"
+            )
+
+    return True
+
+
 def split_example(
     example: Mapping, delimiters: Union[str, Iterable[str]], ignore_errors: bool = False
 ) -> List[Dict]:
