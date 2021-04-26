@@ -122,6 +122,9 @@ def predict(
     relation_filter_threshold: float,
     return_scores: bool = False,
 ) -> List[Tuple[Dict[str, Any], Dict[str, Any]]]:
+    if relation_pair.size(1) > 0:
+        assert relation_pair.max() < entity_logit.size(1)
+
     # Predict entities.
     entities = predict_entities(
         entity_logit,
