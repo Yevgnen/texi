@@ -52,7 +52,7 @@ def spacy_visual_ner(
 class SpERTVisualizer(object):
     # Reference: https://github.com/markus-eberts/spert
 
-    def __init__(self, delimiter: str = ""):
+    def __init__(self, delimiter: str = " "):
         self.delimiter = delimiter
 
         dirname = os.path.join(os.path.dirname(__file__), "templates")
@@ -85,8 +85,8 @@ class SpERTVisualizer(object):
 
         return html
 
-    def _relation_to_html(self, relation, tokens, entities):
-        head, tail = entities[relation["head"]], entities[relation["tail"]]
+    def _relation_to_html(self, relation, tokens):
+        head, tail = relation["head"], relation["tail"]
         assert (
             head["end"] <= tail["start"] or tail["end"] <= head["start"]
         ), "Overlapped relation is not supported."
@@ -122,47 +122,13 @@ class SpERTVisualizer(object):
 
         return {key: value * 100 for key, value in prf1(tp, fp, fn).items()}
 
-    def export_entities(self, examples: Iterable[Mapping], filename: str):
-        # {
-        #     "tokens": ["Bill", "was", "born", "in", "USA", "."],
-        #     "entities": [
-        #         {"type": "per", "start": 0, "end": 1},
-        #         {"type": "loc", "start": 4, "end": 5}
-        #     ],
-        #     "scores": [0.9999, -1],
-        #     "types": [0, -1], # tp: 0, fp: 1, fn: -1
-        #     "relations": [
-        #         {"type": "fake", "head": 1, "tail": 0}
-        #     ]
-        # }
-
+    def _export(self, examples, filename, key, to_html_fn, template):
         def _format(x):
             groups = {-1: [], 0: [], 1: []}
-            for entity, type_, score in zip(x["entities"], x["types"], x["scores"]):
-                item = (self._entity_to_html(entity, x["tokens"]), type_, score)
-                groups[type_] += [item]
-
-            tp, fp, fn = groups[0], groups[1], groups[-1]
-
-            return {
-                "text": self.delimiter.join(x["tokens"]),
-                "length": len(x["tokens"]),
-                "tp": tp,
-                "fp": fp,
-                "fn": fn,
-                **self._compute_metrics(len(tp), len(fp), len(fn)),
-            }
-
-        examples = list(map(_format, examples))
-        self.entity_template.stream(examples=examples).dump(filename)
-
-    def export_relations(self, examples: Iterable[Mapping], filename: str):
-        def _format(x):
-            groups = {-1: [], 0: [], 1: []}
-            for relation, type_, score in zip(x["relations"], x["types"], x["scores"]):
+            for xi, type_, score in x[key]:
                 item = (
-                    self._relation_to_html(relation, x["tokens"], x["entities"]),
-                    type_,
+                    to_html_fn(xi, x["tokens"]),
+                    xi["type"],
                     score,
                 )
                 groups[type_] += [item]
@@ -179,4 +145,45 @@ class SpERTVisualizer(object):
             }
 
         examples = list(map(_format, examples))
-        self.relation_template.stream(examples=examples).dump(filename)
+        template.stream(examples=examples).dump(filename)
+
+    def export_entities(self, examples: Iterable[Mapping], filename: str):
+        # Input format:
+        #
+        # type: 0: tp, 1: fp, -1: fn
+        # score: [0, 1]
+        #
+        # {
+        #     "tokens": ["Bill", "was", "born", "in", "USA", "."],
+        #     "entities": [
+        #         ({"type": "per", "start": 0, "end": 1}, 0, 0.99999),
+        #         ({"type": "loc", "start": 4, "end": 5}, -1, -1),
+        #     ]
+        # }
+        return self._export(
+            examples,
+            filename,
+            "entities",
+            self._entity_to_html,
+            self.entity_template,
+        )
+
+    def export_relations(self, examples: Iterable[Mapping], filename: str):
+        # Input format:
+        #
+        # type: 0: tp, 1: fp, -1: fn
+        # score: [0, 1]
+        #
+        # {
+        #     "tokens": ["Bill", "was", "born", "in", "USA", "."],
+        #     "relations": [
+        #         ({"type": "fake", "head": 1, "tail": 0}, 0, 0.75)
+        #     ]
+        # }
+        return self._export(
+            examples,
+            filename,
+            "relations",
+            self._relation_to_html,
+            self.relation_template,
+        )
