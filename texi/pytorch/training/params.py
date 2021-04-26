@@ -59,6 +59,9 @@ class Params(object):
         self.early_stopping = kwargs.get("early_stopping", False)
         self.eval_metric = kwargs.get("eval_metric")
         self.patience = kwargs.get("patience")
+        self.sample_dir = kwargs.get(
+            "sample_dir", os.path.join(self.save_path, "samples")
+        )
 
         # Logging
         self.pbar_steps = kwargs.get("pbar_steps", 10)
