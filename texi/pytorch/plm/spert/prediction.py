@@ -12,10 +12,16 @@ def predict_entities(
     entity_sample_mask: torch.LongTensor,
     entity_span: torch.LongTensor,
     entity_label_encoder: LabelEncoder,
+    return_scores: bool = False,
 ) -> List[List[Dict[str, Any]]]:
     if entity_logit.ndim == 3:
         entity_label = entity_logit.argmax(dim=-1)
+        entity_probas = torch.softmax(entity_logit, dim=-1).tolist()
     elif entity_logit.ndim == 2:
+        if return_scores:
+            raise ValueError(
+                "`return_score` must be False when entity targets are given"
+            )
         entity_label = entity_logit
     else:
         raise ValueError("`entity_logit` should have 2 or 3 dimensions")
@@ -26,32 +32,45 @@ def predict_entities(
     entity_labels = entity_label.tolist()
     entity_spans = entity_span.tolist()
 
-    entities = [
-        [
-            {
-                "type": entity_label_encoder.decode_label(label),
-                "start": entity_spans[i][j][0],
-                "end": entity_spans[i][j][1],
-            }
-            for j, label in enumerate(labels)
-            if label >= 0
-        ]
-        for i, labels in enumerate(entity_labels)
-    ]
+    entities, scores = [], []
+    for i, labels in enumerate(entity_labels):
+        sample_entities, sample_scores = [], []
+        for j, label in enumerate(labels):
+            if label >= 0:
+                entity = {
+                    "type": entity_label_encoder.decode_label(label),
+                    "start": entity_spans[i][j][0],
+                    "end": entity_spans[i][j][1],
+                }
+                sample_entities += [entity]
+
+                if return_scores:
+                    sample_scores += [entity_probas[i][j][label]]
+
+        entities += [sample_entities]
+        scores += [sample_scores]
+
+    if return_scores:
+        return entities, scores
 
     return entities
 
 
 def predict_relations(
     relation_logit: torch.Tensor,
-    relation: torch.LongTensor,
+    relation_pair: torch.LongTensor,
     relation_sample_mask: torch.LongTensor,
     relation_label_encoder: LabelEncoder,
     relation_filter_threshold: float,
+    return_scores: bool = False,
 ) -> List[Dict[str, Any]]:
     if relation_logit.dtype == torch.float32:
         relation_proba = torch.sigmoid(relation_logit)
     elif relation_logit.dtype == torch.int64:
+        if return_scores:
+            raise ValueError(
+                "`return_score` must be False when entity targets are given"
+            )
         relation_proba = relation_logit
     else:
         raise TypeError(
@@ -59,28 +78,41 @@ def predict_relations(
             " or `torch.float32` dtype when logit is passed"
         )
 
-    if relation.size(1) < 1:
-        return [[] for _ in range(len(relation))]
+    if relation_pair.size(1) < 1:
+        if return_scores:
+            return (
+                [[] for _ in range(len(relation_pair))],
+                [[] for _ in range(len(relation_pair))],
+            )
+
+        return [[] for _ in range(len(relation_pair))]
 
     filter_mask = relation_proba < relation_filter_threshold
     sample_mask = relation_sample_mask.unsqueeze(dim=-1).bool()
     relation_proba.masked_fill_(~sample_mask | filter_mask, -1)
 
-    if relation.size(1) > 0:
-        pairs = relation.tolist()
-        relations = [
-            [
-                {
-                    "type": relation_label_encoder.decode_label(k),
-                    "head": pairs[i][j][0],
-                    "tail": pairs[i][j][1],
-                }
-                for j, labels in enumerate(sample_labels)
-                for k, label in enumerate(labels)
-                if label >= 0
-            ]
-            for i, sample_labels in enumerate(relation_proba.tolist())
-        ]
+    pairs = relation_pair.tolist()
+    relations, scores = [], []
+    for i, sample_labels in enumerate(relation_proba.tolist()):
+        sample_relations, sample_scores = [], []
+        for j, labels in enumerate(sample_labels):
+            for k, label in enumerate(labels):
+                if label >= 0:
+                    relation = {
+                        "type": relation_label_encoder.decode_label(k),
+                        "head": pairs[i][j][0],
+                        "tail": pairs[i][j][1],
+                    }
+                    sample_relations += [relation]
+
+                    if return_scores:
+                        sample_scores += [label]
+
+        relations += [sample_relations]
+        scores += [sample_scores]
+
+    if return_scores:
+        return relations, scores
 
     return relations
 
@@ -97,6 +129,7 @@ def predict(
     relation_label_encoder: LabelEncoder,
     negative_relation_index: int,
     relation_filter_threshold: float,
+    return_scores: bool = False,
 ) -> List[Tuple[Dict[str, Any], Dict[str, Any]]]:
     # Predict entities.
     entities = predict_entities(
@@ -104,6 +137,7 @@ def predict(
         entity_mask,
         entity_span,
         entity_label_encoder,
+        return_scores=return_scores,
     )
 
     # Predict relation.
@@ -113,6 +147,7 @@ def predict(
         relation_sample_mask,
         relation_label_encoder,
         relation_filter_threshold,
+        return_scores=return_scores,
     )
 
     negative_entity_label = entity_label_encoder.decode_label(negative_entity_index)
@@ -148,7 +183,15 @@ def predict(
 
         return new_entities, new_relations
 
-    return [
-        _normalize(sample_entities, sample_relations)
-        for sample_entities, sample_relations in zip(entities, relations)
-    ]
+    if return_scores:
+        entities, entity_scores = entities
+        relations, relation_scores = relations
+
+    entities, relations = zip(*[_normalize(e, r) for e, r in zip(entities, relations)])
+    entities = list(entities)
+    relations = list(relations)
+
+    if return_scores:
+        return entities, entity_scores, relations, relation_scores
+
+    return entities, relations
