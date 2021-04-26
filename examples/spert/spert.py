@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-import json
 import logging
 import os
 
@@ -9,10 +8,13 @@ from carton.logger import setup_logger
 from carton.random import set_seed
 from transformers import BertModel, BertTokenizerFast
 
+from texi.apps.ner.visualization import SpERTVisualizer
+from texi.datasets import JSONDatasets
 from texi.preprocessing import LabelEncoder
 from texi.pytorch.plm.spert import (
     SpERT,
     SpERTDataset,
+    SpERTEvalSampler,
     SpERTLoss,
     SpERTParams,
     SpERTSampler,
@@ -21,11 +23,6 @@ from texi.pytorch.plm.spert import (
 from texi.pytorch.plm.utils import get_pretrained_optimizer_and_scheduler
 
 logger = logging.getLogger(__name__)
-
-
-def read_dataset(path):
-    with open(path) as f:
-        return json.load(f)
 
 
 def get_label_encoders(train, negative_entity_type, negative_relation_type):
@@ -104,23 +101,17 @@ def main():
     os.makedirs(os.path.dirname(params["log_file"]), exist_ok=True)
     setup_logger(level=logging.INFO, filename=params["log_file"])
 
-    train = read_dataset(
-        "../../../../repos/spert/data/datasets/conll04/conll04_train.json"
-    )
-    val = read_dataset("../../../../repos/spert/data/datasets/conll04/conll04_dev.json")
-    test = read_dataset(
-        "../../../../repos/spert/data/datasets/conll04/conll04_test.json"
-    )
+    datasets = JSONDatasets.from_dir(params.data_dir)
 
-    logger.info("Train size: %d", len(train))
-    logger.info("Val size: %d", len(val))
-    logger.info("Test size: %d", len(test))
-
-    datasets = {"train": train, "val": val, "test": test}
+    logger.info("Train size: %d", len(datasets.train))
+    logger.info("Val size: %d", len(datasets.val))
+    logger.info("Test size: %d", len(datasets.test))
 
     tokenizer = BertTokenizerFast.from_pretrained(params["pretrained_model"])
     entity_label_encoder, relation_label_encoder = get_label_encoders(
-        train, params["negative_entity_type"], params["negative_relation_type"]
+        datasets["train"],
+        params["negative_entity_type"],
+        params["negative_relation_type"],
     )
 
     loaders = get_dataloaders(
@@ -148,9 +139,7 @@ def main():
     criteria = SpERTLoss()
 
     num_training_steps = (
-        len(loaders["train"].dataset)
-        // params["train_batch_size"]
-        * params["max_epochs"]
+        len(datasets.train) // params["train_batch_size"] * params["max_epochs"]
     )
     warmup_steps = params["lr_warmup"] * num_training_steps
     optimizer, lr_scheduler = get_pretrained_optimizer_and_scheduler(
@@ -167,6 +156,17 @@ def main():
     trainer.setup(
         params, loaders, model, criteria, optimizer, lr_scheduler=lr_scheduler
     )
+    eval_sampler = SpERTEvalSampler(
+        SpERTVisualizer(),
+        tokenizer,
+        entity_label_encoder,
+        negative_entity_index,
+        relation_label_encoder,
+        negative_relation_index,
+        params["relation_filter_threshold"],
+        params.sample_dir,
+    )
+    eval_sampler.setup(trainer.trainer, trainer.evaluators["val_evaluator"])
     trainer.run()
 
 
