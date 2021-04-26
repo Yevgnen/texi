@@ -85,8 +85,11 @@ class SpERTDataset(Dataset):
             # `start` and `end` are the boundaries of the encoded tokens.
             start = offsets[entity["start"] + 1]
             end = offsets[entity["end"] - 1 + 1] + len(tokens[entity["end"] - 1 + 1])
-            token_span = [start, end]
+            assert (
+                start < end
+            ), "Possibly found emtpy tokens after tokenizer encoding..."
 
+            token_span = [start, end]
             label = self.entity_label_encoder.encode_label(entity["type"])
 
             # `entity["start"]` and `entity["end"]` are the boundaries
