@@ -2,7 +2,7 @@
 
 import json
 import os
-from typing import Any, Callable, Dict, Iterable, Optional, Union
+from typing import Callable, Dict, Iterable, Optional, Union
 
 
 class Dataset(object):
@@ -81,6 +81,8 @@ class Datasets(object):
         self.dirname = dirname
         self.filename = filename
 
+        self.modes = {"train", "val", "test"}
+
     def load(self):
         for mode in ["train", "val", "test"]:
             dataset = getattr(self, mode)
@@ -90,8 +92,13 @@ class Datasets(object):
         return self
 
     def items(self):
-        for mode in ["train", "val", "test"]:
+        for mode in self.modes:
             yield mode, getattr(self, mode)
+
+    def __getitem__(self, key):
+        assert key in self.modes
+
+        return getattr(self, key)
 
     def __repr__(self):
         return (
@@ -100,9 +107,17 @@ class Datasets(object):
             f", dirname={self.dirname}, filename={self.filename})"
         )
 
+    @classmethod
+    def from_dir(cls, dirname: str):
+        raise NotImplementedError()
+
 
 class JSONDatasets(Datasets):
-    files = {}  # type: Dict[str, str]
+    files = {
+        "train": "train.json",
+        "val": "val.json",
+        "test": "test.json",
+    }
 
     @classmethod
     def format(cls, x: Dict) -> Dict:

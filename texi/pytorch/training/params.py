@@ -23,6 +23,10 @@ class Params(object):
             raise ValueError("`project` must not be empty")
 
         # Datasets
+        self.data_dir = kwargs.get("data_dir")
+        self.train_data = kwargs.get("train_data")
+        self.val_data = kwargs.get("val_data")
+        self.test_data = kwargs.get("test_data")
         self.val_size = kwargs.get("val_size", 0.1)
         self.test_size = kwargs.get("test_size", 0.2)
 
