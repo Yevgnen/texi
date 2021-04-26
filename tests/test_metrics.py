@@ -2,7 +2,7 @@
 
 import unittest
 
-from texi.metrics import prf1
+from texi.metrics import prf1, tpfpfn
 
 
 class TestFunctions(unittest.TestCase):
@@ -29,6 +29,32 @@ class TestFunctions(unittest.TestCase):
         self.assertAlmostEqual(output["precision"], 0)
         self.assertAlmostEqual(output["recall"], 0)
         self.assertAlmostEqual(output["f1"], 0)
+
+    def tpfpfn_return_index(self):
+        y = [1, 2, 3, 4, 5]
+        y_pred = [3, 4, 5, 6, 7]
+        output = tpfpfn(y, y_pred, return_index=True)
+        self.assertEqual(
+            output,
+            {
+                "tp": [2, 3, 4],
+                "fp": [3, 4],
+                "fn": [0, 1],
+            },
+        )
+
+    def tpfpfn_return_value(self):
+        y = [1, 2, 3, 4, 5]
+        y_pred = [3, 4, 5, 6, 7]
+        output = tpfpfn(y, y_pred, return_index=False)
+        self.assertEqual(
+            output,
+            {
+                "tp": [3, 4, 5],
+                "fp": [6, 7],
+                "fn": [1, 2],
+            },
+        )
 
 
 if __name__ == "__main__":
