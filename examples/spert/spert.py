@@ -79,8 +79,7 @@ def parse_args():
     return parser.parse_args()  # pylint: disable=redefined-outer-name
 
 
-def main():
-    args = parse_args()
+def main(args):
     params = args.params
     set_seed(params["seed"])
 
@@ -146,4 +145,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(parse_args())
