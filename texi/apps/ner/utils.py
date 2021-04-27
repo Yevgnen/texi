@@ -223,14 +223,16 @@ def filter_example_tokens(
 
     entity_index = 0
     num_entities = len(entities)
-    tokens = []
-    for i, token in enumerate(example["tokens"]):
-        if _filter(token):
+    tokens = example["tokens"]
+    num_tokens = len(tokens)
+    i = 0
+    while i < num_tokens:
+        if _filter(tokens[i]):
             while entity_index < num_entities and entities[entity_index][1]["end"] <= i:
                 entity_index += 1
 
             if entity_index < num_entities and entities[entity_index][1]["start"] <= i:
-                entity_tokens = example["tokens"][
+                entity_tokens = tokens[
                     entities[entity_index][1]["start"] : entities[entity_index][1][
                         "end"
                     ]
@@ -242,11 +244,16 @@ def filter_example_tokens(
                 entities[j][1]["start"] -= 1
                 entities[j][1]["end"] -= 1
                 j += 1
+
+            tokens.pop(i)
+            num_tokens -= 1
         else:
-            tokens += [token]
+            i += 1
 
     example["tokens"] = tokens
-    example["entities"] = list(list(zip(*sorted(entities, key=lambda x: x[0])))[1])
+    if entities:
+        entities = list(list(zip(*sorted(entities, key=lambda x: x[0])))[1])
+    example["entities"] = entities
 
     assert len(example["entities"]) == len(backup["entities"]), "Mismatched entity list"
     for i, entity in enumerate(example["entities"]):
