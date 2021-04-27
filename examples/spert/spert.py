@@ -8,9 +8,8 @@ from carton.logger import setup_logger
 from carton.random import set_seed
 from transformers import BertModel, BertTokenizerFast
 
-from texi.apps.ner.visualization import SpERTVisualizer
+from texi.apps.ner import SpERTVisualizer, encode_labels
 from texi.datasets import JSONDatasets
-from texi.preprocessing import LabelEncoder
 from texi.pytorch.plm.spert import (
     SpERT,
     SpERTDataset,
@@ -23,19 +22,6 @@ from texi.pytorch.plm.spert import (
 from texi.pytorch.plm.utils import get_pretrained_optimizer_and_scheduler
 
 logger = logging.getLogger(__name__)
-
-
-def get_label_encoders(train, negative_entity_type, negative_relation_type):
-    entity_label_encoder = LabelEncoder(
-        [e["type"] for x in train for e in x["entities"]]
-    )
-    entity_label_encoder.add(negative_entity_type)
-    relation_label_encoder = LabelEncoder(
-        [r["type"] for x in train for r in x["relations"]]
-    )
-    relation_label_encoder.add(negative_relation_type)
-
-    return entity_label_encoder, relation_label_encoder
 
 
 def get_dataset(
@@ -104,21 +90,14 @@ def main():
     datasets = JSONDatasets.from_dir(params.data_dir, array=True).load()
 
     tokenizer = BertTokenizerFast.from_pretrained(params["pretrained_model"])
-    entity_label_encoder, relation_label_encoder = get_label_encoders(
-        datasets["train"],
-        params["negative_entity_type"],
-        params["negative_relation_type"],
+    entity_label_encoder, relation_label_encoder = encode_labels(datasets.train)
+    negative_entity_index = entity_label_encoder.add(params["negative_entity_type"])
+    negative_relation_index = relation_label_encoder.add(
+        params["negative_relation_type"]
     )
 
     loaders = get_dataloaders(
         datasets, tokenizer, entity_label_encoder, relation_label_encoder, params
-    )
-
-    negative_entity_index = entity_label_encoder.encode_label(
-        params["negative_entity_type"]
-    )
-    negative_relation_index = relation_label_encoder.encode_label(
-        params["negative_relation_type"]
     )
 
     bert = BertModel.from_pretrained(params["pretrained_model"])

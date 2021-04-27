@@ -93,7 +93,9 @@ def get_opencc(conversion: Optional[str] = "t2s") -> Callable[[str], str]:
 
 
 class LabelEncoder(object):
-    def __init__(self, tokens: Iterable[str], unknown: Optional[str] = None):
+    def __init__(
+        self, tokens: Optional[Iterable[str]] = None, unknown: Optional[str] = None
+    ):
         self.unknown = unknown
         self.init(tokens)
 
@@ -118,6 +120,10 @@ class LabelEncoder(object):
 
     def init(self, tokens: Iterable[str]) -> None:
         self.reset()
+
+        if not tokens:
+            return
+
         for token in tokens:
             self.label2index.setdefault(token, len(self.label2index))
 
@@ -127,7 +133,7 @@ class LabelEncoder(object):
         index = self.label2index.setdefault(token, len(self))
         self.index2label.setdefault(index, token)
 
-        return len(self)
+        return index
 
     def encode_label(
         self, token: str, return_tensors: Optional[str] = None

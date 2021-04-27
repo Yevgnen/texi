@@ -5,6 +5,8 @@ import json
 import os
 from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
+from texi.preprocessing import LabelEncoder
+
 
 def entity_to_tuple(entity: Mapping) -> Tuple:
     return entity["type"], entity["start"], entity["end"]
@@ -25,6 +27,20 @@ def relation_to_tuple(relation: Mapping, entities: Optional[Mapping] = None) -> 
         _convert_entity(relation["head"]),
         _convert_entity(relation["tail"]),
     )
+
+
+def encode_labels(examples: Iterable[Mapping]) -> Tuple[LabelEncoder, LabelEncoder]:
+    entity_label_encoder = LabelEncoder()
+    relation_label_encoder = LabelEncoder()
+
+    for example in examples:
+        for entity in example["entities"]:
+            entity_label_encoder.add(entity["type"])
+
+        for relation in example["relations"]:
+            relation_label_encoder.add(relation["type"])
+
+    return entity_label_encoder, relation_label_encoder
 
 
 def convert_pybrat_example(example: Mapping) -> Dict:
