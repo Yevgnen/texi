@@ -1,13 +1,101 @@
 # -*- coding: utf-8 -*-
 
+import re
 import unittest
 
 from texi.apps.ner.utils import (
     check_example,
+    filter_example_tokens,
     merge_examples,
     split_example,
     texify_example,
 )
+
+
+class TestFilterExampleTokens(unittest.TestCase):
+    def setUp(self):
+        self.example = {
+            "tokens": ["Bill", "was", "born", "in", "USA", "."],
+            "entities": [
+                {"type": "per", "start": 0, "end": 1},
+                {"type": "loc", "start": 4, "end": 5},
+            ],
+            "relations": [
+                {"type": "born in", "head": 0, "tail": 1},
+            ],
+        }
+        self.expected = {
+            "tokens": ["Bill", "born", "in", "USA", "."],
+            "entities": [
+                {"type": "per", "start": 0, "end": 1},
+                {"type": "loc", "start": 3, "end": 4},
+            ],
+            "relations": [
+                {"type": "born in", "head": 0, "tail": 1},
+            ],
+        }
+
+    def test_filter_example_tokens_str_filter(self):
+        output = filter_example_tokens(self.example, "was")
+        self.assertEqual(output, self.expected)
+
+    def test_filter_example_tokens_callable_filter(self):
+        output = filter_example_tokens(self.example, lambda x: x == "was")
+        self.assertEqual(output, self.expected)
+
+    def test_filter_example_tokens_regex_filter(self):
+        output = filter_example_tokens(self.example, re.compile(r"w.*s"))
+        self.assertEqual(output, self.expected)
+
+    def test_filter_example_tokens_mutiple_filters(self):
+        expected = {
+            "tokens": ["Bill", "in", "USA", "."],
+            "entities": [
+                {"type": "per", "start": 0, "end": 1},
+                {"type": "loc", "start": 2, "end": 3},
+            ],
+            "relations": [
+                {"type": "born in", "head": 0, "tail": 1},
+            ],
+        }
+        output = filter_example_tokens(self.example, ["born", lambda x: x == "was"])
+        self.assertEqual(output, expected)
+
+    def test_filter_example_tokens_invalid_filter(self):
+        with self.assertRaises(ValueError) as ctx:
+            filter_example_tokens(self.example, 123)
+        self.assertEqual(
+            str(ctx.exception), "Filter should be str, re.Pattern or Callable, not: int"
+        )
+
+    def test_filter_example_tokens_filter_across_entities(self):
+        with self.assertRaises(RuntimeError) as ctx:
+            filter_example_tokens(self.example, "USA")
+        self.assertEqual(str(ctx.exception), "Can not filter entity tokens: ['USA']")
+
+    def test_filter_example_tokens_random_entity_order(self):
+        example = {
+            "tokens": ["Bill", "was", "in", "USA", "."],
+            "entities": [
+                {"type": "loc", "start": 3, "end": 4},
+                {"type": "per", "start": 0, "end": 1},
+            ],
+            "relations": [
+                {"type": "born in", "head": 0, "tail": 1},
+            ],
+        }
+        expected = {
+            "tokens": ["Bill", "in", "USA", "."],
+            "entities": [
+                {"type": "loc", "start": 2, "end": 3},
+                {"type": "per", "start": 0, "end": 1},
+            ],
+            "relations": [
+                {"type": "born in", "head": 0, "tail": 1},
+            ],
+        }
+        output = filter_example_tokens(example, "was")
+        self.assertEqual(output, expected)
 
 
 class TestFunctions(unittest.TestCase):

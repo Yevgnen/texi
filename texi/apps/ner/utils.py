@@ -1,9 +1,21 @@
 # -*- coding: utf-8 -*-
 
+import copy
 import dataclasses
 import json
 import os
-from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
+import re
+from typing import (
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
 
 from texi.preprocessing import LabelEncoder
 
@@ -174,6 +186,78 @@ def check_example(example: Mapping) -> bool:
             )
 
     return True
+
+
+def filter_example_tokens(
+    example: Mapping, filters: Iterable[Union[str, Callable[[str], bool]]]
+) -> Dict:
+    if not hasattr(filters, "__iter__") or isinstance(filters, str):
+        filters = [filters]
+
+    for f in filters:
+        if not isinstance(f, (str, re.Pattern)) and not callable(f):
+            raise ValueError(
+                "Filter should be str, re.Pattern or Callable,"
+                f" not: {f.__class__.__name__}"
+            )
+
+    def _filter(x):
+        for f in filters:
+            if isinstance(f, re.Pattern):
+                if re.match(f, x):
+                    return True
+
+            elif isinstance(f, str):
+                if f == x:
+                    return True
+
+            elif callable(f):
+                if f(x):
+                    return True
+
+        return False
+
+    backup = example
+    example = copy.deepcopy(example)
+    entities = sorted(enumerate(example["entities"]), key=lambda x: x[1]["start"])
+
+    entity_index = 0
+    num_entities = len(entities)
+    tokens = []
+    for i, token in enumerate(example["tokens"]):
+        if _filter(token):
+            while entity_index < num_entities and entities[entity_index][1]["end"] <= i:
+                entity_index += 1
+
+            if entity_index < num_entities and entities[entity_index][1]["start"] <= i:
+                entity_tokens = example["tokens"][
+                    entities[entity_index][1]["start"] : entities[entity_index][1][
+                        "end"
+                    ]
+                ]
+                raise RuntimeError(f"Can not filter entity tokens: {entity_tokens}")
+
+            j = entity_index
+            while j < num_entities:
+                entities[j][1]["start"] -= 1
+                entities[j][1]["end"] -= 1
+                j += 1
+        else:
+            tokens += [token]
+
+    example["tokens"] = tokens
+    example["entities"] = list(list(zip(*sorted(entities, key=lambda x: x[0])))[1])
+
+    assert len(example["entities"]) == len(backup["entities"]), "Mismatched entity list"
+    for i, entity in enumerate(example["entities"]):
+        assert (
+            example["tokens"][entity["start"] : entity["end"]]
+            == backup["tokens"][
+                backup["entities"][i]["start"] : backup["entities"][i]["end"]
+            ]
+        ), "Mismatched entity spans"
+
+    return example
 
 
 def split_example(
