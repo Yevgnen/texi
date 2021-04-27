@@ -133,7 +133,7 @@ def main(args):
 
     # Setup evaluation sampler.
     eval_sampler = SpERTEvalSampler(
-        SpERTVisualizer(),
+        SpERTVisualizer(params["token_delimiter"]),
         tokenizer,
         entity_label_encoder,
         negative_entity_index,

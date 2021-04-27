@@ -43,6 +43,7 @@ class SpERTParams(Params):
         self.num_negative_relations = kwargs.get("num_negative_relations", 100)
         self.max_entity_length = kwargs.get("max_entity_length", 10)
         self.relation_filter_threshold = kwargs.get("relation_filter_threshold", 0.4)
+        self.token_delimiter = kwargs.get("token_delimiter", " ")
 
     def __getitem__(self, key):
         return self.__dict__[key]
