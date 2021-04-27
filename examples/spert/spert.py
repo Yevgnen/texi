@@ -81,19 +81,23 @@ def main(args):
     params = args.params
     setup_env(params)
 
+    # Load datasets.
     datasets = JSONDatasets.from_dir(params.data_dir, array=True).load()
 
-    tokenizer = BertTokenizerFast.from_pretrained(params["pretrained_model"])
+    # Get label encoders.
     entity_label_encoder, relation_label_encoder = encode_labels(datasets.train)
     negative_entity_index = entity_label_encoder.add(params["negative_entity_type"])
     negative_relation_index = relation_label_encoder.add(
         params["negative_relation_type"]
     )
 
+    # Get data loaders.
+    tokenizer = BertTokenizerFast.from_pretrained(params["pretrained_model"])
     loaders = get_dataloaders(
         datasets, tokenizer, entity_label_encoder, relation_label_encoder, params
     )
 
+    # Create model.
     bert = BertModel.from_pretrained(params["pretrained_model"])
     model = SpERT(
         bert,
@@ -115,6 +119,7 @@ def main(args):
         model, params["lr"], params["weight_decay"], warmup_steps, num_training_steps
     )
 
+    # Prepare trainer.
     trainer = SpERTTrainer(
         entity_label_encoder,
         negative_entity_index,
@@ -125,6 +130,8 @@ def main(args):
     trainer.setup(
         params, loaders, model, criteria, optimizer, lr_scheduler=lr_scheduler
     )
+
+    # Setup evaluation sampler.
     eval_sampler = SpERTEvalSampler(
         SpERTVisualizer(),
         tokenizer,
@@ -136,6 +143,8 @@ def main(args):
         params.sample_dir,
     )
     eval_sampler.setup(trainer.trainer, trainer.evaluators["val_evaluator"])
+
+    # Train!
     trainer.run()
 
 
