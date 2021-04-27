@@ -101,14 +101,7 @@ class TestFilterExampleTokens(unittest.TestCase):
 class TestFunctions(unittest.TestCase):
     def test_check_example(self):
         example = {
-            "tokens": [
-                "Bill",
-                "was",
-                "born",
-                "in",
-                "USA",
-                ".",
-            ],
+            "tokens": ["Bill", "was", "born", "in", "USA", "."],
             "entities": [
                 {"type": "per", "start": 0, "end": 1},
                 {"type": "loc", "start": 4, "end": 5},
@@ -131,14 +124,7 @@ class TestFunctions(unittest.TestCase):
 
     def test_check_example_invalid_entity(self):
         example = {
-            "tokens": [
-                "Bill",
-                "was",
-                "born",
-                "in",
-                "USA",
-                ".",
-            ],
+            "tokens": ["Bill", "was", "born", "in", "USA", "."],
             "entities": [
                 {"type": "per", "start": 1, "end": 0},
                 {"type": "loc", "start": 4, "end": 5},
@@ -156,14 +142,7 @@ class TestFunctions(unittest.TestCase):
 
     def test_check_example_example_out_of_bound(self):
         example = {
-            "tokens": [
-                "Bill",
-                "was",
-                "born",
-                "in",
-                "USA",
-                ".",
-            ],
+            "tokens": ["Bill", "was", "born", "in", "USA", "."],
             "entities": [
                 {"type": "per", "start": 0, "end": 20},
             ],
@@ -177,14 +156,7 @@ class TestFunctions(unittest.TestCase):
         )
 
         example = {
-            "tokens": [
-                "Bill",
-                "was",
-                "born",
-                "in",
-                "USA",
-                ".",
-            ],
+            "tokens": ["Bill", "was", "born", "in", "USA", "."],
             "entities": [
                 {"type": "per", "start": -1, "end": 1},
             ],
@@ -199,14 +171,7 @@ class TestFunctions(unittest.TestCase):
 
     def test_check_example_invalid_relation(self):
         example = {
-            "tokens": [
-                "Bill",
-                "was",
-                "born",
-                "in",
-                "USA",
-                ".",
-            ],
+            "tokens": ["Bill", "was", "born", "in", "USA", "."],
             "entities": [
                 {"type": "per", "start": 0, "end": 1},
                 {"type": "loc", "start": 4, "end": 5},
@@ -225,14 +190,7 @@ class TestFunctions(unittest.TestCase):
 
     def test_check_example_relation_out_of_bound(self):
         example = {
-            "tokens": [
-                "Bill",
-                "was",
-                "born",
-                "in",
-                "USA",
-                ".",
-            ],
+            "tokens": ["Bill", "was", "born", "in", "USA", "."],
             "entities": [
                 {"type": "per", "start": 0, "end": 1},
                 {"type": "loc", "start": 4, "end": 5},
@@ -248,14 +206,7 @@ class TestFunctions(unittest.TestCase):
             "Entity not found for relation: {'type': 'born in', 'head': 0, 'tail': 3}",
         )
         example = {
-            "tokens": [
-                "Bill",
-                "was",
-                "born",
-                "in",
-                "USA",
-                ".",
-            ],
+            "tokens": ["Bill", "was", "born", "in", "USA", "."],
             "entities": [
                 {"type": "per", "start": 0, "end": 1},
                 {"type": "loc", "start": 4, "end": 5},
@@ -512,14 +463,7 @@ class TestFunctions(unittest.TestCase):
         self.assertEqual(
             splits[0],
             {
-                "tokens": [
-                    "Bill",
-                    "was",
-                    "born",
-                    "in",
-                    "USA",
-                    ".",
-                ],
+                "tokens": ["Bill", "was", "born", "in", "USA", "."],
                 "entities": [
                     {"type": "per", "start": 0, "end": 1},
                     {"type": "loc", "start": 4, "end": 5},
@@ -532,11 +476,7 @@ class TestFunctions(unittest.TestCase):
         self.assertEqual(
             splits[1],
             {
-                "tokens": [
-                    "Jack",
-                    "Loves",
-                    "Mary",
-                ],
+                "tokens": ["Jack", "Loves", "Mary"],
                 "entities": [
                     {"type": "per", "start": 0, "end": 1},
                     {"type": "per", "start": 2, "end": 3},
