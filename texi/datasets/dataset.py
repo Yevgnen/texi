@@ -51,15 +51,22 @@ class Dataset(object):
         cls,
         filename: str,
         format_function: Optional[Callable[[Dict], Dict]] = lambda x: x,
+        array: bool = False,
     ):
-        def _iter():
+        def _iter_whole_file():
+            with open(filename) as f:
+                yield from map(format_function, json.load(f))
+
+        def _iter_multiple_lines():
             with open(filename) as f:
                 for line in f:
                     line = line.rstrip()
                     if line:
                         yield format_function(json.loads(line))
 
-        return cls(_iter)
+        fn = _iter_whole_file if array else _iter_multiple_lines
+
+        return cls(fn)
 
     @classmethod
     def from_json(cls, filename: str):
@@ -124,9 +131,11 @@ class JSONDatasets(Datasets):
         return x
 
     @classmethod
-    def from_dir(cls, dirname: str):
+    def from_dir(cls, dirname: str, array: bool = False):
         data = {
-            key: Dataset.from_json_iter(os.path.join(dirname, value), cls.format)
+            key: Dataset.from_json_iter(
+                os.path.join(dirname, value), cls.format, array=array
+            )
             for key, value in cls.files.items()
         }
 

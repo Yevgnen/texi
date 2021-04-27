@@ -101,7 +101,7 @@ def main():
     os.makedirs(os.path.dirname(params["log_file"]), exist_ok=True)
     setup_logger(level=logging.INFO, filename=params["log_file"])
 
-    datasets = JSONDatasets.from_dir(params.data_dir).load()
+    datasets = JSONDatasets.from_dir(params.data_dir, array=True).load()
 
     tokenizer = BertTokenizerFast.from_pretrained(params["pretrained_model"])
     entity_label_encoder, relation_label_encoder = get_label_encoders(
