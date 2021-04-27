@@ -103,10 +103,6 @@ def main():
 
     datasets = JSONDatasets.from_dir(params.data_dir).load()
 
-    logger.info("Train size: %d", len(datasets.train))
-    logger.info("Val size: %d", len(datasets.val))
-    logger.info("Test size: %d", len(datasets.test))
-
     tokenizer = BertTokenizerFast.from_pretrained(params["pretrained_model"])
     entity_label_encoder, relation_label_encoder = get_label_encoders(
         datasets["train"],

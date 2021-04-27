@@ -563,6 +563,11 @@ class Trainer(metaclass=abc.ABCMeta):
 
         return trainer, evaluators
 
+    def setup_data_loaders(self, data_loaders):
+        self.data_loaders = data_loaders
+        for mode, loader in self.data_loaders.items():
+            logger.info("Dataset size [%s]: %d", mode, len(loader.dataset))
+
     def setup(
         self,
         params: Params,
@@ -577,7 +582,7 @@ class Trainer(metaclass=abc.ABCMeta):
         self.trainer, self.evaluators = self.get_engines(
             params, net, optimizer, loss_fn, train_step=train_step, eval_step=eval_step
         )
-        self.data_loaders = data_loaders
+        self.setup_data_loaders(data_loaders)
 
         self.net = net
         self.optimizer = optimizer
