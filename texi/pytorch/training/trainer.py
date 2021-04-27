@@ -597,7 +597,7 @@ class Trainer(metaclass=abc.ABCMeta):
         self.optimizer = optimizer
         self.lr_scheduler = lr_scheduler
 
-        setup_handlers(
+        self.handlers = setup_handlers(
             params,
             self.trainer,
             self.evaluators,

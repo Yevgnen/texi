@@ -17,7 +17,14 @@ from texi.pytorch.plm.spert import predict
 from texi.pytorch.training.params import Params
 from texi.pytorch.training.trainer import Batch, MetricGroup, Trainer
 
+try:
+    import wandb
+except ModuleNotFoundError:
+    wandb = None
+
+
 if TYPE_CHECKING:
+    from ignite.contrib.handlers import WandBLogger
     from transformers import BertTokenizer, BertTokenizerFast
 
 
@@ -157,6 +164,7 @@ class SpERTEvalSampler(object):
         relation_filter_threshold: float,
         save_dir: str,
         sample_size: Optional[int] = None,
+        wandb_logger: Optional[WandBLogger] = None,
     ):
         self.visualizer = visualizer
         self.tokenizer = tokenizer
@@ -168,6 +176,7 @@ class SpERTEvalSampler(object):
         self.save_dir = save_dir
         os.makedirs(self.save_dir, exist_ok=True)
         self.sample_size = sample_size
+        self.wandb_logger = wandb_logger
 
         self.global_step_transform = None  # type: Callable
         self.reset()
@@ -301,6 +310,19 @@ class SpERTEvalSampler(object):
         self.visualizer.export_relations(
             self._sample(self.relation_samples), relation_html
         )
+
+        if self.wandb_logger:
+            if not wandb:
+                raise RuntimeError("Install `wandb` package to enable HTML logging.")
+
+            self.wandb_logger.log(
+                {"Entity Extraction Examples": wandb.Html(open(entity_html))},
+                step=iteration,
+            )
+            self.wandb_logger.log(
+                {"Relation Extraction Examples": wandb.Html(open(relation_html))},
+                step=iteration,
+            )
 
     def setup(self, trainer: Engine, evaluator: Engine):
         self.global_step_transform = global_step_from_engine(trainer)

@@ -141,6 +141,7 @@ def main(args):
         negative_relation_index,
         params["relation_filter_threshold"],
         params.sample_dir,
+        wandb_logger=trainer.handlers.get("wandb_logger"),
     )
     eval_sampler.setup(trainer.trainer, trainer.evaluators["val_evaluator"])
 
