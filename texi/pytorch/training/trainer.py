@@ -10,6 +10,8 @@ from typing import Callable, Dict, Mapping, Optional, Tuple
 
 import torch
 import torch.nn as nn
+from carton.logger import setup_logger as carton_setup_logger
+from carton.random import set_seed
 from ignite.contrib.engines.common import (
     add_early_stopping_by_val_score,
     save_best_model_by_val_score,
@@ -44,6 +46,13 @@ MetricGroup = Mapping[str, Metric]
 TrainStepFunction = Callable[[Engine, nn.Module, Batch, nn.Module], Dict]
 EvalStepFunction = Callable[[Engine, nn.Module, Batch], Dict]
 UpdateFunction = Callable[[Engine, Batch], Dict]
+
+
+def setup_env(params: Params):
+    set_seed(params["seed"])
+
+    os.makedirs(os.path.dirname(params["log_file"]), exist_ok=True)
+    carton_setup_logger(level=logging.INFO, filename=params["log_file"])
 
 
 def convert_tensor(*args, **kwargs):

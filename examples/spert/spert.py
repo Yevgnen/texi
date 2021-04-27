@@ -2,10 +2,7 @@
 
 import argparse
 import logging
-import os
 
-from carton.logger import setup_logger
-from carton.random import set_seed
 from transformers import BertModel, BertTokenizerFast
 
 from texi.apps.ner import SpERTVisualizer, encode_labels
@@ -20,6 +17,7 @@ from texi.pytorch.plm.spert import (
     SpERTTrainer,
 )
 from texi.pytorch.plm.utils import get_pretrained_optimizer_and_scheduler
+from texi.pytorch.training.trainer import setup_env
 
 logger = logging.getLogger(__name__)
 
@@ -81,10 +79,7 @@ def parse_args():
 
 def main(args):
     params = args.params
-    set_seed(params["seed"])
-
-    os.makedirs(os.path.dirname(params["log_file"]), exist_ok=True)
-    setup_logger(level=logging.INFO, filename=params["log_file"])
+    setup_env(params)
 
     datasets = JSONDatasets.from_dir(params.data_dir, array=True).load()
 
