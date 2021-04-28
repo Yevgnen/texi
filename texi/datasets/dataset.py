@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import itertools
 import json
 import os
 from typing import Callable, Dict, Iterable, Optional, Union
@@ -23,6 +24,15 @@ class Dataset(object):
             self.examples = list(self.load_examples())
 
         return self
+
+    def map(self, fn):
+        self._check_loaded()
+
+        examples = [fn(x) for x in self.examples]
+        if examples and isinstance(examples[0], list):
+            examples = list(itertools.chain.from_iterable(examples))
+
+        self.examples = examples
 
     def __getitem__(self, key):
         self._check_loaded()
@@ -101,6 +111,11 @@ class Datasets(object):
     def items(self):
         for mode in self.modes:
             yield mode, getattr(self, mode)
+
+    def map(self, fn):
+        self.train.map(fn)
+        self.val.map(fn)
+        self.test.map(fn)
 
     def __getitem__(self, key):
         assert key in self.modes

@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 
 import argparse
+import functools
 import logging
 
 from transformers import BertModel, BertTokenizerFast
 
-from texi.apps.ner import SpERTVisualizer, encode_labels
+from texi.apps.ner import SpERTVisualizer, encode_labels, split_example
 from texi.datasets import JSONDatasets
 from texi.pytorch.plm.spert import (
     SpERT,
@@ -83,6 +84,12 @@ def main(args):
 
     # Load datasets.
     datasets = JSONDatasets.from_dir(params.data_dir, array=True).load()
+    if params.split_delimiter:
+        datasets.map(
+            functools.partial(
+                split_example, delimiters=params.split_delimiter, ignore_errors=True
+            )
+        )
 
     # Get label encoders.
     entity_label_encoder, relation_label_encoder = encode_labels(datasets.train)
