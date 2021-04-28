@@ -101,7 +101,11 @@ class BertForSequenceLabeling(nn.Module):
         return logits
 
 
-class SequenceCrossEntropyLoss(nn.CrossEntropyLoss):
+class SequenceCrossEntropyLoss(nn.Module):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        self.loss = nn.CrossEntropyLoss(*args, **kwargs)
+
     def forward(
         self, input_: torch.Tensor, target: torch.Tensor, length: torch.Tensor
     ) -> torch.Tensor:
@@ -113,12 +117,13 @@ class SequenceCrossEntropyLoss(nn.CrossEntropyLoss):
         input_ = input_.view(-1, input_.size()[-1])[label_mask]
         target = target.view(-1)[label_mask]
 
-        return super().forward(input_, target)
+        return self.loss(input_, target)
 
 
-class CRFForPreTraining(CRF):
+class CRFForPreTraining(nn.Module):
     def __init__(self, num_labels: int, batch_first: bool = True):
-        super().__init__(num_labels, batch_first=batch_first)
+        super().__init__()
+        self.crf = CRF(num_labels, batch_first=batch_first)
 
     def forward(
         self,
@@ -131,12 +136,12 @@ class CRFForPreTraining(CRF):
         labels = labels[:, 1:]
         mask = mask[:, 1:].bool()
 
-        return -super().forward(emissions, labels, mask, reduction=reduction)
+        return -self.crf(emissions, labels, mask, reduction=reduction)
 
     def decode(
         self, emissions: torch.Tensor, mask: Optional[torch.ByteTensor] = None
     ) -> BatchId:
-        return super().decode(emissions, mask.bool())
+        return self.crf.decode(emissions, mask.bool())
 
 
 class CRFDecoder(object):
