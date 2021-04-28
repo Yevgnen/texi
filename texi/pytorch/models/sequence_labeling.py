@@ -43,7 +43,7 @@ class BiLstmCrf(nn.Module):
         num_layers: int = 2,
         char_embedding: Optional[nn.Embedding] = None,
         dropout: float = 0.0,
-    ):
+    ) -> None:
         super().__init__()
         self.vocab_size = vocab_size
         self.num_labels = num_labels
@@ -73,7 +73,7 @@ class BiLstmCrf(nn.Module):
 
 
 class BertForSequenceLabeling(nn.Module):
-    def __init__(self, pretrained_model: str, **kwargs):
+    def __init__(self, pretrained_model: str, **kwargs) -> None:
         super().__init__()
         num_labels = kwargs.get("num_labels")
         if num_labels is None:
@@ -102,7 +102,7 @@ class BertForSequenceLabeling(nn.Module):
 
 
 class SequenceCrossEntropyLoss(nn.Module):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__()
         self.loss = nn.CrossEntropyLoss(*args, **kwargs)
 
@@ -121,7 +121,7 @@ class SequenceCrossEntropyLoss(nn.Module):
 
 
 class CRFForPreTraining(nn.Module):
-    def __init__(self, num_labels: int, batch_first: bool = True):
+    def __init__(self, num_labels: int, batch_first: bool = True) -> None:
         super().__init__()
         self.crf = CRF(num_labels, batch_first=batch_first)
 
@@ -145,7 +145,7 @@ class CRFForPreTraining(nn.Module):
 
 
 class CRFDecoder(object):
-    def __init__(self, tokenizer: Any, label_encoder: LabelEncoder, crf: CRF):
+    def __init__(self, tokenizer: Any, label_encoder: LabelEncoder, crf: CRF) -> None:
         self.tokenizer = tokenizer
         self.label_encoder = label_encoder
         self.crf = crf
@@ -156,7 +156,7 @@ class CRFDecoder(object):
 
         return tokens
 
-    def decode_labels(self, x: BatchInput, y) -> BatchId:
+    def decode_labels(self, x: BatchInput, y: torch.Tensor) -> BatchId:
         if y.dim() > 2:
             labels = self.crf.decode(y, length_to_mask(x["length"], batch_first=True))
         else:
@@ -181,7 +181,9 @@ class CRFDecoder(object):
 
 
 class SequenceDecoderForPreTraining(object):
-    def __init__(self, tokenizer: PreTrainedTokenizer, label_encoder: LabelEncoder):
+    def __init__(
+        self, tokenizer: PreTrainedTokenizer, label_encoder: LabelEncoder
+    ) -> None:
         self.tokenizer = tokenizer
         self.label_encoder = label_encoder
 
@@ -249,7 +251,7 @@ class SequenceDecoderForPreTraining(object):
 class CRFDecoderForPreTraining(SequenceDecoderForPreTraining):
     def __init__(
         self, tokenizer: PreTrainedTokenizer, label_encoder: LabelEncoder, crf: CRF
-    ):
+    ) -> None:
         super().__init__(tokenizer, label_encoder)
         self.crf = crf
 
@@ -271,7 +273,7 @@ class SequenceLabeler(object):
         label_encoder: LabelEncoder,
         dataset_class: Type,
         tagger: SequeceLabelingTagger,
-    ):
+    ) -> None:
         self.net = net
         self.tokenizer = tokenizer
         self.label_encoder = label_encoder

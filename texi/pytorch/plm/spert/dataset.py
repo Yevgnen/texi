@@ -3,7 +3,17 @@
 from __future__ import annotations
 
 import itertools
-from typing import TYPE_CHECKING, Dict, Iterable, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    Sequence,
+    Tuple,
+    Union,
+)
 
 import torch
 from carton.collections import collate
@@ -17,14 +27,18 @@ from texi.pytorch.plm.spert.sampler import SpERTSampler
 if TYPE_CHECKING:
     from transformers import BertTokenizer, BertTokenizerFast
 
+    from texi.pytorch.dataset.dataset import Batch
 
-def stack_1d(tensors, length):
+
+def stack_1d(tensors: Iterable[torch.Tensor], length: int) -> torch.Tensor:
     return torch.stack(
         [torch.nn.functional.pad(x, [0, length - len(x)]) for x in tensors]
     )
 
 
-def stack_2d(tensors, max_rows, max_columns):
+def stack_2d(
+    tensors: Sequence[torch.Tensor], max_rows: int, max_columns: int
+) -> torch.Tensor:
     # https://discuss.pytorch.org/t/padding-zero-size-tensors/118777
     if max_rows == 0:
         return tensors[0].new_zeros(len(tensors), max_rows, max_columns)
@@ -48,21 +62,21 @@ class SpERTDataset(Dataset):
         relation_label_encoder: LabelEncoder,
         tokenizer: Union[BertTokenizer, BertTokenizerFast] = None,
         train: bool = False,
-    ):
+    ) -> None:
         super().__init__(examples, tokenizer=tokenizer, train=train)
         self.negative_sampler = negative_sampler
         self.entity_label_encoder = entity_label_encoder
         self.relation_label_encoder = relation_label_encoder
 
-    def train(self):
+    def train(self) -> None:
         super().train()
         self.negative_sampler.train()
 
-    def eval(self):
+    def eval(self) -> None:
         super().eval()
         self.negative_sampler.eval()
 
-    def describe(self):
+    def describe(self) -> Dict[str, Any]:
         info = super().describe()
         num_tokens, num_entities, num_relations = zip(
             *[
@@ -169,7 +183,12 @@ class SpERTDataset(Dataset):
 
         return mask, label, pair, sample_mask
 
-    def encode_example(self, tokens, entities, relations):
+    def encode_example(
+        self,
+        tokens: List[str],
+        entities: List[Mapping[str, Any]],
+        relations: List[Mapping[str, Any]],
+    ) -> Dict[str, Any]:
         # Encode tokens.
         tokens = [self.tokenizer.cls_token] + tokens + [self.tokenizer.sep_token]
         output = self.tokenizer(tokens, add_special_tokens=False)
@@ -210,7 +229,9 @@ class SpERTDataset(Dataset):
             "relation_sample_mask": relation_sample_mask,
         }
 
-    def encode(self, example):
+    def encode(
+        self, example: Mapping
+    ) -> Union[Dict[str, Any], Tuple[Dict[str, Any], Dict[str, Any]]]:
         tokens = example["tokens"]
 
         positive_entities = example["entities"]
@@ -275,9 +296,7 @@ class SpERTDataset(Dataset):
             "relation_sample_mask": relation_sample_mask,
         }
 
-    def collate_train(
-        self, batch: Iterable[Iterable[torch.Tensor]]
-    ) -> Dict[str, torch.Tensor]:
+    def collate_train(self, batch: Batch) -> Dict[str, torch.Tensor]:
         assert self.is_train, "`collate_train` must be called in train mode"
 
         encoded = self.encode_batch(batch)
@@ -286,8 +305,10 @@ class SpERTDataset(Dataset):
         return collated
 
     def collate_eval(
-        self, batch: Iterable[Iterable[torch.Tensor]]
-    ) -> Dict[str, torch.Tensor]:
+        self, batch: Batch
+    ) -> Union[
+        Dict[str, torch.Tensor], Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor]]
+    ]:
         assert not self.is_train, "`collate_train` must NOT be called in train mode"
 
         encoded = self.encode_batch(batch)
@@ -299,8 +320,10 @@ class SpERTDataset(Dataset):
         )
 
     def collate(
-        self, batch: Iterable[Iterable[torch.Tensor]]
-    ) -> Dict[str, torch.Tensor]:
+        self, batch: Batch
+    ) -> Union[
+        Dict[str, torch.Tensor], Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor]]
+    ]:
         fn = self.collate_train if self.is_train else self.collate_eval
 
         return fn(batch)

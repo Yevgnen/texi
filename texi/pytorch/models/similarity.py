@@ -23,7 +23,7 @@ class SiameseLSTM(nn.Module):
         embedding: Optional[nn.Embedding] = None,
         vocab_size: Optional[int] = None,
         padding_idx: Optional[int] = 0,
-    ):
+    ) -> None:
         super().__init__()
         self.embedded_size = embedded_size
         self.hidden_size = hidden_size
@@ -100,7 +100,7 @@ class ESIM(nn.Module):
         embedding: Optional[nn.Embedding] = None,
         vocab_size: Optional[int] = None,
         padding_idx: Optional[int] = 0,
-    ):
+    ) -> None:
         super().__init__()
         self.embedded_size = embedded_size
         self.hidden_size = hidden_size
@@ -287,7 +287,9 @@ class ESIM(nn.Module):
 
 
 class BertSimilarity(nn.Module):
-    def __init__(self, pretrained_model, pooling="mean_max", dropout=0.0):
+    def __init__(
+        self, pretrained_model: str, pooling: str = "mean_max", dropout: float = 0.0
+    ) -> None:
         super().__init__()
         if isinstance(pretrained_model, str):
             self.bert = BertModel.from_pretrained(
@@ -300,7 +302,7 @@ class BertSimilarity(nn.Module):
         self.dropout = nn.Dropout(dropout)
         self.output = nn.Linear(self.bert.config.hidden_size * k, 1)
 
-    def forward(self, inputs):
+    def forward(self, inputs: Dict[str, torch.Tensor]) -> torch.Tensor:
         outputs = self.bert(**inputs)
         hidden = outputs[2][-2]
         mask = inputs["attention_mask"]

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import random
-from typing import TYPE_CHECKING, Callable, Dict, Optional, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
 import torch.nn as nn
 from ignite.engine import Engine, Events
@@ -59,7 +59,7 @@ class SpERTTrainer(Trainer):
         relation_label_encoder: LabelEncoder,
         negative_relation_index: int,
         relation_filter_threshold: float,
-    ):
+    ) -> None:
         super().__init__()
         self.entity_label_encoder = entity_label_encoder
         self.negative_entity_index = negative_entity_index
@@ -155,7 +155,7 @@ class SpERTTrainer(Trainer):
 
 
 class SpERTEvalSampler(object):
-    # pylint: disable=no-self-use
+    # pylint: disable=no-self-use, too-many-arguments
     def __init__(
         self,
         visualizer: SpERTVisualizer,
@@ -168,7 +168,7 @@ class SpERTEvalSampler(object):
         save_dir: str,
         sample_size: Optional[int] = None,
         wandb_logger: Optional[WandBLogger] = None,
-    ):
+    ) -> None:
         self.visualizer = visualizer
         self.tokenizer = tokenizer
         self.entity_label_encoder = entity_label_encoder
@@ -181,14 +181,14 @@ class SpERTEvalSampler(object):
         self.sample_size = sample_size
         self.wandb_logger = wandb_logger
 
-        self.global_step_transform = None  # type: Callable
+        self.global_step_transform = None
         self.reset()
 
-    def reset(self):
-        self.entity_samples = []
-        self.relation_samples = []
+    def reset(self) -> None:
+        self.entity_samples = []  # type: List[Dict]
+        self.relation_samples = []  # type: List[Dict]
 
-    def started(self, _: Engine):
+    def started(self, _: Engine) -> None:
         self.reset()
 
     def _expand_entities(self, relations, entities):
@@ -221,7 +221,7 @@ class SpERTEvalSampler(object):
 
         return items
 
-    def update(self, engine: Engine):
+    def update(self, engine: Engine) -> None:
         target = engine.state.output["target"]
         input_ = engine.state.output["input"]
         output = engine.state.output["output"]
@@ -298,7 +298,7 @@ class SpERTEvalSampler(object):
 
         return examples
 
-    def export(self, _: Engine):
+    def export(self, _: Engine) -> None:
         epoch = self.global_step_transform(_, Events.EPOCH_COMPLETED)
         iteration = self.global_step_transform(_, Events.ITERATION_COMPLETED)
 
@@ -327,7 +327,7 @@ class SpERTEvalSampler(object):
                 step=iteration,
             )
 
-    def setup(self, trainer: Engine, evaluator: Engine):
+    def setup(self, trainer: Engine, evaluator: Engine) -> None:
         self.global_step_transform = global_step_from_engine(trainer)
 
         evaluator.add_event_handler(Events.EPOCH_STARTED, self.reset)

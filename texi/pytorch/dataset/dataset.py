@@ -20,19 +20,19 @@ from torch.utils.data import DataLoader
 from texi.datasets import Dataset as BaseDataset
 from texi.pytorch.utils import get_sampler
 
-T = TypeVar("T", bound="Dataset")
-S = TypeVar("S")
 Batch = Union[Tuple[Dict[str, torch.Tensor], torch.Tensor], Dict[str, torch.Tensor]]
 Texts = Union[Iterable[str], str]
 
 
 class Dataset(BaseDataset):
+    T = TypeVar("T", bound="Dataset")
+
     def __init__(
         self,
         examples: Union[Iterable[Dict], Callable[[], Iterable[Dict]]],
         tokenizer: Optional[Any] = None,
         train: bool = False,
-    ):
+    ) -> None:
         super().__init__(examples)
 
         if tokenizer is None:
@@ -42,19 +42,19 @@ class Dataset(BaseDataset):
 
         self.is_train = train
 
-    def train(self):
+    def train(self) -> None:
         self.is_train = True
 
-    def eval(self):
+    def eval(self) -> None:
         self.is_train = False
 
     def encode(self, example: Mapping) -> Dict:
         raise NotImplementedError()
 
-    def collate(self, batch: Batch) -> Dict:
+    def collate(self, batch: Batch) -> Any:
         raise NotImplementedError()
 
-    def encode_batch(self, batch: List[Mapping]) -> List[Dict]:
+    def encode_batch(self, batch: Batch) -> List[Dict]:
         return [*map(self.encode, batch)]
 
     def tokenize(self, text: Texts) -> torch.Tensor:
@@ -79,7 +79,7 @@ class Dataset(BaseDataset):
 
     @staticmethod
     def get_dataloaders(
-        iterators: Dict[str, "Dataset"],
+        iterators: Dict[str, T],
         train_batch_size: Optional[int] = None,
         eval_batch_size: Optional[int] = None,
         batch_size: Optional[int] = None,
