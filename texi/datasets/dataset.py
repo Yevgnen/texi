@@ -117,7 +117,7 @@ class Datasets(object):
         self.modes = {"train", "val", "test"}
 
     def load(self) -> T_Datasets:
-        for mode in ["train", "val", "test"]:
+        for mode in self.modes:
             dataset = getattr(self, mode)
             if dataset is not None:
                 dataset.load()
