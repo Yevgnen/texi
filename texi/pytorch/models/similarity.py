@@ -9,7 +9,7 @@ from transformers import BertModel
 
 from texi.pytorch.attention import BidirectionalAttention
 from texi.pytorch.losses import ManhattanSimilarity
-from texi.pytorch.utils import length_to_mask
+from texi.pytorch.masking import length_to_mask
 
 
 class SiameseLSTM(nn.Module):

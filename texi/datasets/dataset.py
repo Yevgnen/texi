@@ -2,7 +2,7 @@
 
 import json
 import os
-from typing import Any, Callable, Dict, Iterable, Optional, Union
+from typing import Callable, Dict, Iterable, Optional, Union
 
 
 class Dataset(object):
@@ -51,15 +51,22 @@ class Dataset(object):
         cls,
         filename: str,
         format_function: Optional[Callable[[Dict], Dict]] = lambda x: x,
+        array: bool = False,
     ):
-        def _iter():
+        def _iter_whole_file():
+            with open(filename) as f:
+                yield from map(format_function, json.load(f))
+
+        def _iter_multiple_lines():
             with open(filename) as f:
                 for line in f:
                     line = line.rstrip()
                     if line:
                         yield format_function(json.loads(line))
 
-        return cls(_iter)
+        fn = _iter_whole_file if array else _iter_multiple_lines
+
+        return cls(fn)
 
     @classmethod
     def from_json(cls, filename: str):
@@ -81,6 +88,8 @@ class Datasets(object):
         self.dirname = dirname
         self.filename = filename
 
+        self.modes = {"train", "val", "test"}
+
     def load(self):
         for mode in ["train", "val", "test"]:
             dataset = getattr(self, mode)
@@ -90,8 +99,13 @@ class Datasets(object):
         return self
 
     def items(self):
-        for mode in ["train", "val", "test"]:
+        for mode in self.modes:
             yield mode, getattr(self, mode)
+
+    def __getitem__(self, key):
+        assert key in self.modes
+
+        return getattr(self, key)
 
     def __repr__(self):
         return (
@@ -100,18 +114,28 @@ class Datasets(object):
             f", dirname={self.dirname}, filename={self.filename})"
         )
 
+    @classmethod
+    def from_dir(cls, dirname: str):
+        raise NotImplementedError()
+
 
 class JSONDatasets(Datasets):
-    files = {}  # type: Dict[str, str]
+    files = {
+        "train": "train.json",
+        "val": "val.json",
+        "test": "test.json",
+    }
 
     @classmethod
     def format(cls, x: Dict) -> Dict:
         return x
 
     @classmethod
-    def from_dir(cls, dirname: str):
+    def from_dir(cls, dirname: str, array: bool = False):
         data = {
-            key: Dataset.from_json_iter(os.path.join(dirname, value), cls.format)
+            key: Dataset.from_json_iter(
+                os.path.join(dirname, value), cls.format, array=array
+            )
             for key, value in cls.files.items()
         }
 

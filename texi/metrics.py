@@ -1,6 +1,52 @@
 # -*- coding: utf-8 -*-
 
 import collections
+from typing import Dict, Hashable, List, Sequence, TypeVar, Union
+
+T = TypeVar("T", bound=Hashable)
+
+
+def prf1(tp: int, fp: int, fn: int) -> Dict[str, float]:
+    tpfp = tp + fp
+    precision = tp / tpfp if tpfp > 0 else 0
+
+    tpfn = tp + fn
+    recall = tp / tpfn if tpfn > 0 else 0
+
+    pr = precision + recall
+    f1 = 2 * precision * recall / pr if pr > 0 else 0
+
+    return {
+        "precision": float(precision),
+        "recall": float(recall),
+        "f1": float(f1),
+    }
+
+
+def tpfpfn(
+    y: Sequence[T], y_pred: Sequence[T], return_index: bool = True
+) -> Union[Dict[str, List[int]], Dict[str, List[T]]]:
+    tps, fps, fns = [], [], []
+    union = set(y) | set(y_pred)
+    for i, (yi, yi_pred) in enumerate(zip(y, y_pred)):
+        if yi_pred in union:
+            if return_index:
+                tps += [i]
+            else:
+                tps += [yi_pred]
+        else:
+            if return_index:
+                fps += [i]
+            else:
+                fps += [y_pred]
+
+        if yi not in union:
+            if return_index:
+                fns += [i]
+            else:
+                fns += [yi]
+
+    return {"tp": tps, "fp": fps, "fn": fns}
 
 
 def multilabel_metrics(y, y_pred, kwargs=None):

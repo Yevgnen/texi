@@ -21,7 +21,7 @@ from texi.pytorch.utils import get_sampler
 
 T = TypeVar("T", bound="Dataset")
 S = TypeVar("S")
-Batch = Tuple[Dict[str, torch.Tensor], torch.Tensor]
+Batch = Union[Tuple[Dict[str, torch.Tensor], torch.Tensor], Dict[str, torch.Tensor]]
 Texts = Union[Iterable[str], str]
 
 
@@ -39,7 +39,22 @@ class Dataset(metaclass=abc.ABCMeta):
         self.tokenizer = tokenizer
         self.label_encoder = None
 
-        self.train = train
+        self.is_train = train
+
+    def __len__(self):
+        return len(self.examples)
+
+    def __getitem__(self, key):
+        return self.examples[key]
+
+    def __iter__(self):
+        yield from iter(self.examples)
+
+    def train(self):
+        self.is_train = True
+
+    def eval(self):
+        self.is_train = False
 
     def encode(self, example: Mapping) -> Dict:
         raise NotImplementedError()
@@ -57,24 +72,36 @@ class Dataset(metaclass=abc.ABCMeta):
         return self.tokenizer.encode(text)
 
     def get_dataloader(
-        self, sampler_kwargs: Optional[Mapping] = None, **kwargs
+        self, batch_size: int, drop_last: bool = False, **kwargs
     ) -> DataLoader:
-        if not sampler_kwargs:
-            sampler_kwargs = {}
-        sampler = get_sampler(self.examples, train=self.train, **sampler_kwargs)
+        sampler = get_sampler(
+            self.examples, self.is_train, batch_size, drop_last=drop_last
+        )
 
         collate_fn = kwargs.pop("collate_fn", self.collate)
         dataloader = DataLoader(
-            self.examples, batch_sampler=sampler, collate_fn=collate_fn, **kwargs
+            self, batch_sampler=sampler, collate_fn=collate_fn, **kwargs
         )
 
         return dataloader
 
     @staticmethod
     def get_dataloaders(
-        iterators: Dict[str, "Dataset"], *args, **kwargs
+        iterators: Dict[str, "Dataset"],
+        train_batch_size: Optional[int] = None,
+        eval_batch_size: Optional[int] = None,
+        batch_size: Optional[int] = None,
+        **kwargs
     ) -> Dict[str, DataLoader]:
-        return {k: v.get_dataloader(*args, **kwargs) for k, v in iterators.items()}
+        batch_sizes = {
+            "train": batch_size if train_batch_size is None else train_batch_size,
+            "val": batch_size if eval_batch_size is None else eval_batch_size,
+            "test": batch_size if eval_batch_size is None else eval_batch_size,
+        }
+
+        return {
+            k: v.get_dataloader(batch_sizes[k], **kwargs) for k, v in iterators.items()
+        }
 
     @classmethod
     def get_iterators(

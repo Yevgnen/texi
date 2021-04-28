@@ -17,7 +17,7 @@ def setup_tb_logging(
     trainer,
     optimizers=None,
     evaluators=None,
-    log_freq=1,
+    log_steps=1,
     net=None,
     include_weights_and_grads=True,
     **kwargs,
@@ -27,7 +27,7 @@ def setup_tb_logging(
         trainer,
         optimizers=optimizers,
         evaluators=evaluators,
-        log_every_iters=log_freq,
+        log_every_iters=log_steps,
         **kwargs,
     )
 
@@ -35,25 +35,25 @@ def setup_tb_logging(
         tb_logger.attach(
             trainer,
             log_handler=WeightsScalarHandler(net),
-            event_name=Events.ITERATION_COMPLETED(every=log_freq),
+            event_name=Events.ITERATION_COMPLETED(every=log_steps),
         )
 
         tb_logger.attach(
             trainer,
             log_handler=WeightsHistHandler(net),
-            event_name=Events.ITERATION_COMPLETED(every=log_freq),
+            event_name=Events.ITERATION_COMPLETED(every=log_steps),
         )
 
         tb_logger.attach(
             trainer,
             log_handler=GradsScalarHandler(net),
-            event_name=Events.ITERATION_COMPLETED(every=log_freq),
+            event_name=Events.ITERATION_COMPLETED(every=log_steps),
         )
 
         tb_logger.attach(
             trainer,
             log_handler=GradsHistHandler(net),
-            event_name=Events.ITERATION_COMPLETED(every=log_freq),
+            event_name=Events.ITERATION_COMPLETED(every=log_steps),
         )
 
     tb_logger.attach(trainer, lambda *args, **kwargs: tb_logger.close, Events.COMPLETED)

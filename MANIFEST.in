@@ -1,1 +1,3 @@
-include texi/apps/conlleval.pl
+include texi/apps/ner/conlleval.pl
+include texi/apps/ner/templates/entity_examples.html
+include texi/apps/ner/templates/relation_examples.html

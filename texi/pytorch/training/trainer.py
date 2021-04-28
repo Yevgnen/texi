@@ -5,27 +5,30 @@ import abc
 import enum
 import logging
 import os
-import pprint
 import traceback
 from typing import Callable, Dict, Mapping, Optional, Tuple
 
 import torch
 import torch.nn as nn
+from carton.logger import setup_logger as carton_setup_logger
+from carton.random import set_seed
 from ignite.contrib.engines.common import (
     add_early_stopping_by_val_score,
     save_best_model_by_val_score,
     setup_wandb_logging,
 )
 from ignite.contrib.handlers import ProgressBar
+from ignite.contrib.handlers.base_logger import BaseLogger
 from ignite.engine import Engine, Events
-from ignite.handlers import Checkpoint, EarlyStopping, TerminateOnNan
+from ignite.handlers import TerminateOnNan
 from ignite.metrics import BatchWise, EpochWise, Metric
-from ignite.utils import convert_tensor, setup_logger
+from ignite.utils import convert_tensor as ignite_convert_tensor
+from ignite.utils import setup_logger
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data import DataLoader
 
-from texi.pytorch.dataset.dataset import Batch
+from texi.pytorch.dataset.dataset import Batch, Dataset
 from texi.pytorch.logger import setup_tb_logging
 from texi.pytorch.metrics import (
     classification_metrics,
@@ -34,24 +37,26 @@ from texi.pytorch.metrics import (
     sequence_labeling_metrics,
 )
 from texi.pytorch.optim import optim
+from texi.pytorch.training.params import Params
 from texi.pytorch.utils import get_default_arguments
 
 logger = logging.getLogger(__name__)
 
 MetricGroup = Mapping[str, Metric]
-TrainStepFunction = Callable[[nn.Module, Batch, nn.Module], Dict]
-EvalStepFunction = Callable[[nn.Module, Batch], Dict]
+TrainStepFunction = Callable[[Engine, nn.Module, Batch, nn.Module], Dict]
+EvalStepFunction = Callable[[Engine, nn.Module, Batch], Dict]
 UpdateFunction = Callable[[Engine, Batch], Dict]
 
 
-def prepare_batch(
-    batch: Batch, device: Optional[torch.device] = None, non_blocking: bool = False
-) -> Batch:
-    x, y = batch
-    return (
-        convert_tensor(x, device=device, non_blocking=non_blocking),
-        convert_tensor(y, device=device, non_blocking=non_blocking),
-    )
+def setup_env(params: Params):
+    set_seed(params["seed"])
+
+    os.makedirs(os.path.dirname(params["log_file"]), exist_ok=True)
+    carton_setup_logger(level=logging.INFO, filename=params["log_file"])
+
+
+def convert_tensor(*args, **kwargs):
+    return ignite_convert_tensor(*args, **kwargs)
 
 
 def configure_optimizers(
@@ -86,61 +91,87 @@ def setup_engine(
     return engine
 
 
-def setup_save_handlers(
+def setup_logger_handlers(
+    save_path: str,
+    log_steps: int,
+    params: Mapping,
     trainer: Engine,
-    evaluator: Engine,
     net: nn.Module,
-    eval_metric: Optional[str] = None,
-    save_path: str = ".",
-    patience: int = 5,
-) -> Tuple[Checkpoint, EarlyStopping]:
-    best_model_handler = None
-    early_stopping_handler = None
-    if eval_metric:
-        best_model_handler = save_best_model_by_val_score(
-            save_path, evaluator, net, eval_metric, trainer=trainer
-        )
-        if patience > 0:
-            early_stopping_handler = add_early_stopping_by_val_score(
-                patience, evaluator, trainer, eval_metric
-            )
+    optimizer: Optimizer,
+    evaluators: Mapping[str, Engine],
+    tensorboard: bool = False,
+    wandb: bool = False,
+    debug: bool = False,
+) -> Dict[str, BaseLogger]:
+    handlers = {}
 
-    return best_model_handler, early_stopping_handler
+    if tensorboard:
+        tensorboard_dir = os.path.join(save_path, "tensorboard")
+        os.makedirs(tensorboard_dir, exist_ok=True)
+        tensorboard_logger = setup_tb_logging(
+            tensorboard_dir,
+            trainer,
+            optimizers=optimizer,
+            evaluators=evaluators,
+            log_steps=log_steps,
+            net=net,
+            include_weights_and_grads=debug,
+        )
+        handlers["tensorboard_logger"] = tensorboard_logger
+
+    if wandb:
+        wandb_dir = os.path.join(save_path, "wandb")
+        os.makedirs(wandb_dir, exist_ok=True)
+        wandb_logger = setup_wandb_logging(
+            trainer,
+            optimizers=optimizer,
+            evaluators=evaluators,
+            log_every_iters=log_steps,
+            dir=wandb_dir,
+            config=params,
+            project=params["project"],
+            reinit=True,
+        )
+        wandb_logger.attach(
+            trainer, lambda *args, **kwargs: wandb_logger.close, Events.COMPLETED
+        )
+        if debug:
+            wandb_logger.watch(net, log="all", log_steps=log_steps)
+        handlers["wandb_logger"] = wandb_logger
+
+    return handlers
 
 
 def setup_handlers(
+    params: Params,
     trainer: Engine,
-    train_evaluator: Engine,
-    val_evaluator: Engine,
-    train_loader: DataLoader,
-    val_loader: DataLoader,
+    evaluators: Mapping[str, Engine],
+    data_loaders: Mapping[str, DataLoader],
     net: nn.Module,
     optimizer: Optimizer,
-    eval_metric: str,
-    save_path: str,
     lr_scheduler: Optional[_LRScheduler] = None,
-    log_freq: int = 1,
-    eval_freq: int = 1,
-    schedule_freq: int = 1,
-    patience: int = 10,
-    eval_event_name: Events = Events.EPOCH_COMPLETED,
-    schedule_event_name: Events = Events.EPOCH_COMPLETED,
-    test_evaluator: Optional[Engine] = None,
-    test_loader: Optional[DataLoader] = None,
-    tensorboard: bool = True,
-    wandb: bool = True,
-    watch: bool = False,
-    params: Optional[Mapping] = None,
 ) -> Dict:
     # pylint: disable=not-callable, unused-argument, unused-variable
+    # pylint: disable=too-many-locals, too-many-arguments
+
+    def get_event(steps):
+        if isinstance(steps, int):
+            return Events.ITERATION_COMPLETED(every=steps)
+
+        if steps == "epoch":
+            return Events.EPOCH_COMPLETED(every=1)
+
+        raise ValueError(
+            (
+                "Event frequency should be either"
+                " integer for Events.ITERATION_COMPLETED"
+                ' or "epoch" for Events.EPOCH_COMPLETED'
+            )
+        )
 
     # Other event handlers.
     def step_schedulers(engine):
         lr_scheduler.step()
-        engine.logger.info(
-            "Learning rate updated: %s",
-            ", ".join(str(x) for x in lr_scheduler.get_last_lr()),
-        )
 
     def build_evaluate_handler(
         dataset, evaluator, data_loader, best_model_handler=None
@@ -158,106 +189,175 @@ def setup_handlers(
                         checkpoint,
                     )
                     net.load_state_dict(torch.load(checkpoint))
+
+            if isinstance(data_loader.dataset, Dataset):
+                data_loader.dataset.eval()
+                logger.info("Dataset [%s] switched to eval mode.", dataset)
+
             evaluator.run(data_loader)
-            evaluator.logger.info(pprint.pformat(evaluator.state.metrics))
+
+            evaluator.logger.info("Evaluate metrics [%s]", dataset)
+            for key, metric in sorted(
+                evaluator.state.metrics.items(), key=lambda x: x[0]
+            ):
+                # Ignote Dict metrics flattend by ignite.`
+                if isinstance(metric, Mapping):
+                    continue
+
+                evaluator.logger.info("%s = %s", key, metric)
 
         return evaluate_handler
 
     def handle_exceptions(engine, e):
         if isinstance(e, KeyboardInterrupt):
-            engine.logger.info("User terminated...")
+            engine.logger.info("User terminated")
             trainer.terminate()
             test_evaluate_handler(trainer)
         else:
             traceback.print_exc()
 
-    # Setup handlers.
-    handlers = {}
-    bar_format = "{desc}[{n_fmt}/{total_fmt}] {percentage:3.0f}%{postfix} [{elapsed}<{remaining}]"
-    ProgressBar(bar_format=bar_format).attach(
-        trainer,
-        metric_names="all",
-        event_name=Events.ITERATION_COMPLETED(every=log_freq),
-    )
+    def handel_dataset_mode(_):
+        train_dataset = data_loaders["train"].dataset
+        if isinstance(data_loaders["train"].dataset, Dataset):
+            train_dataset.train()
+            logger.info("Dataset [train] switched to train mode.")
 
+    # Setup general handlers.
+    handlers = {}
+    trainer.add_event_handler(Events.EPOCH_STARTED, handel_dataset_mode)
     trainer.add_event_handler(Events.EXCEPTION_RAISED, handle_exceptions)
     trainer.add_event_handler(Events.ITERATION_COMPLETED, TerminateOnNan())
 
-    if lr_scheduler is not None:
-        trainer.add_event_handler(
-            schedule_event_name(every=schedule_freq), step_schedulers
+    # Setup progress bars.
+    if params.pbar_steps > 0:
+        ProgressBar(ncols=0).attach(
+            trainer,
+            metric_names="all",
+            event_name=Events.ITERATION_COMPLETED(every=params.pbar_steps),
         )
 
-    trainer.add_event_handler(
-        eval_event_name(every=eval_freq),
-        build_evaluate_handler("train", train_evaluator, train_loader),
-    )
+        for evaluator in evaluators.values():
+            ProgressBar(ncols=0).attach(
+                evaluator,
+                event_name=Events.ITERATION_COMPLETED(every=params.pbar_steps),
+            )
 
-    trainer.add_event_handler(
-        eval_event_name(every=eval_freq),
-        build_evaluate_handler("val", val_evaluator, val_loader),
-    )
+    # Setup scheduler.
+    if lr_scheduler is not None:
+        if params.schedule_steps == "epoch" or params.schedule_steps > 0:
+            trainer.add_event_handler(get_event(params.schedule_steps), step_schedulers)
+        else:
+            raise ValueError(
+                '`schedule_steps` must be positve or "epoch"'
+                " when `lr_scheduler` is passed"
+            )
 
-    best_model_handler, early_stopping_handler = setup_save_handlers(
-        trainer,
-        val_evaluator,
-        net,
-        eval_metric,
-        save_path,
-        patience,
-    )
-    handlers["best_model_handler"] = best_model_handler
-    handlers["early_stopping_handler"] = early_stopping_handler
+    else:
+        logger.warning("LR scheduler not set")
 
+    # Setup evaluate handlers.
+    if params.eval_steps == "epoch" or params.eval_steps > 0:
+        for mode in ["train", "val"]:
+            if mode == "train" and not params.eval_train:
+                continue
+
+            trainer.add_event_handler(
+                get_event(params.eval_steps),
+                build_evaluate_handler(
+                    mode, evaluators[f"{mode}_evaluator"], data_loaders[mode]
+                ),
+            )
+            logger.info("Setup evaluator for [%s]", mode)
+
+        if params.num_save_models > 0:
+            handlers["best_model_handler"] = save_best_model_by_val_score(
+                params.save_path,
+                evaluators["val_evaluator"],
+                net,
+                params.eval_metric,
+                n_saved=params.num_save_models,
+                trainer=trainer,
+            )
+            logger.info(
+                "Save best model hander set with `num_save_models` = %d",
+                params.num_save_models,
+            )
+        else:
+            logger.warning("Save best model handler not set")
+
+        if params.early_stopping:
+            if params.eval_metric is None or params.patience is None:
+                raise ValueError(
+                    "`eval_metric` and `patience` must set when `early_stopping` is set"
+                )
+            if params.num_save_models < 0:
+                logger.warning("Early stopping is set, but best model is not saved")
+
+            handlers["early_stopping_handler"] = add_early_stopping_by_val_score(
+                params.patience,
+                evaluators["val_evaluator"],
+                trainer,
+                params.eval_metric,
+            )
+            logger.info(
+                "Early stopping is set with `eval_metric` = %s and `patience` = %d",
+                params.eval_metric,
+                params.patience,
+            )
+    else:
+        logger.warning("Evaluate handlers not set")
+        if params.early_stopping:
+            raise ValueError(
+                "Evaluate handlers must set when `early_stopping` is set"
+                ", check `eval_steps`, `eval_metric` and `patience`"
+            )
+
+    # Setup test evaluate handlers.
+    test_evaluator = evaluators.get("test_evaluator")
     if test_evaluator is not None:
+        test_loader = data_loaders.get("test")
+        if test_loader is None:
+            raise ValueError(
+                "`test_loader` must not be None when `test_evaluator` is passed"
+            )
         test_evaluate_handler = build_evaluate_handler(
-            "test", test_evaluator, test_loader, best_model_handler
+            "test", test_evaluator, test_loader, handlers.get("best_model_handler")
         )
         trainer.add_event_handler(Events.COMPLETED, test_evaluate_handler)
+        logger.info("Setup evaluator for [test]")
+    else:
+        logger.warning("Test evaluate handlers not set")
 
-    # Setup loggers.
-    evaluators = {"validating/train": train_evaluator, "validating/val": val_evaluator}
-    if test_evaluator is not None:
-        evaluators.update({"testing": test_evaluator})
+    if params.log_steps > 0:
+        # FIXME: Duplicated code with evaluator setup.
+        # https://github.com/pytorch/ignite/issues/1476#issuecomment-826317167
+        if params.eval_steps == "epoch" or params.eval_steps > 0:
 
-    for evaluator in evaluators.values():
-        ProgressBar(bar_format=bar_format).attach(
-            evaluator,
-            event_name=Events.ITERATION_COMPLETED(every=log_freq),
-        )
+            def filter_metrics(engine):
+                engine.state.metrics = {
+                    k: v for k, v in engine.state.metrics.items() if isinstance(v, dict)
+                }
 
-    log_dir = os.path.join(save_path, "log/")
-    os.makedirs(log_dir, exist_ok=True)
-    if tensorboard:
-        tensorboard_logger = setup_tb_logging(
-            log_dir,
+            for evaluator in evaluators.values():
+                evaluator.add_event_handler(
+                    Events.ITERATION_COMPLETED(every=params.log_steps), filter_metrics
+                )
+
+        logger_handlers = setup_logger_handlers(
+            params.save_path,
+            params.log_steps,
+            params.to_dict(),
             trainer,
-            optimizers=optimizer,
-            evaluators=evaluators,
-            log_freq=log_freq,
-            net=net,
-            include_weights_and_grads=watch,
+            net,
+            optimizer,
+            evaluators,
+            tensorboard=params.tensorboard,
+            wandb=params.wandb,
+            debug=params.debug,
         )
-        handlers["tensorboard_logger"] = tensorboard_logger
-
-    if wandb:
-        wandb_logger = setup_wandb_logging(
-            trainer,
-            optimizers=optimizer,
-            evaluators=evaluators,
-            log_every_iters=log_freq,
-            dir=log_dir,
-            config=params,
-            project=params["project"],
-            name=params["test_name"],
-            reinit=True,
-        )
-        wandb_logger.attach(
-            trainer, lambda *args, **kwargs: wandb_logger.close, Events.COMPLETED
-        )
-        if watch:
-            wandb_logger.watch(net, log="all", log_freq=log_freq)
-        handlers["wandb_logger"] = wandb_logger
+        handlers.update(logger_handlers)
+    else:
+        logger.warning("Logger handlers not set")
 
     return handlers
 
@@ -267,23 +367,23 @@ def build_train_step_function(
     optimizer: Optimizer,
     loss_function: nn.Module,
     train_step: TrainStepFunction,
-    device: torch.device = "cpu",
+    device: torch.device = torch.device("cpu"),
     non_blocking: bool = False,
-    clip_grad_norm: Optional[int] = None,
+    max_grad_norm: Optional[float] = None,
     gradient_accumulation_steps: Optional[int] = None,
 ) -> UpdateFunction:
     def _step(engine, batch):
         net.train()
-        batch = prepare_batch(batch, device=device, non_blocking=non_blocking)
-        output = train_step(net, batch, loss_function)
+        batch = convert_tensor(batch, device=device, non_blocking=non_blocking)
+        output = train_step(engine, net, batch, loss_function)
         loss = output["loss"]
         loss.backward()
         if (
             not gradient_accumulation_steps
             or engine.state.iteration % gradient_accumulation_steps == 0
         ):
-            if clip_grad_norm is not None:
-                torch.nn.utils.clip_grad_norm_(net.parameters(), clip_grad_norm)
+            if max_grad_norm is not None:
+                torch.nn.utils.clip_grad_norm_(net.parameters(), max_grad_norm)
             optimizer.step()
             optimizer.zero_grad()
         engine.state.metrics["loss"] = loss.item()
@@ -296,14 +396,16 @@ def build_train_step_function(
 def build_eval_step_function(
     net: nn.Module,
     eval_step: EvalStepFunction,
-    device: torch.device = "cpu",
+    device: torch.device = torch.device("cpu"),
     non_blocking: bool = False,
 ) -> UpdateFunction:
     def _step(engine, batch):
+        # pylint: disable=unused-argument
+
         net.eval()
         with torch.no_grad():
-            batch = prepare_batch(batch, device=device, non_blocking=non_blocking)
-            output = eval_step(net, batch)
+            batch = convert_tensor(batch, device=device, non_blocking=non_blocking)
+            output = eval_step(engine, net, batch)
 
             return output
 
@@ -312,13 +414,15 @@ def build_eval_step_function(
 
 class Trainer(metaclass=abc.ABCMeta):
     def get_metrics(self, train: bool = True) -> MetricGroup:
+        # pylint: disable=unused-argument
+
         return {}
 
     def predict_step(self, output: Dict) -> torch.Tensor:
         return output["logit"].argmax(dim=-1)
 
     def train_step(
-        self, net: nn.Module, batch: Batch, loss_function: nn.Module
+        self, _: Engine, net: nn.Module, batch: Batch, loss_function: nn.Module
     ) -> Dict:
         x, y = batch
         logit = net(x)
@@ -328,7 +432,7 @@ class Trainer(metaclass=abc.ABCMeta):
 
         return output
 
-    def eval_step(self, net: nn.Module, batch: Batch) -> Dict:
+    def eval_step(self, _: Engine, net: nn.Module, batch: Batch) -> Dict:
         x, y = batch
         logit = net(x)
         output = {"x": x, "y": y, "logit": logit}
@@ -342,14 +446,16 @@ class Trainer(metaclass=abc.ABCMeta):
         optimizer: Optimizer,
         loss_function: nn.Module,
         train_step: Optional[TrainStepFunction] = None,
-        clip_grad_norm: Optional[int] = None,
+        max_grad_norm: Optional[float] = None,
         gradient_accumulation_steps: Optional[int] = None,
-        device: torch.device = "cpu",
+        device: torch.device = torch.device("cpu"),
         non_blocking: bool = False,
         metrics: Optional[MetricGroup] = None,
         log_file: Optional[str] = None,
         name: str = "trainer",
     ) -> Engine:
+        # pylint: disable=too-many-arguments
+
         engine = Engine(
             build_train_step_function(
                 net,
@@ -358,7 +464,7 @@ class Trainer(metaclass=abc.ABCMeta):
                 train_step or self.train_step,
                 device=device,
                 non_blocking=non_blocking,
-                clip_grad_norm=clip_grad_norm,
+                max_grad_norm=max_grad_norm,
                 gradient_accumulation_steps=gradient_accumulation_steps,
             )
         )
@@ -371,6 +477,14 @@ class Trainer(metaclass=abc.ABCMeta):
             train=True,
         )
 
+        if max_grad_norm is not None:
+            logger.info("Max gradient norm set to: %f", max_grad_norm)
+
+        if gradient_accumulation_steps is not None:
+            logger.info(
+                "Gradient accumulation steps set to: %d", gradient_accumulation_steps
+            )
+
         return engine
 
     def get_evaluator(
@@ -378,7 +492,7 @@ class Trainer(metaclass=abc.ABCMeta):
         net: nn.Module,
         eval_step: Optional[EvalStepFunction] = None,
         metrics: Optional[MetricGroup] = None,
-        device: torch.device = "cpu",
+        device: torch.device = torch.device("cpu"),
         non_blocking: bool = False,
         log_file: Optional[str] = None,
         name: str = "evaluator",
@@ -407,7 +521,7 @@ class Trainer(metaclass=abc.ABCMeta):
         net: nn.Module,
         eval_step: EvalStepFunction = None,
         metrics: Optional[MetricGroup] = None,
-        device: torch.device = "cpu",
+        device: torch.device = torch.device("cpu"),
         non_blocking: bool = False,
         log_file: Optional[str] = None,
     ) -> Dict[str, Engine]:
@@ -428,13 +542,16 @@ class Trainer(metaclass=abc.ABCMeta):
 
     def get_engines(
         self,
+        params: Params,
         net: nn.Module,
         optimizer: Optimizer,
         loss_function: nn.Module,
         train_step: Optional[TrainStepFunction] = None,
         eval_step: Optional[EvalStepFunction] = None,
-        params: Optional[Mapping] = None,
     ) -> Tuple[Engine, Dict[str, Engine]]:
+        # Try to get engine params. Can't pass **params to
+        # `self.get_trainer` or `self.get_evaluators` because `params`
+        # contains invalid parameters for them.
         def _get_default_arguments(f, params):
             default_arguments = get_default_arguments(f)
             for key, value in params.items():
@@ -443,8 +560,7 @@ class Trainer(metaclass=abc.ABCMeta):
 
             return default_arguments
 
-        if not params:
-            params = {}
+        params = params.to_dict()
 
         trainer_params = _get_default_arguments(self.get_trainer, params)
         trainer_params.update(train_step=train_step)
@@ -456,8 +572,14 @@ class Trainer(metaclass=abc.ABCMeta):
 
         return trainer, evaluators
 
+    def setup_data_loaders(self, data_loaders):
+        self.data_loaders = data_loaders
+        for mode, loader in self.data_loaders.items():
+            logger.info("Dataset size [%s]: %d", mode, len(loader.dataset))
+
     def setup(
         self,
+        params: Params,
         data_loaders: Mapping[str, DataLoader],
         net: nn.Module,
         loss_fn: nn.Module,
@@ -465,52 +587,34 @@ class Trainer(metaclass=abc.ABCMeta):
         lr_scheduler: Optional[_LRScheduler] = None,
         train_step: Optional[TrainStepFunction] = None,
         eval_step: Optional[EvalStepFunction] = None,
-        params: Optional[Mapping] = None,
     ) -> None:
-        if not params:
-            raise ValueError("`params` must not be None")
-
         self.trainer, self.evaluators = self.get_engines(
-            net,
-            optimizer,
-            loss_fn,
-            train_step=train_step,
-            eval_step=eval_step,
-            params=params,
+            params, net, optimizer, loss_fn, train_step=train_step, eval_step=eval_step
         )
-        self.data_loaders = data_loaders
+        self.setup_data_loaders(data_loaders)
 
         self.net = net
         self.optimizer = optimizer
         self.lr_scheduler = lr_scheduler
 
-        self.params = params
-
-        setup_handlers(
+        self.handlers = setup_handlers(
+            params,
             self.trainer,
-            self.evaluators["train_evaluator"],
-            self.evaluators["val_evaluator"],
-            self.data_loaders["train"],
-            self.data_loaders["val"],
+            self.evaluators,
+            self.data_loaders,
             net,
             optimizer,
-            params["eval_metric"],
-            params["save_path"],
             lr_scheduler=lr_scheduler,
-            eval_freq=params["eval_freq"],
-            log_freq=params["log_freq"],
-            schedule_freq=params["schedule_freq"],
-            patience=params["patience"],
-            test_evaluator=self.evaluators["test_evaluator"],
-            test_loader=self.data_loaders["test"],
-            tensorboard=params["tensorboard"],
-            wandb=params["wandb"],
-            params=params,
         )
+
+        self.params = params
 
     def run(self, *args, **kwargs) -> None:
         logger.info("Start training with params:")
-        logger.info(pprint.pformat(self.params))
+        for key, value in self.params.items():
+            logger.info("%s = %s", key, value)
+
+        self.params.to_yaml()
 
         kwargs.setdefault("max_epochs", self.params["max_epochs"])
         self.trainer.run(self.data_loaders["train"], *args, **kwargs)
@@ -530,7 +634,7 @@ class TrainerForClassification(Trainer):
         return metrics
 
     def train_step(
-        self, net: nn.Module, batch: Batch, loss_function: nn.Module
+        self, _: Engine, net: nn.Module, batch: Batch, loss_function: nn.Module
     ) -> Dict:
         x, y = batch
         logit = net(x)
@@ -544,7 +648,7 @@ class TrainerForClassification(Trainer):
 
         return {"x": x, "y": y, "y_pred": y_pred, "logit": logit, "loss": loss}
 
-    def eval_step(self, net: nn.Module, batch: Batch) -> Dict:
+    def eval_step(self, _: Engine, net: nn.Module, batch: Batch) -> Dict:
         x, y = batch
         logit = net(batch)
         logit = logit.squeeze(dim=1)
@@ -597,7 +701,7 @@ class TrainerForRanking(Trainer):
         return metrics
 
     def train_step(
-        self, net: nn.Module, batch: Batch, loss_function: nn.Module
+        self, _: Engine, net: nn.Module, batch: Batch, loss_function: nn.Module
     ) -> Dict:
         train_steps = {
             "pointwise": self._pointwise_step,
@@ -607,7 +711,7 @@ class TrainerForRanking(Trainer):
 
         return train_steps[self.mode](net, batch, loss_function)
 
-    def eval_step(self, net: nn.Module, batch: Batch) -> Dict:
+    def eval_step(self, _: Engine, net: nn.Module, batch: Batch) -> Dict:
         y, y_pred = [], []
         for sample_x, sample_y in batch:
             logit = net(sample_x)
@@ -638,7 +742,7 @@ class TrainerForSequenceLabeling(Trainer):
         return metrics
 
     def train_step(
-        self, net: nn.Module, batch: Batch, loss_function: nn.Module
+        self, _: Engine, net: nn.Module, batch: Batch, loss_function: nn.Module
     ) -> Dict:
         x, y = batch
         logit = net(x)

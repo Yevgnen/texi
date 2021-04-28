@@ -1,0 +1,53 @@
+---
+# Project
+project: "spert"
+
+# Datasets
+data_dir: "./data"
+val_size: 0.1
+test_size: 0.2
+
+# Training
+seed: null
+save_path: "output/"
+max_epochs: 20
+lr: 0.00005
+lr_warmup: 0.1
+weight_decay: 0.01
+max_grad_norm: 1.0
+schedule_steps: 1
+
+# Dataloader
+train_batch_size: 2
+eval_batch_size: 1
+device: 'cuda'
+num_workers: 0
+pin_memory: true
+non_blocking: true
+
+# Evaluation & Early Stopping
+eval_train: false
+eval_steps: "epoch"
+num_save_models: 1
+early_stopping: false
+eval_metric: "RE.all.f1"
+patience: 10
+
+# Logging
+log_steps: 10
+tensorboard: true
+wandb: true
+debug: false
+
+# Model
+pretrained_model: "bert-base-cased"
+embedding_dim: 25
+dropout: 0.1
+global_context_pooling: "cls"
+negative_entity_type: "NON_ENTITY"
+negative_relation_type: "NO_RELATION"
+num_negative_entities: 100
+num_negative_relations: 100
+max_entity_length: 10
+relation_filter_threshold: 0.4
+text_delimiter: " "

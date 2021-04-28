@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
 
+import itertools
 import re
 import string
 import unicodedata
-from typing import Callable, List, Optional
+from typing import Callable, Iterable, List, Optional, Union
+
+import torch
 
 LIGATURE_TABLE = {
     42802: "AA",
@@ -87,3 +90,104 @@ def get_opencc(conversion: Optional[str] = "t2s") -> Callable[[str], str]:
         return converter.convert(text)
 
     return _wrapper
+
+
+class LabelEncoder(object):
+    def __init__(
+        self, tokens: Optional[Iterable[str]] = None, unknown: Optional[str] = None
+    ):
+        self.unknown = unknown
+        self.init(tokens)
+
+    def __len__(self):
+        return len(self.index2label)
+
+    @property
+    def labels(self):
+        return list(self.label2index)
+
+    @property
+    def num_labels(self):
+        return len(self)
+
+    def reset(self) -> None:
+        self.index2label = {}
+        self.label2index = {}
+
+        if self.unknown:
+            self.label2index[self.unknown] = 0
+            self.index2label[0] = self.unknown
+
+    def init(self, tokens: Iterable[str]) -> None:
+        self.reset()
+
+        if not tokens:
+            return
+
+        for token in tokens:
+            self.label2index.setdefault(token, len(self.label2index))
+
+        self.index2label = {v: k for k, v in self.label2index.items()}
+
+    def add(self, token: str) -> int:
+        index = self.label2index.setdefault(token, len(self))
+        self.index2label.setdefault(index, token)
+
+        return index
+
+    def encode_label(
+        self, token: str, return_tensors: Optional[str] = None
+    ) -> Union[int, torch.Tensor]:
+        index = self.label2index[token]
+
+        if return_tensors == "pt":
+            return torch.tensor(index, dtype=torch.int64)
+
+        if isinstance(return_tensors, str):
+            raise ValueError('`return_tensors` should be "pt" or None')
+
+        return index
+
+    def decode_label(self, index: Union[int, torch.LongTensor]) -> str:
+        if isinstance(index, torch.LongTensor):
+            if index.ndim > 0:
+                raise ValueError(
+                    f"tensor should be 0-d tensor, got: ndim == {index.ndim}"
+                )
+            index = int(index.cpu().numpy())
+
+        if not isinstance(index, int):
+            raise ValueError(
+                "`index` should be int or torch.LongTensor, "
+                f"got: {index.__class__.__name__}"
+            )
+
+        return self.index2label[index]
+
+    def encode(
+        self, tokens: Iterable[str], return_tensors: Optional[str] = None
+    ) -> Union[List[int], torch.Tensor]:
+        indices = [self.label2index[x] for x in tokens]
+        if return_tensors == "pt":
+            return torch.tensor(indices, dtype=torch.int64)
+
+        if isinstance(return_tensors, str):
+            raise ValueError('`return_tensors` should be "pt" or None')
+
+        return indices
+
+    def decode(self, indices: Union[torch.LongTensor, Iterable[int]]) -> List[str]:
+        if isinstance(indices, torch.LongTensor):
+            if indices.ndim != 1:
+                raise ValueError(
+                    f"tensor should be 1-d tensor, got: ndim == {indices.ndim}"
+                )
+            indices = indices.cpu().numpy()
+
+        tokens = [self.index2label[x] for x in indices]
+
+        return tokens
+
+    @classmethod
+    def from_iterable(cls, tokens):
+        return cls(itertools.chain.from_iterable(tokens))
