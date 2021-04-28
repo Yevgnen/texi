@@ -285,7 +285,7 @@ class SequenceLabeler(object):
         non_blocking: bool = False,
         batch_size: int = 32,
     ) -> List[List[Dict]]:
-        dummy_label = self.label_encoder.vocab[0]
+        dummy_label = self.label_encoder.labels[0]
 
         examples = [
             {"tokens": sample_tokens, "labels": [dummy_label] * len(sample_tokens)}
