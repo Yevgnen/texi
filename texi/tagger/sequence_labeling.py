@@ -7,14 +7,14 @@ from typing import Dict, Iterable, List, Mapping
 
 
 class SequeceLabelingTagger(metaclass=abc.ABCMeta):
-    def __init__(self, tag_field: str = "tag"):
-        self.tag_field = tag_field
+    def __init__(self, type_field: str = "type"):
+        self.type_field = type_field
 
     def _iter_spans(self, spans):
         for chunk in spans:
             if isinstance(chunk, collections.abc.Mapping):
                 type_, start, end = (
-                    chunk[self.tag_field],
+                    chunk[self.type_field],
                     int(chunk["start"]),
                     int(chunk["end"]),
                 )
@@ -42,7 +42,7 @@ class SequeceLabelingTagger(metaclass=abc.ABCMeta):
                 if not line:
                     if example:
                         tokens, spans = zip(*example)
-                        examples += [{"tokens": list(tokens), "tags": list(spans)}]
+                        examples += [{"tokens": list(tokens), "labels": list(spans)}]
                         example = []
                     continue
 
@@ -58,8 +58,8 @@ class SequeceLabelingTagger(metaclass=abc.ABCMeta):
             for example in examples:
                 f.writelines(
                     itertools.chain(
-                        f"{token}{sep}{tag}\n"
-                        for token, tag in zip(example["tokens"], example["tags"])
+                        f"{token}{sep}{label}\n"
+                        for token, label in zip(example["tokens"], example["labels"])
                     )
                 )
                 f.writelines("\n")
@@ -67,166 +67,171 @@ class SequeceLabelingTagger(metaclass=abc.ABCMeta):
 
 class IOB1(SequeceLabelingTagger):
     def encode(self, inputs: Mapping) -> Dict:
-        tokens, spans = inputs["tokens"], inputs["spans"]
+        tokens, spans = inputs["tokens"], inputs["labels"]
 
-        tags = ["O"] * len(tokens)
-        for tag, start, end in self._iter_spans(spans):
-            I_tag, B_tag = f"I-{tag}", f"B-{tag}"
-            tags[start:end] = [I_tag] * (end - start)
-            if start > 0 and tags[start - 1] in {I_tag, B_tag}:
-                tags[start] = f"B-{tag}"
+        labels = ["O"] * len(tokens)
+        for label, start, end in self._iter_spans(spans):
+            I_label, B_label = f"I-{label}", f"B-{label}"
+            labels[start:end] = [I_label] * (end - start)
+            if start > 0 and labels[start - 1] in {I_label, B_label}:
+                labels[start] = f"B-{label}"
 
-        return {"tokens": tokens, "tags": tags}
+        return {"tokens": tokens, "labels": labels}
 
     def decode(self, inputs: Mapping) -> Dict:
-        tokens, tags = inputs["tokens"], inputs["tags"]
+        tokens, labels = inputs["tokens"], inputs["labels"]
 
         spans = []
         start = -1
-        current_tag = None
-        for i, tag in enumerate(tags):
-            if tag == "O":
-                prefix, tag = tag, None
+        current_label = None
+        for i, label in enumerate(labels):
+            if label == "O":
+                prefix, label = label, None
             else:
-                prefix, tag = tag.split("-")
+                prefix, label = label.split("-")
 
-            if prefix == "I" and tag == current_tag:
+            if prefix == "I" and label == current_label:
                 continue
 
-            if current_tag and start >= 0:
+            if current_label and start >= 0:
                 spans += [
                     {
-                        self.tag_field: current_tag,
+                        self.type_field: current_label,
                         "start": start,
                         "end": i,
                     }
                 ]
                 start = -1
-                current_tag = None
+                current_label = None
 
-            if prefix == "B" or prefix == "I" and not current_tag or tag != current_tag:
+            if (
+                prefix == "B"
+                or prefix == "I"
+                and not current_label
+                or label != current_label
+            ):
                 start = i
-                current_tag = tag
+                current_label = label
 
         if prefix != "O":
             spans += [
                 {
-                    self.tag_field: tag,
+                    self.type_field: label,
                     "start": start,
                     "end": len(tokens),
                 }
             ]
 
-        return {"tokens": tokens, "spans": spans}
+        return {"tokens": tokens, "labels": spans}
 
 
 class IOB2(SequeceLabelingTagger):
     def encode(self, inputs: Mapping) -> Dict:
-        tokens, spans = inputs["tokens"], inputs["spans"]
+        tokens, spans = inputs["tokens"], inputs["labels"]
 
-        tags = ["O"] * len(tokens)
-        for tag, start, end in self._iter_spans(spans):
-            tags[start] = f"B-{tag}"
-            tags[start + 1 : end] = [f"I-{tag}"] * (end - start - 1)
+        labels = ["O"] * len(tokens)
+        for label, start, end in self._iter_spans(spans):
+            labels[start] = f"B-{label}"
+            labels[start + 1 : end] = [f"I-{label}"] * (end - start - 1)
 
-        return {"tokens": tokens, "tags": tags}
+        return {"tokens": tokens, "labels": labels}
 
     def decode(self, inputs: Mapping) -> Dict:
-        tokens, tags = inputs["tokens"], inputs["tags"]
+        tokens, labels = inputs["tokens"], inputs["labels"]
 
         spans = []
         start = -1
-        current_tag = None
-        for i, tag in enumerate(tags):
-            if tag == "O":
-                prefix, tag = tag, None
+        current_label = None
+        for i, label in enumerate(labels):
+            if label == "O":
+                prefix, label = label, None
             else:
-                prefix, tag = tag.split("-")
+                prefix, label = label.split("-")
 
-            if prefix == "I" and tag == current_tag:
+            if prefix == "I" and label == current_label:
                 continue
 
-            if current_tag and start >= 0:
+            if current_label and start >= 0:
                 spans += [
                     {
-                        self.tag_field: current_tag,
+                        self.type_field: current_label,
                         "start": start,
                         "end": i,
                     }
                 ]
                 start = -1
-                current_tag = None
+                current_label = None
 
             if prefix == "B":
                 start = i
-                current_tag = tag
+                current_label = label
 
         if prefix != "O":
             spans += [
                 {
-                    self.tag_field: tag,
+                    self.type_field: label,
                     "start": start,
                     "end": len(tokens),
                 }
             ]
 
-        return {"tokens": tokens, "spans": spans}
+        return {"tokens": tokens, "labels": spans}
 
 
 class IOBES(SequeceLabelingTagger):
     def encode(self, inputs: Mapping) -> Dict:
-        tokens, spans = inputs["tokens"], inputs["spans"]
+        tokens, spans = inputs["tokens"], inputs["labels"]
 
-        tags = ["O"] * len(tokens)
-        for tag, start, end in self._iter_spans(spans):
+        labels = ["O"] * len(tokens)
+        for label, start, end in self._iter_spans(spans):
             if start + 1 == end:
-                tags[start] = f"S-{tag}"
+                labels[start] = f"S-{label}"
             else:
-                tags[start] = f"B-{tag}"
-                tags[start + 1 : end - 1] = [f"I-{tag}"] * (end - start - 2)
-                tags[end - 1] = f"E-{tag}"
+                labels[start] = f"B-{label}"
+                labels[start + 1 : end - 1] = [f"I-{label}"] * (end - start - 2)
+                labels[end - 1] = f"E-{label}"
 
-        return {"tokens": tokens, "tags": tags}
+        return {"tokens": tokens, "labels": labels}
 
     def decode(self, inputs: Mapping) -> Dict:
-        tokens, tags = inputs["tokens"], inputs["tags"]
+        tokens, labels = inputs["tokens"], inputs["labels"]
 
         spans = []
         start = -1
-        current_tag = None
-        for i, tag in enumerate(tags):
-            if tag == "O":
-                prefix, tag = tag, None
+        current_label = None
+        for i, label in enumerate(labels):
+            if label == "O":
+                prefix, label = label, None
             else:
-                prefix, tag = tag.split("-")
+                prefix, label = label.split("-")
 
             if prefix == "S":
-                spans += [{self.tag_field: tag, "start": i, "end": i + 1}]
+                spans += [{self.type_field: label, "start": i, "end": i + 1}]
                 start = -1
-                current_tag = None
+                current_label = None
                 continue
 
             if prefix == "I":
-                if tag == current_tag:
+                if label == current_label:
                     continue
 
                 start = -1
-                current_tag = None
+                current_label = None
 
             if prefix == "E":
-                if current_tag and start >= 0 and tag == current_tag:
+                if current_label and start >= 0 and label == current_label:
                     spans += [
                         {
-                            self.tag_field: current_tag,
+                            self.type_field: current_label,
                             "start": start,
                             "end": i + 1,
                         }
                     ]
                 start = -1
-                current_tag = None
+                current_label = None
 
             if prefix == "B":
                 start = i
-                current_tag = tag
+                current_label = label
 
-        return {"tokens": tokens, "spans": spans}
+        return {"tokens": tokens, "labels": spans}

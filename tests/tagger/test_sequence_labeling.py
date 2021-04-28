@@ -5,7 +5,7 @@ import unittest
 from texi.tagger.sequence_labeling import IOB1, IOB2, IOBES
 
 
-def _get_spans():
+def _get_input():
     inputs = {
         "tokens": [
             "Bill",
@@ -21,15 +21,15 @@ def _get_spans():
             "Philadelphia",
             "train.",
         ],
-        "spans": [
-            {"tag": "PER", "start": 0, "end": 1},
+        "labels": [
+            {"type": "PER", "start": 0, "end": 1},
             {
-                "tag": "ORG",
+                "type": "ORG",
                 "start": 3,
                 "end": 6,
             },
-            {"tag": "LOC", "start": 9, "end": 10},
-            {"tag": "LOC", "start": 10, "end": 11},
+            {"type": "LOC", "start": 9, "end": 10},
+            {"type": "LOC", "start": 10, "end": 11},
         ],
     }
 
@@ -41,11 +41,11 @@ class TestIOB1(unittest.TestCase):
         self.tagger = IOB1()
 
     def test_encode(self):
-        inputs = _get_spans()
+        inputs = _get_input()
         outputs = self.tagger.encode(inputs)
         expected = {
             "tokens": inputs["tokens"],
-            "tags": [
+            "labels": [
                 "I-PER",
                 "O",
                 "O",
@@ -64,10 +64,10 @@ class TestIOB1(unittest.TestCase):
         self.assertDictEqual(expected, outputs)
 
     def test_decode(self):
-        expected = _get_spans()
+        expected = _get_input()
         inputs = {
             "tokens": expected["tokens"],
-            "tags": [
+            "labels": [
                 "I-PER",
                 "O",
                 "O",
@@ -92,11 +92,11 @@ class TestIOB2(unittest.TestCase):
         self.tagger = IOB2()
 
     def test_encode(self):
-        inputs = _get_spans()
+        inputs = _get_input()
         outputs = self.tagger.encode(inputs)
         expected = {
             "tokens": inputs["tokens"],
-            "tags": [
+            "labels": [
                 "B-PER",
                 "O",
                 "O",
@@ -114,10 +114,10 @@ class TestIOB2(unittest.TestCase):
         self.assertDictEqual(expected, outputs)
 
     def test_decode(self):
-        expected = _get_spans()
+        expected = _get_input()
         inputs = {
             "tokens": expected["tokens"],
-            "tags": [
+            "labels": [
                 "B-PER",
                 "O",
                 "O",
@@ -142,11 +142,11 @@ class TestIOBES(unittest.TestCase):
         self.tagger = IOBES()
 
     def test_encode(self):
-        inputs = _get_spans()
+        inputs = _get_input()
         outputs = self.tagger.encode(inputs)
         expected = {
             "tokens": inputs["tokens"],
-            "tags": [
+            "labels": [
                 "S-PER",
                 "O",
                 "O",
@@ -165,10 +165,10 @@ class TestIOBES(unittest.TestCase):
         self.assertDictEqual(expected, outputs)
 
     def test_decode(self):
-        expected = _get_spans()
+        expected = _get_input()
         inputs = {
             "tokens": expected["tokens"],
-            "tags": [
+            "labels": [
                 "S-PER",
                 "O",
                 "O",
