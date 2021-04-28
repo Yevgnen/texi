@@ -207,7 +207,7 @@ def setup_handlers(
             for key, metric in sorted(
                 evaluator.state.metrics.items(), key=lambda x: x[0]
             ):
-                # Ignote Dict metrics flattend by ignite.`
+                # Ignote Dict metrics flattend by ignite.
                 if isinstance(metric, Mapping):
                     continue
 
