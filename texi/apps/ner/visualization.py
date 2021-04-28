@@ -148,18 +148,20 @@ class SpERTVisualizer(object):
         template.stream(examples=examples).dump(filename)
 
     def export_entities(self, examples: Iterable[Mapping], filename: str) -> None:
-        # Input format:
-        #
-        # type: 0: tp, 1: fp, -1: fn
-        # score: [0, 1]
-        #
-        # {
-        #     "tokens": ["Bill", "was", "born", "in", "USA", "."],
-        #     "entities": [
-        #         ({"type": "per", "start": 0, "end": 1}, 0, 0.99999),
-        #         ({"type": "loc", "start": 4, "end": 5}, -1, -1),
-        #     ]
-        # }
+        """
+        Input format:
+
+        type: 0: tp, 1: fp, -1: fn
+        score: [0, 1]
+
+        {
+            "tokens": ["Bill", "was", "born", "in", "USA", "."],
+            "entities": [
+                ({"type": "per", "start": 0, "end": 1}, 0, 0.99999),
+                ({"type": "loc", "start": 4, "end": 5}, -1, -1),
+            ]
+        }
+        """
         return self._export(
             examples,
             filename,
@@ -169,17 +171,19 @@ class SpERTVisualizer(object):
         )
 
     def export_relations(self, examples: Iterable[Mapping], filename: str) -> None:
-        # Input format:
-        #
-        # type: 0: tp, 1: fp, -1: fn
-        # score: [0, 1]
-        #
-        # {
-        #     "tokens": ["Bill", "was", "born", "in", "USA", "."],
-        #     "relations": [
-        #         ({"type": "fake", "head": 1, "tail": 0}, 0, 0.75)
-        #     ]
-        # }
+        """
+        Input format:
+
+        type: 0: tp, 1: fp, -1: fn
+        score: [0, 1]
+
+        {
+            "tokens": ["Bill", "was", "born", "in", "USA", "."],
+            "relations": [
+                ({"type": "fake", "head": 1, "tail": 0}, 0, 0.75)
+            ]
+        }
+        """
         return self._export(
             examples,
             filename,
