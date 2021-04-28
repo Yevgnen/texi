@@ -21,8 +21,10 @@ def forward(
     padding_value=0.0,
     total_length=None,
 ):
+    # ATM `lengths` must be 1d long tensor on CPU.
+    # https://github.com/pytorch/pytorch/issues/43227
     packed = pack_padded_sequence(
-        inputs, lengths, batch_first=batch_first, enforce_sorted=enforce_sorted
+        inputs, lengths.cpu(), batch_first=batch_first, enforce_sorted=enforce_sorted
     )
     hidden, states = self.encoder(packed)
     hidden, _ = pad_packed_sequence(
