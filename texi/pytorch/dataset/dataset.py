@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-import abc
 from typing import (
     Any,
+    Callable,
     Dict,
     Iterable,
     List,
@@ -17,6 +17,7 @@ from typing import (
 import torch
 from torch.utils.data import DataLoader
 
+from texi.datasets import Dataset as BaseDataset
 from texi.pytorch.utils import get_sampler
 
 T = TypeVar("T", bound="Dataset")
@@ -25,14 +26,14 @@ Batch = Union[Tuple[Dict[str, torch.Tensor], torch.Tensor], Dict[str, torch.Tens
 Texts = Union[Iterable[str], str]
 
 
-class Dataset(metaclass=abc.ABCMeta):
+class Dataset(BaseDataset):
     def __init__(
         self,
-        examples: Iterable[Dict],
+        examples: Union[Iterable[Dict], Callable[[], Iterable[Dict]]],
         tokenizer: Optional[Any] = None,
         train: bool = False,
     ):
-        self.examples = list(examples)
+        super().__init__(examples)
 
         if tokenizer is None:
             raise ValueError("`tokenizer` must not be None")
@@ -40,15 +41,6 @@ class Dataset(metaclass=abc.ABCMeta):
         self.label_encoder = None
 
         self.is_train = train
-
-    def __len__(self):
-        return len(self.examples)
-
-    def __getitem__(self, key):
-        return self.examples[key]
-
-    def __iter__(self):
-        yield from iter(self.examples)
 
     def train(self):
         self.is_train = True
