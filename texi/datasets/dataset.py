@@ -24,6 +24,9 @@ class Dataset(object):
 
         return self
 
+    def describe(self):
+        return {"size": len(self)}
+
     def __getitem__(self, key):
         self._check_loaded()
 

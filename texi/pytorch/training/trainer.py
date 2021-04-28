@@ -6,7 +6,7 @@ import enum
 import logging
 import os
 import traceback
-from typing import Callable, Dict, Mapping, Optional, Tuple
+from typing import Callable, Dict, Mapping, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -53,6 +53,13 @@ def setup_env(params: Params):
 
     os.makedirs(os.path.dirname(params["log_file"]), exist_ok=True)
     carton_setup_logger(level=logging.INFO, filename=params["log_file"])
+
+
+def log_dict(
+    _logger: logging.Logger, d: Union[Mapping, Params], sep: str = " = "
+) -> None:
+    for key, value in d.items():
+        _logger.info(f"{key}{sep}{value}")
 
 
 def convert_tensor(*args, **kwargs):
@@ -575,7 +582,14 @@ class Trainer(metaclass=abc.ABCMeta):
     def setup_data_loaders(self, data_loaders):
         self.data_loaders = data_loaders
         for mode, loader in self.data_loaders.items():
-            logger.info("Dataset size [%s]: %d", mode, len(loader.dataset))
+            logger.info("Dataset description [%s]:", mode)
+
+            if isinstance(loader.dataset, Dataset):
+                stats = loader.dataset.describe()
+            else:
+                stats = {"size": len(loader.dataset)}
+
+            log_dict(logger, stats)
 
     def setup(
         self,
@@ -610,9 +624,8 @@ class Trainer(metaclass=abc.ABCMeta):
         self.params = params
 
     def run(self, *args, **kwargs) -> None:
-        logger.info("Start training with params:")
-        for key, value in self.params.items():
-            logger.info("%s = %s", key, value)
+        logger.info("Training params:")
+        log_dict(logger, self.params)
 
         self.params.to_yaml()
 
