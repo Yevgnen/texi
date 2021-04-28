@@ -177,7 +177,7 @@ class SequenceDecoderForPreTraining(object):
             # Decode tag ids.
             if tag_ids.dim() > 1:  # logit
                 tag_ids = tag_ids.argmax(dim=-1)
-            tag_ids = tag_ids[tag_mask > 0].detach().cpu().numpy().tolist()
+            tag_ids = tag_ids[tag_mask > 0].tolist()
             tags += [tag_ids]
         tags = self.label_encoder.decode(tags)
 

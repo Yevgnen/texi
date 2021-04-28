@@ -49,7 +49,7 @@ class NerMetrics(Metric):
             return span_with_label
 
         def _to_tuples(span_with_label):
-            span_with_labels = span_with_label.detach().cpu().numpy().tolist()
+            span_with_labels = span_with_label.tolist()
 
             tuples = []
             for sample_span_with_labels in span_with_labels:

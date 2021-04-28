@@ -57,9 +57,9 @@ class ReMetrics(Metric):
 
         def _to_tuples(pair_with_one_hot_label, entity_span, entity_label):
             pair_with_one_hot_labels = (
-                pair_with_one_hot_label.detach().cpu().numpy().tolist()
+                pair_with_one_hot_label.tolist()
             )
-            entity_spans = entity_span.detach().cpu().numpy().tolist()
+            entity_spans = entity_span.tolist()
             entity_labels = entity_label.detach().cpu().numpy()
 
             tuples = []
