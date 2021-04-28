@@ -1,25 +1,48 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import annotations
+
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+)
+
 import torch
 import torch.nn as nn
 from torchcrf import CRF
 from transformers import BertModel
 
+from texi.preprocessing import LabelEncoder
 from texi.pytorch.masking import length_to_mask
 from texi.pytorch.rnn import LSTM
 from texi.pytorch.training.trainer import convert_tensor
+from texi.tagger.sequence_labeling import SequeceLabelingTagger
+
+if TYPE_CHECKING:
+    from transformers.tokenization_utils import PreTrainedTokenizer
+
+BatchInput = Dict[str, torch.Tensor]
+Batch = Tuple[BatchInput, torch.Tensor]
+BatchId = List[List[int]]
 
 
 class BiLstmCrf(nn.Module):
     def __init__(
         self,
-        vocab_size,
-        num_labels,
-        embedded_size=100,
-        hidden_size=100,
-        num_layers=2,
-        char_embedding=None,
-        dropout=0.0,
+        vocab_size: int,
+        num_labels: int,
+        embedded_size: int = 100,
+        hidden_size: int = 100,
+        num_layers: int = 2,
+        char_embedding: Optional[nn.Embedding] = None,
+        dropout: float = 0.0,
     ):
         super().__init__()
         self.vocab_size = vocab_size
@@ -37,7 +60,7 @@ class BiLstmCrf(nn.Module):
         )
         self.fc = nn.Linear(2 * hidden_size, num_labels)
 
-    def forward(self, inputs):
+    def forward(self, inputs: BatchInput) -> torch.Tensor:
         x = inputs["token"]
         lengths = inputs["length"]
 
@@ -50,7 +73,7 @@ class BiLstmCrf(nn.Module):
 
 
 class BertForSequenceLabeling(nn.Module):
-    def __init__(self, pretrained_model, **kwargs):
+    def __init__(self, pretrained_model: str, **kwargs):
         super().__init__()
         num_labels = kwargs.get("num_labels")
         if num_labels is None:
@@ -65,7 +88,7 @@ class BertForSequenceLabeling(nn.Module):
 
         self.output = nn.Linear(self.bert.config.hidden_size, num_labels)
 
-    def forward(self, inputs):
+    def forward(self, inputs: BatchInput) -> torch.Tensor:
         inputs = {
             key: value
             for key, value in inputs.items()
@@ -79,7 +102,9 @@ class BertForSequenceLabeling(nn.Module):
 
 
 class SequenceCrossEntropyLoss(nn.CrossEntropyLoss):
-    def forward(self, input_, target, length):
+    def forward(
+        self, input_: torch.Tensor, target: torch.Tensor, length: torch.Tensor
+    ) -> torch.Tensor:
         label_mask = length_to_mask(length, batch_first=True)
         assert input_.size()[:-1] == label_mask.size()
         assert target.size() == label_mask.size()
@@ -92,33 +117,41 @@ class SequenceCrossEntropyLoss(nn.CrossEntropyLoss):
 
 
 class CRFForPreTraining(CRF):
-    def __init__(self, num_labels, batch_first=True):
+    def __init__(self, num_labels: int, batch_first: bool = True):
         super().__init__(num_labels, batch_first=batch_first)
 
-    def forward(self, emissions, labels, mask, reduction="sum"):
+    def forward(
+        self,
+        emissions: torch.Tensor,
+        labels: torch.Tensor,
+        mask: torch.Tensor,
+        reduction: str = "sum",
+    ) -> torch.Tensor:
         emissions = emissions[:, 1:, :]
         labels = labels[:, 1:]
         mask = mask[:, 1:].bool()
 
         return -super().forward(emissions, labels, mask, reduction=reduction)
 
-    def decode(self, emissions, mask):
+    def decode(
+        self, emissions: torch.Tensor, mask: Optional[torch.ByteTensor] = None
+    ) -> BatchId:
         return super().decode(emissions, mask.bool())
 
 
 class CRFDecoder(object):
-    def __init__(self, tokenizer, label_encoder, crf):
+    def __init__(self, tokenizer: Any, label_encoder: LabelEncoder, crf: CRF):
         self.tokenizer = tokenizer
         self.label_encoder = label_encoder
         self.crf = crf
 
-    def decode_tokens(self, x):
+    def decode_tokens(self, x: BatchInput) -> BatchId:
         tokens = self.tokenizer.batch_decode(x["token"], x["length"])
         tokens = [x[:length] for x, length in zip(tokens, x["length"])]
 
         return tokens
 
-    def decode_labels(self, x, y):
+    def decode_labels(self, x: BatchInput, y) -> BatchId:
         if y.dim() > 2:
             labels = self.crf.decode(y, length_to_mask(x["length"], batch_first=True))
         else:
@@ -127,7 +160,7 @@ class CRFDecoder(object):
 
         return [x[:length] for x, length in zip(labels, x["length"])]
 
-    def decode(self, batch):
+    def decode(self, batch: Batch) -> Tuple[BatchId]:
         x, y = batch
 
         tokens = self.decode_tokens(x)
@@ -143,11 +176,13 @@ class CRFDecoder(object):
 
 
 class SequenceDecoderForPreTraining(object):
-    def __init__(self, tokenizer, label_encoder):
+    def __init__(self, tokenizer: PreTrainedTokenizer, label_encoder: LabelEncoder):
         self.tokenizer = tokenizer
         self.label_encoder = label_encoder
 
-    def decode_tokens(self, x, token_transform):
+    def decode_tokens(
+        self, x: BatchInput, token_transform: Callable[[List[str]], str]
+    ) -> BatchId:
         tokens = []
         for input_ids, offsets in zip(x["input_ids"], x["offset_mapping"]):
             # Decode token ids.
@@ -173,7 +208,7 @@ class SequenceDecoderForPreTraining(object):
 
         return tokens
 
-    def decode_labels(self, x, y):
+    def decode_labels(self, x: BatchInput, y: torch.Tensor) -> BatchId:
         labels = []
         for label_mask, label_ids in zip(x["label_mask"], y):
             # Decode label ids.
@@ -186,7 +221,11 @@ class SequenceDecoderForPreTraining(object):
         return labels
 
     def decode(
-        self, batch, token_transform=lambda x: "".join(w.replace("##", "") for w in x)
+        self,
+        batch: Batch,
+        token_transform: Callable[[List[str]], str] = lambda x: "".join(
+            w.replace("##", "") for w in x
+        ),
     ):
         x, y = batch
 
@@ -203,12 +242,13 @@ class SequenceDecoderForPreTraining(object):
 
 
 class CRFDecoderForPreTraining(SequenceDecoderForPreTraining):
-    def __init__(self, tokenizer, label_encoder, crf):
-        self.tokenizer = tokenizer
-        self.label_encoder = label_encoder
+    def __init__(
+        self, tokenizer: PreTrainedTokenizer, label_encoder: LabelEncoder, crf: CRF
+    ):
+        super().__init__(tokenizer, label_encoder)
         self.crf = crf
 
-    def decode_labels(self, x, y):
+    def decode_labels(self, x: BatchInput, y: torch.Tensor) -> BatchId:
         if y.dim() == 2:
             return super().decode_labels(x, y)
 
@@ -219,14 +259,27 @@ class CRFDecoderForPreTraining(SequenceDecoderForPreTraining):
 
 
 class SequenceLabeler(object):
-    def __init__(self, net, tokenizer, label_encoder, dataset_class, tagger):
+    def __init__(
+        self,
+        net: nn.Module,
+        tokenizer: Any,
+        label_encoder: LabelEncoder,
+        dataset_class: Type,
+        tagger: SequeceLabelingTagger,
+    ):
         self.net = net
         self.tokenizer = tokenizer
         self.label_encoder = label_encoder
         self.dataset_class = dataset_class
         self.tagger = tagger
 
-    def predict(self, tokens, device="cpu", non_blocking=False, batch_size=32):
+    def predict(
+        self,
+        tokens: Sequence[Sequence[str]],
+        device: torch.device = torch.device("cpu"),
+        non_blocking: bool = False,
+        batch_size: int = 32,
+    ) -> List[List[Dict]]:
         dummy_label = self.label_encoder.vocab[0]
 
         examples = [

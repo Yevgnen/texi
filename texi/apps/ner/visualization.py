@@ -15,7 +15,7 @@ def spacy_visual_ner(
     filename: Optional[str] = None,
     colors: Optional[Mapping[str, str]] = None,
     token_sep: str = " ",
-):
+) -> None:
     # pylint: disable=import-outside-toplevel
     from spacy import displacy
 
@@ -52,7 +52,7 @@ def spacy_visual_ner(
 class SpERTVisualizer(object):
     # Reference: https://github.com/markus-eberts/spert
 
-    def __init__(self, delimiter: str = " "):
+    def __init__(self, delimiter: str = " ") -> None:
         self.delimiter = delimiter
 
         dirname = os.path.join(os.path.dirname(__file__), "templates")
@@ -147,7 +147,7 @@ class SpERTVisualizer(object):
         examples = list(map(_format, examples))
         template.stream(examples=examples).dump(filename)
 
-    def export_entities(self, examples: Iterable[Mapping], filename: str):
+    def export_entities(self, examples: Iterable[Mapping], filename: str) -> None:
         # Input format:
         #
         # type: 0: tp, 1: fp, -1: fn
@@ -168,7 +168,7 @@ class SpERTVisualizer(object):
             self.entity_template,
         )
 
-    def export_relations(self, examples: Iterable[Mapping], filename: str):
+    def export_relations(self, examples: Iterable[Mapping], filename: str) -> None:
         # Input format:
         #
         # type: 0: tp, 1: fp, -1: fn

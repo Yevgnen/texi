@@ -7,7 +7,7 @@ from typing import Dict, Iterable, List, Mapping
 
 
 class SequeceLabelingTagger(metaclass=abc.ABCMeta):
-    def __init__(self, type_field: str = "type"):
+    def __init__(self, type_field: str = "type") -> None:
         self.type_field = type_field
 
     def _iter_spans(self, spans):

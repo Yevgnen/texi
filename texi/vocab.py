@@ -2,12 +2,20 @@
 
 import collections
 import itertools
+import sys
+from typing import Iterable, List, Optional, Sequence, Union
 
 import numpy as np
 
 
 class SpecialTokens(object):
-    def __init__(self, pad="[PAD]", unk="[UNK]", bos="[BOS]", eos="[EOS]"):
+    def __init__(
+        self,
+        pad: str = "[PAD]",
+        unk: str = "[UNK]",
+        bos: str = "[BOS]",
+        eos: str = "[EOS]",
+    ) -> None:
         self.pad = pad
         self.unk = unk
         self.bos = bos
@@ -17,16 +25,18 @@ class SpecialTokens(object):
 class Vocabulary(object):
     def __init__(
         self,
-        docs=None,
-        min_count=1,
-        max_size=float("inf"),
-        keep_case=False,
-        specials=None,
-        default=None,
+        docs: Optional[Union[str, Sequence[str], Sequence[Sequence[str]]]] = None,
+        min_count: int = 1,
+        max_size: int = sys.maxsize,
+        keep_case: bool = False,
+        specials: Iterable[str] = None,
+        default: str = None,
     ):
         self.keep_case = keep_case
         if specials is None:
             specials = []
+        else:
+            specials = list(specials)
         if default is not None:
             specials += [default]
         if not self.keep_case:
@@ -49,14 +59,14 @@ class Vocabulary(object):
 
         return word
 
-    def reset(self):
+    def reset(self) -> None:
         self.freqs = collections.defaultdict(
             int, {w: float("inf") for w in self.specials}
         )
         self.word2index = {w: i for i, w in enumerate(self.freqs)}
         self.index2word = {i: w for w, i in self.word2index.items()}
 
-    def add(self, word, freq=1):
+    def add(self, word: str, freq: int = 1) -> None:
         word = self._preprocess(word)
 
         if word in self.specials:
@@ -67,7 +77,7 @@ class Vocabulary(object):
             self.index2word[len(self)] = word
         self.freqs[word] += freq
 
-    def learn(self, docs):
+    def learn(self, docs: Union[str, Sequence[str], Sequence[Sequence[str]]]) -> None:
         if isinstance(docs, str):
             self.add(docs)
             return
@@ -78,7 +88,7 @@ class Vocabulary(object):
         for word in docs:
             self.add(word)
 
-    def compactify(self):
+    def compactify(self) -> None:
         freqs = {w: f for w, f in self.freqs.items() if w not in self.specials}
         self.reset()
         offset = len(self.freqs)
@@ -87,7 +97,12 @@ class Vocabulary(object):
             self.index2word.update({i + offset: w})
             self.freqs.update({w: f})
 
-    def trim(self, min_count=None, max_size=None, compactify=False):
+    def trim(
+        self,
+        min_count: Optional[int] = None,
+        max_size: Optional[int] = None,
+        compactify: bool = False,
+    ) -> None:
         if min_count:
             self.freqs = collections.defaultdict(
                 int, {k: v for k, v in self.freqs.items() if v >= min_count}
@@ -104,7 +119,7 @@ class Vocabulary(object):
         if compactify:
             self.compactify()
 
-    def save(self, filename):
+    def save(self, filename: str) -> None:
         with open(filename, mode="w") as f:
             f.writelines(
                 "\n".join(
@@ -116,7 +131,7 @@ class Vocabulary(object):
                 )
             )
 
-    def load(self, filename):
+    def load(self, filename: str) -> None:
         self.reset()
 
         with open(filename) as f:
@@ -126,9 +141,9 @@ class Vocabulary(object):
                     word, freq = line.split("")
                     if word in freq:
                         raise ValueError(f"Duplicate key: {word!r}")
-                    self.add(word, float(freq))
+                    self.add(word, int(freq))
 
-    def get_index(self, word):
+    def get_index(self, word: str) -> int:
         word = self._preprocess(word)
         index = self.word2index.get(word)
 
@@ -140,16 +155,18 @@ class Vocabulary(object):
 
         raise KeyError(f"Word not found while `default` is not set: {word}")
 
-    def get_word(self, index):
+    def get_word(self, index: int) -> str:
         return self.index2word[index]
 
-    def transform(self, words):
+    def transform(self, words: Union[str, Iterable[str]]) -> Union[int, List[int]]:
         if isinstance(words, str):
             return self.get_index(words)
 
         return [self.transform(word) for word in words]
 
-    def inverse_transform(self, ids):
+    def inverse_transform(
+        self, ids: Union[int, np.integer, Iterable[Union[int, np.integer]]]
+    ) -> Union[str, List[str]]:
         if isinstance(ids, (int, np.integer)):
             return self.get_word(ids)
 

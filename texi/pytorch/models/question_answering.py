@@ -1,11 +1,14 @@
 # -*- coding: utf-8 -*-
 
+from typing import Dict
+
+import torch
 import torch.nn as nn
 from transformers import BertModel
 
 
 class BertForQuestionAnswering(nn.Module):
-    def __init__(self, pretrained_model, **kwargs):
+    def __init__(self, pretrained_model: str, **kwargs):
         super().__init__()
         if isinstance(pretrained_model, str):
             self.bert = BertModel.from_pretrained(pretrained_model, **kwargs)
@@ -13,7 +16,7 @@ class BertForQuestionAnswering(nn.Module):
             self.bert = pretrained_model
         self.projection = nn.Linear(self.bert.config.hidden_size, 2)
 
-    def forward(self, inputs):
+    def forward(self, inputs: Dict[str, torch.Tensor]) -> torch.Tensor:
         hiddens, *_ = self.bert(**inputs)
         logits = self.projection(hiddens)
 

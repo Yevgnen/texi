@@ -3,7 +3,20 @@
 import itertools
 import json
 import os
-from typing import Callable, Dict, Iterable, Optional, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    Mapping,
+    Optional,
+    Tuple,
+    TypeVar,
+    Union,
+)
+
+T_Dataset = TypeVar("T_Dataset", bound="Dataset")
+T_Datasets = TypeVar("T_Datasets", bound="Datasets")
 
 
 class Dataset(object):
@@ -19,13 +32,13 @@ class Dataset(object):
         if self.examples is None:
             raise RuntimeError("Dataset is not loaded, call `.load()` first")
 
-    def load(self):
+    def load(self) -> T_Dataset:
         if callable(self.load_examples) and self.examples is None:
             self.examples = list(self.load_examples())
 
         return self
 
-    def map(self, fn):
+    def map(self, fn: Callable[[Mapping], Dict]) -> None:
         self._check_loaded()
 
         examples = [fn(x) for x in self.examples]
@@ -34,7 +47,7 @@ class Dataset(object):
 
         self.examples = examples
 
-    def describe(self):
+    def describe(self) -> Dict[str, Any]:
         return {"size": len(self)}
 
     def __getitem__(self, key):
@@ -65,7 +78,7 @@ class Dataset(object):
         filename: str,
         format_function: Optional[Callable[[Dict], Dict]] = lambda x: x,
         array: bool = False,
-    ):
+    ) -> T_Dataset:
         def _iter_whole_file():
             with open(filename) as f:
                 yield from map(format_function, json.load(f))
@@ -82,7 +95,7 @@ class Dataset(object):
         return cls(fn)
 
     @classmethod
-    def from_json(cls, filename: str):
+    def from_json(cls, filename: str) -> T_Dataset:
         return cls(list(cls.from_json_iter(filename)))
 
 
@@ -103,7 +116,7 @@ class Datasets(object):
 
         self.modes = {"train", "val", "test"}
 
-    def load(self):
+    def load(self) -> T_Datasets:
         for mode in ["train", "val", "test"]:
             dataset = getattr(self, mode)
             if dataset is not None:
@@ -111,11 +124,11 @@ class Datasets(object):
 
         return self
 
-    def items(self):
+    def items(self) -> Iterable[Tuple[str, Dataset]]:
         for mode in self.modes:
             yield mode, getattr(self, mode)
 
-    def map(self, fn):
+    def map(self, fn: Callable[[Mapping], Dict]) -> None:
         self.train.map(fn)
         self.val.map(fn)
         self.test.map(fn)
@@ -133,7 +146,7 @@ class Datasets(object):
         )
 
     @classmethod
-    def from_dir(cls, dirname: str):
+    def from_dir(cls, dirname: str) -> T_Datasets:
         raise NotImplementedError()
 
 
@@ -149,7 +162,7 @@ class JSONDatasets(Datasets):
         return x
 
     @classmethod
-    def from_dir(cls, dirname: str, array: bool = False):
+    def from_dir(cls, dirname: str, array: bool = False) -> T_Datasets:
         data = {
             key: Dataset.from_json_iter(
                 os.path.join(dirname, value), cls.format, array=array

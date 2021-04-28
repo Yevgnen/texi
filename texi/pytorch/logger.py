@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=not-callable
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Dict, Optional
 
 from ignite.contrib.engines import common as logging_base
 from ignite.contrib.handlers.tensorboard_logger import (
@@ -11,17 +14,26 @@ from ignite.contrib.handlers.tensorboard_logger import (
 )
 from ignite.engine import Events
 
+if TYPE_CHECKING:
+    # pylint: disable=ungrouped-imports
+    import torch.nn as nn
+    from ignite.contrib.handlers import TensorboardLogger
+    from ignite.engine import Engine
+    from torch.optim import Optimizer
+
+    from texi.pytorch.training.trainer import Trainer
+
 
 def setup_tb_logging(
-    log_dir,
-    trainer,
-    optimizers=None,
-    evaluators=None,
-    log_steps=1,
-    net=None,
-    include_weights_and_grads=True,
+    log_dir: str,
+    trainer: Trainer,
+    optimizers: Dict[str, Optimizer] = None,
+    evaluators: Dict[str, Engine] = None,
+    log_steps: int = 1,
+    net: Optional[nn.Module] = None,
+    include_weights_and_grads: bool = True,
     **kwargs,
-):
+) -> TensorboardLogger:
     tb_logger = logging_base.setup_tb_logging(
         log_dir,
         trainer,

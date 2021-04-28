@@ -4,7 +4,7 @@ import itertools
 import re
 import string
 import unicodedata
-from typing import Callable, Iterable, List, Optional, Union
+from typing import Callable, Iterable, List, Optional, TypeVar, Union
 
 import torch
 
@@ -92,10 +92,13 @@ def get_opencc(conversion: Optional[str] = "t2s") -> Callable[[str], str]:
     return _wrapper
 
 
+T_LabelEncoder = TypeVar("T_LabelEncoder", bound="T_LabelEncoder")
+
+
 class LabelEncoder(object):
     def __init__(
         self, tokens: Optional[Iterable[str]] = None, unknown: Optional[str] = None
-    ):
+    ) -> None:
         self.unknown = unknown
         self.init(tokens)
 
@@ -189,5 +192,5 @@ class LabelEncoder(object):
         return tokens
 
     @classmethod
-    def from_iterable(cls, tokens):
+    def from_iterable(cls, tokens: Iterable[Iterable[str]]) -> T_LabelEncoder:
         return cls(itertools.chain.from_iterable(tokens))

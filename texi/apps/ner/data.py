@@ -9,7 +9,9 @@ import ahocorasick
 
 
 class NERDataReport(object):
-    def __init__(self, examples: Sequence[Mapping], seps: str = "。", k: int = 10):
+    def __init__(
+        self, examples: Sequence[Mapping], seps: str = "。", k: int = 10
+    ) -> None:
         # TODO: 2019-09-27 Accept list of tokens inputs of `text` field.
         self.examples = list(examples)
         self.seps = seps

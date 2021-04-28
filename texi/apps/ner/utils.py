@@ -189,7 +189,7 @@ def check_example(example: Mapping) -> bool:
 
 
 def filter_example_tokens(
-    example: Mapping, filters: Iterable[Union[str, Callable[[str], bool]]]
+    example: Mapping, filters: Iterable[Union[str, re.Pattern, Callable[[str], bool]]]
 ) -> Dict:
     if not hasattr(filters, "__iter__") or isinstance(filters, str):
         filters = [filters]
@@ -218,7 +218,7 @@ def filter_example_tokens(
         return False
 
     backup = example
-    example = copy.deepcopy(example)
+    example = dict(copy.deepcopy(example))
     entities = sorted(enumerate(example["entities"]), key=lambda x: x[1]["start"])
 
     entity_index = 0
