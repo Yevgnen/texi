@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Dict, Iterable, Union
 
 import torch
 from carton.collections import collate
+from carton.data import describe_series
 
 from texi.preprocessing import LabelEncoder
 from texi.pytorch.dataset import Dataset
@@ -60,6 +61,25 @@ class SpERTDataset(Dataset):
     def eval(self):
         super().eval()
         self.negative_sampler.eval()
+
+    def describe(self):
+        info = super().describe()
+        num_tokens, num_entities, num_relations = zip(
+            *[
+                (len(x["tokens"]), len(x["entities"]), len(x["relations"]))
+                for x in self.examples
+            ]
+        )
+
+        def _update_info(prefix, s):
+            for key, value in describe_series(s).items():
+                info.update({f"{prefix}/{key}": value})
+
+        _update_info("num_tokens", num_tokens)
+        _update_info("num_entities", num_entities)
+        _update_info("num_relations", num_relations)
+
+        return info
 
     def _encode_entities(self, entities, tokens):
         num_tokens = sum(map(len, tokens))

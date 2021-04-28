@@ -34,6 +34,9 @@ class Dataset(object):
 
         self.examples = examples
 
+    def describe(self):
+        return {"size": len(self)}
+
     def __getitem__(self, key):
         self._check_loaded()
 
