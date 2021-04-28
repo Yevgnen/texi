@@ -7,6 +7,7 @@ from transformers import BertModel
 
 from texi.pytorch.masking import length_to_mask
 from texi.pytorch.rnn import LSTM
+from texi.pytorch.training.trainer import convert_tensor
 
 
 class BiLstmCrf(nn.Module):
@@ -68,7 +69,7 @@ class BertForSequenceLabeling(nn.Module):
         inputs = {
             key: value
             for key, value in inputs.items()
-            if key not in {"offset_mapping", "tag_mask"}
+            if key not in {"offset_mapping", "label_mask"}
         }
 
         outputs = self.bert(**inputs)
@@ -78,27 +79,28 @@ class BertForSequenceLabeling(nn.Module):
 
 
 class SequenceCrossEntropyLoss(nn.CrossEntropyLoss):
-    def forward(self, input_, target, tag_mask):
-        assert input_.size()[:-1] == tag_mask.size()
-        assert target.size() == tag_mask.size()
+    def forward(self, input_, target, length):
+        label_mask = length_to_mask(length, batch_first=True)
+        assert input_.size()[:-1] == label_mask.size()
+        assert target.size() == label_mask.size()
 
-        tag_mask = tag_mask.view(-1).bool()
-        input_ = input_.view(-1, input_.size()[-1])[tag_mask]
-        target = target.view(-1)[tag_mask]
+        label_mask = label_mask.view(-1).bool()
+        input_ = input_.view(-1, input_.size()[-1])[label_mask]
+        target = target.view(-1)[label_mask]
 
         return super().forward(input_, target)
 
 
 class CRFForPreTraining(CRF):
-    def __init__(self, num_tags, batch_first=True):
-        super().__init__(num_tags, batch_first=batch_first)
+    def __init__(self, num_labels, batch_first=True):
+        super().__init__(num_labels, batch_first=batch_first)
 
-    def forward(self, emissions, tags, mask, reduction="sum"):
+    def forward(self, emissions, labels, mask, reduction="sum"):
         emissions = emissions[:, 1:, :]
-        tags = tags[:, 1:]
+        labels = labels[:, 1:]
         mask = mask[:, 1:].bool()
 
-        return -super().forward(emissions, tags, mask, reduction=reduction)
+        return -super().forward(emissions, labels, mask, reduction=reduction)
 
     def decode(self, emissions, mask):
         return super().decode(emissions, mask.bool())
@@ -116,28 +118,28 @@ class CRFDecoder(object):
 
         return tokens
 
-    def decode_tags(self, x, y):
+    def decode_labels(self, x, y):
         if y.dim() > 2:
-            tags = self.crf.decode(y, length_to_mask(x["length"], batch_first=True))
+            labels = self.crf.decode(y, length_to_mask(x["length"], batch_first=True))
         else:
-            tags = y.detach().cpu()
-        tags = self.label_encoder.decode(tags)
+            labels = y.detach().cpu()
+        labels = self.label_encoder.decode(labels)
 
-        return [x[:length] for x, length in zip(tags, x["length"])]
+        return [x[:length] for x, length in zip(labels, x["length"])]
 
     def decode(self, batch):
         x, y = batch
 
         tokens = self.decode_tokens(x)
-        tags = self.decode_tags(x, y)
+        labels = self.decode_labels(x, y)
 
-        assert len(tokens) == len(tags)
+        assert len(tokens) == len(labels)
         assert all(
-            len(sample_tokens) == len(sample_tags)
-            for sample_tokens, sample_tags in zip(tokens, tags)
+            len(sample_tokens) == len(sample_labels)
+            for sample_tokens, sample_labels in zip(tokens, labels)
         )
 
-        return tokens, tags
+        return tokens, labels
 
 
 class SequenceDecoderForPreTraining(object):
@@ -171,17 +173,17 @@ class SequenceDecoderForPreTraining(object):
 
         return tokens
 
-    def decode_tags(self, x, y):
-        tags = []
-        for tag_mask, tag_ids in zip(x["tag_mask"], y):
-            # Decode tag ids.
-            if tag_ids.dim() > 1:  # logit
-                tag_ids = tag_ids.argmax(dim=-1)
-            tag_ids = tag_ids[tag_mask > 0].tolist()
-            tags += [tag_ids]
-        tags = self.label_encoder.decode(tags)
+    def decode_labels(self, x, y):
+        labels = []
+        for label_mask, label_ids in zip(x["label_mask"], y):
+            # Decode label ids.
+            if label_ids.dim() > 1:  # logit
+                label_ids = label_ids.argmax(dim=-1)
+            label_ids = label_ids[label_mask > 0].tolist()
+            labels += [label_ids]
+        labels = self.label_encoder.decode(labels)
 
-        return tags
+        return labels
 
     def decode(
         self, batch, token_transform=lambda x: "".join(w.replace("##", "") for w in x)
@@ -189,15 +191,15 @@ class SequenceDecoderForPreTraining(object):
         x, y = batch
 
         tokens = self.decode_tokens(x, token_transform)
-        tags = self.decode_tags(x, y)
+        labels = self.decode_labels(x, y)
 
-        assert len(tokens) == len(tags)
+        assert len(tokens) == len(labels)
         assert all(
-            len(sample_tokens) == len(sample_tags)
-            for sample_tokens, sample_tags in zip(tokens, tags)
+            len(sample_tokens) == len(sample_labels)
+            for sample_tokens, sample_labels in zip(tokens, labels)
         )
 
-        return tokens, tags
+        return tokens, labels
 
 
 class CRFDecoderForPreTraining(SequenceDecoderForPreTraining):
@@ -206,14 +208,14 @@ class CRFDecoderForPreTraining(SequenceDecoderForPreTraining):
         self.label_encoder = label_encoder
         self.crf = crf
 
-    def decode_tags(self, x, y):
+    def decode_labels(self, x, y):
         if y.dim() == 2:
-            return super().decode_tags(x, y)
+            return super().decode_labels(x, y)
 
-        tags = self.crf.decode(y[:, 1:, :], x["tag_mask"][:, 1:])
-        tags = self.label_encoder.decode(tags)
+        labels = self.crf.decode(y[:, 1:, :], x["label_mask"][:, 1:])
+        labels = self.label_encoder.decode(labels)
 
-        return tags
+        return labels
 
 
 class SequenceLabeler(object):
@@ -225,10 +227,10 @@ class SequenceLabeler(object):
         self.tagger = tagger
 
     def predict(self, tokens, device="cpu", non_blocking=False, batch_size=32):
-        dummy_tag = self.label_encoder.vocab[0]
+        dummy_label = self.label_encoder.vocab[0]
 
         examples = [
-            {"tokens": sample_tokens, "tags": [dummy_tag] * len(sample_tokens)}
+            {"tokens": sample_tokens, "labels": [dummy_label] * len(sample_tokens)}
             for sample_tokens in tokens
         ]
         dataset = self.dataset_class(
@@ -243,13 +245,13 @@ class SequenceLabeler(object):
         self.net.eval()
         with torch.no_grad():
             for batch in data_loader:
-                batch = convert_batch(batch, device=device, non_blocking=non_blocking)
+                batch = convert_tensor(batch, device=device, non_blocking=non_blocking)
                 x = batch[0]
                 logit = self.net(x)
                 y_pred = logit.argmax(dim=-1)
                 outputs += [
-                    {"text": tokens, "tag": tags}
-                    for tokens, tags in zip(*dataset.decode_seq((x, y_pred)))
+                    {"tokens": tokens, "labels": labels}
+                    for tokens, labels in zip(*dataset.decode_seq((x, y_pred)))
                 ]
         outputs = [*map(self.tagger.decode, outputs)]
 
