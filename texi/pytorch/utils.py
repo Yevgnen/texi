@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
 import inspect
-from typing import Callable, Dict, Sequence, Union
+from typing import Callable, Dict, Iterable, List, Sequence, Tuple, Union
 
 import torch
-from torch.utils.data import BatchSampler
+from torch.utils.data import BatchSampler, RandomSampler, SequentialSampler
 from torch.utils.data.sampler import RandomSampler, SequentialSampler
 from torchnlp.samplers import BucketBatchSampler
 
@@ -24,6 +24,41 @@ def device(
         device_str = "cpu"
 
     return device_str if return_string else torch.device(device_str)
+
+
+def split_tensors(
+    tensors: Iterable[torch.Tensor], chunk_size: int, dim: int = 0
+) -> List[Tuple[torch.Tensor, ...]]:
+    if len(set(x.size(dim=dim) for x in tensors)) != 1:
+        raise ValueError(
+            f"Size of dimension `dim` = {dim} must be same for all input tensors"
+        )
+
+    splits = list(zip(*(torch.split(x, chunk_size, dim=dim) for x in tensors)))
+
+    return splits
+
+
+def split_apply(
+    f: Callable,
+    inputs: Iterable[torch.Tensor],
+    chunk_size: int,
+    *args,
+    dim: int = 0,
+    **kwargs,
+) -> Union[torch.Tensor, Tuple[torch.Tensor, ...]]:
+    outputs = []
+    chunks = split_tensors(inputs, chunk_size=chunk_size, dim=dim)
+    for chunk in chunks:
+        outputs += [f(*chunk, *args, **kwargs)]
+
+    if all(isinstance(t, torch.Tensor) for t in outputs):
+        return torch.cat(outputs, dim=dim)
+
+    outputs = list(zip(*outputs))
+    tuple_outputs = tuple(torch.cat(x, dim=dim) for x in outputs)
+
+    return tuple_outputs
 
 
 def get_sampler(
