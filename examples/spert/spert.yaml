@@ -51,5 +51,5 @@ num_negative_relations: 100
 max_entity_length: 10
 max_relation_pairs: 1000
 relation_filter_threshold: 0.4
-text_delimiter: " "
+token_delimiter: " "
 split_delimiter: null
