@@ -84,6 +84,9 @@ class SpERTDataset(Dataset):
                 for x in self.examples
             ]
         )
+        entity_sizes = [
+            e["end"] - e["start"] for x in self.examples for e in x["entities"]
+        ]
 
         def _update_info(prefix, s):
             for key, value in describe_series(s).items():
@@ -91,6 +94,7 @@ class SpERTDataset(Dataset):
 
         _update_info("num_tokens", num_tokens)
         _update_info("num_entities", num_entities)
+        _update_info("entity_sizes", entity_sizes)
         _update_info("num_relations", num_relations)
 
         return info
