@@ -1,10 +1,16 @@
 # -*- coding: utf-8 -*-
 
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Union, cast
 
 import torch
 
 from texi.preprocessing import LabelEncoder
+
+Entities = List[List[Dict[str, Any]]]
+Relations = List[List[Dict[str, Any]]]
+Scores = List[List[float]]
+EntityWithScores = Tuple[Entities, Scores]
+RelationWithScores = Tuple[Relations, Scores]
 
 
 def predict_entities(
@@ -13,7 +19,7 @@ def predict_entities(
     entity_span: torch.LongTensor,
     entity_label_encoder: LabelEncoder,
     return_scores: bool = False,
-) -> List[List[Dict[str, Any]]]:
+) -> Union[Entities, EntityWithScores]:
     if entity_logit.ndim == 3:
         entity_label = entity_logit.argmax(dim=-1)
         entity_probas = torch.softmax(entity_logit, dim=-1).tolist()
@@ -63,7 +69,7 @@ def predict_relations(
     relation_label_encoder: LabelEncoder,
     relation_filter_threshold: float,
     return_scores: bool = False,
-) -> List[Dict[str, Any]]:
+) -> Union[Relations, RelationWithScores]:
     if relation_logit.dtype == torch.float32:
         relation_proba = torch.sigmoid(relation_logit)
     elif relation_logit.dtype == torch.int64:
@@ -130,12 +136,14 @@ def predict(
     negative_relation_index: int,
     relation_filter_threshold: float,
     return_scores: bool = False,
-) -> List[Tuple[Dict[str, Any], Dict[str, Any]]]:
+) -> Union[Tuple[Entities, Relations], Tuple[Entities, Scores, Relations, Scores]]:
+    # pylint: disable=too-many-arguments
+
     if relation_pair.size(1) > 0:
         assert relation_pair.max() < entity_logit.size(1)
 
     # Predict entities.
-    entities = predict_entities(
+    entity_outputs = predict_entities(
         entity_logit,
         entity_mask,
         entity_span,
@@ -144,7 +152,7 @@ def predict(
     )
 
     # Predict relation.
-    relations = predict_relations(
+    relation_outputs = predict_relations(
         relation_logit,
         relation_pair,
         relation_sample_mask,
@@ -187,12 +195,17 @@ def predict(
         return new_entities, new_relations
 
     if return_scores:
-        entities, entity_scores = entities
-        relations, relation_scores = relations
+        entities, entity_scores = cast(EntityWithScores, entity_outputs)
+        relations, relation_scores = cast(RelationWithScores, relation_outputs)
+    else:
+        entities = cast(Entities, entity_outputs)
+        relations = cast(Relations, relation_outputs)
 
-    entities, relations = zip(*[_normalize(e, r) for e, r in zip(entities, relations)])
-    entities = list(entities)
-    relations = list(relations)
+    normalized_entities, normalized_relations = zip(
+        *[_normalize(e, r) for e, r in zip(entities, relations)]
+    )
+    entities = list(normalized_entities)
+    relations = list(normalized_relations)
 
     if return_scores:
         return entities, entity_scores, relations, relation_scores
