@@ -3,13 +3,15 @@
 project: "spert"
 
 # Datasets
-data_dir: "./data"
+data_dir: "./hopi_fixed"
+val_size: 0.1
+test_size: 0.2
 
 # Training
 backend: null
 nproc_per_node: null
 seed: null
-max_epochs: 20
+max_epochs: 200
 lr: 0.00005
 lr_warmup: 0.1
 weight_decay: 0.01
@@ -27,7 +29,7 @@ non_blocking: true
 eval_train: false
 eval_steps: "epoch"
 eval_metric: "RE.micro.f1"
-save_best_models: 1
+save_best_models: 3
 
 # Early Stopping
 early_stopping: false
@@ -40,7 +42,7 @@ wandb: true
 debug: false
 
 # Model
-pretrained_model: "bert-base-cased"
+pretrained_model: "hfl/chinese-bert-wwm"
 embedding_dim: 25
 dropout: 0.1
 global_context_pooling: "cls"
@@ -48,9 +50,9 @@ negative_entity_type: "NEGATIVE_ENTITY"
 negative_relation_type: "NEGATIVE_RELATION"
 num_negative_entities: 100
 num_negative_relations: 100
-max_entity_length: 10
+max_entity_length: 8
 max_relation_pairs: 1000
 relation_filter_threshold: 0.4
-token_delimiter: " "
-split_delimiter: null
+token_delimiter: ""
+split_delimiter: "。"
 max_length: 150
