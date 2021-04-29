@@ -135,6 +135,9 @@ class SpERTVisualizer(object):
 
             tp, fp, fn = groups[0], groups[1], groups[-1]
 
+            tp = sorted(tp, key=lambda x: -x[-1])
+            fp = sorted(fp, key=lambda x: -x[-1])
+
             return {
                 "text": self.delimiter.join(x["tokens"]),
                 "length": len(x["tokens"]),
@@ -144,7 +147,7 @@ class SpERTVisualizer(object):
                 **self._compute_metrics(len(tp), len(fp), len(fn)),
             }
 
-        examples = list(map(_format, examples))
+        examples = sorted(map(_format, examples), key=lambda x: -x["f1"])
         template.stream(examples=examples).dump(filename)
 
     def export_entities(self, examples: Iterable[Mapping], filename: str) -> None:
