@@ -47,10 +47,8 @@ def split_apply(
     dim: int = 0,
     **kwargs,
 ) -> Union[torch.Tensor, Tuple[torch.Tensor, ...]]:
-    outputs = []
     chunks = split_tensors(inputs, chunk_size=chunk_size, dim=dim)
-    for chunk in chunks:
-        outputs += [f(*chunk, *args, **kwargs)]
+    outputs = [f(*chunk, *args, **kwargs) for chunk in chunks]
 
     if all(isinstance(t, torch.Tensor) for t in outputs):
         return torch.cat(outputs, dim=dim)

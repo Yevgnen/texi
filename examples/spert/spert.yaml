@@ -49,6 +49,7 @@ negative_relation_type: "NO_RELATION"
 num_negative_entities: 100
 num_negative_relations: 100
 max_entity_length: 10
+max_relation_pairs: 1000
 relation_filter_threshold: 0.4
 text_delimiter: " "
 split_delimiter: null

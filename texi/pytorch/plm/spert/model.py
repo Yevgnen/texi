@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import itertools
-from typing import TYPE_CHECKING, Dict
+from typing import TYPE_CHECKING, Dict, cast
 
 import torch
 import torch.nn as nn
@@ -11,6 +11,7 @@ import torch.nn as nn
 from texi.pytorch.masking import create_span_mask
 from texi.pytorch.plm.pooling import get_pooling
 from texi.pytorch.plm.spert.dataset import stack_1d, stack_2d
+from texi.pytorch.utils import split_apply
 
 if TYPE_CHECKING:
     from transformers import BertModel
@@ -25,6 +26,7 @@ class SpERT(nn.Module):
         num_relation_types: int,
         negative_entity_index: int,
         max_entity_length: int = 100,
+        max_relation_pairs: int = 1000,
         dropout: float = 0.2,
         global_context_pooling: str = "cls",
     ):
@@ -41,6 +43,7 @@ class SpERT(nn.Module):
         self.num_relation_types = num_relation_types
         self.negative_entity_index = negative_entity_index
         self.max_entity_length = max_entity_length
+        self.max_relation_pairs = max_relation_pairs
         self.dropout = nn.Dropout(p=dropout)
         self.global_context_pooling = get_pooling(global_context_pooling)
 
@@ -69,11 +72,11 @@ class SpERT(nn.Module):
 
     def _classify_relations(
         self,
-        last_hidden_state,
         relation,
         relation_context_mask,
         entity,
         entity_size,
+        last_hidden_state,
     ):
         if relation.size(1) == 0:
             return relation.new_zeros(
@@ -156,11 +159,11 @@ class SpERT(nn.Module):
 
         # relation_logit: [B, R, NR]
         relation_logit = self._classify_relations(
-            last_hidden_state,
             relations,
             relation_context_mask,
             entity,
             entity_size,
+            last_hidden_state,
         )
 
         return {
@@ -258,17 +261,28 @@ class SpERT(nn.Module):
         ) = self._filter_relations(entity_label, entity_span, input_ids.size(1))
 
         # relation_logit: [B, R, NR]
-        relation_logit = self._classify_relations(
-            last_hidden_state,
-            relation,
-            relation_context_mask,
-            entity,
-            entity_size,
-        )
+        if self.max_relation_pairs > 0:
+            relation_logit = split_apply(
+                self._classify_relations,
+                [relation, relation_context_mask],
+                self.max_relation_pairs,
+                dim=1,
+                entity=entity,
+                entity_size=entity_size,
+                last_hidden_state=last_hidden_state,
+            )
+        else:
+            relation_logit = self._classify_relations(
+                last_hidden_state,
+                relation,
+                relation_context_mask,
+                entity,
+                entity_size,
+            )
 
         return {
             "entity_logit": entity_logit,
-            "relation_logit": relation_logit,
+            "relation_logit": cast(torch.Tensor, relation_logit),
             "relation": relation,
             "relation_sample_mask": relation_sample_mask,
         }
