@@ -212,12 +212,12 @@ class SpERTEvalSampler(object):
         items = []
         for yi_pred, yi_pred_tran, score in zip(y_pred, y_pred_trans, scores):
             if yi_pred_tran in y_trans:
-                items += [(yi_pred, 0, score)]
+                items += [(yi_pred, 0, score)]  # tp
             else:
-                items += [(yi_pred, 1, -1)]
+                items += [(yi_pred, 1, score)]  # fp
 
         for yi, yi_tran in zip(y, y_trans):
-            if yi_tran not in y_pred_trans:
+            if yi_tran not in y_pred_trans:  # fn
                 items += [(yi, -1, -1)]
 
         return items
