@@ -5,7 +5,6 @@ from typing import Callable, Dict, Iterable, List, Sequence, Tuple, Union
 
 import torch
 from torch.utils.data import BatchSampler, RandomSampler, SequentialSampler
-from torch.utils.data.sampler import RandomSampler, SequentialSampler
 from torchnlp.samplers import BucketBatchSampler
 
 
