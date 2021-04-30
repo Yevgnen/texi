@@ -75,7 +75,7 @@ class Dataset(BaseDataset):
             self.is_train,
             batch_size,
             drop_last=drop_last,
-            sort_key=sort_key,
+            sort_key=lambda index: sort_key(self[index]),
         )
 
         collate_fn = kwargs.pop("collate_fn", self.collate)
