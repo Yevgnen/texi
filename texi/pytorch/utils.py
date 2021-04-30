@@ -63,18 +63,18 @@ def get_sampler(
     train: bool,
     batch_size: int,
     drop_last: bool = False,
-) -> BatchSampler:
+    sort_key: Callable = lambda x: x,
+) -> Union[BatchSampler, BucketBatchSampler]:
     if train:
-        sampler_class = RandomSampler
-        batch_sampler_class = BucketBatchSampler
+        sampler = RandomSampler(examples)  # type: ignore
+        batch_sampler = BucketBatchSampler(
+            sampler, batch_size=batch_size, drop_last=drop_last, sort_key=sort_key
+        )
     else:
-        sampler_class = SequentialSampler
-        batch_sampler_class = BatchSampler
-
-    sampler = sampler_class(examples)
-    batch_sampler = batch_sampler_class(
-        sampler, batch_size=batch_size, drop_last=drop_last
-    )
+        sampler = SequentialSampler(examples)  # type: ignore
+        batch_sampler = BatchSampler(
+            sampler, batch_size=batch_size, drop_last=drop_last
+        )
 
     return batch_sampler
 

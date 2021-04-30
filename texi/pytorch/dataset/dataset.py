@@ -64,10 +64,18 @@ class Dataset(BaseDataset):
         return self.tokenizer.encode(text)
 
     def get_dataloader(
-        self, batch_size: int, drop_last: bool = False, **kwargs
+        self,
+        batch_size: int,
+        drop_last: bool = False,
+        sort_key: Callable = lambda x: x,
+        **kwargs
     ) -> DataLoader:
         sampler = get_sampler(
-            self.examples, self.is_train, batch_size, drop_last=drop_last
+            self.examples,
+            self.is_train,
+            batch_size,
+            drop_last=drop_last,
+            sort_key=sort_key,
         )
 
         collate_fn = kwargs.pop("collate_fn", self.collate)
