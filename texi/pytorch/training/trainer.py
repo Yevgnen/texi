@@ -6,7 +6,7 @@ import enum
 import logging
 import os
 import traceback
-from typing import Callable, Dict, Mapping, Optional, Tuple, Union
+from typing import Callable, Dict, Mapping, Optional, Tuple, Union, cast
 
 import torch
 import torch.nn as nn
@@ -137,6 +137,25 @@ def setup_progress_bar(
             )
 
 
+def setup_lr_scheduler(
+    params: Params, trainer: Engine, lr_scheduler: _LRScheduler
+) -> None:
+    if lr_scheduler is not None:
+        if params.schedule_steps == "epoch" or params.schedule_steps > 0:
+            trainer.add_event_handler(
+                get_event(params.schedule_steps),
+                lambda engine: cast(_LRScheduler, lr_scheduler).step(),
+            )
+        else:
+            raise ValueError(
+                '`schedule_steps` must be positve or "epoch"'
+                " when `lr_scheduler` is passed"
+            )
+
+    else:
+        logger.warning("LR scheduler not set")
+
+
 def setup_logger_handlers(
     save_path: str,
     log_steps: int,
@@ -210,10 +229,6 @@ def setup_handlers(
     # pylint: disable=not-callable, unused-argument, unused-variable
     # pylint: disable=too-many-locals, too-many-arguments
 
-    # Other event handlers.
-    def step_schedulers(engine):
-        lr_scheduler.step()
-
     def build_evaluate_handler(
         dataset, evaluator, data_loader, best_model_handler=None
     ):
@@ -266,18 +281,8 @@ def setup_handlers(
     # Setup progress bars.
     setup_progress_bar(params, trainer, evaluators)
 
-    # Setup scheduler.
-    if lr_scheduler is not None:
-        if params.schedule_steps == "epoch" or params.schedule_steps > 0:
-            trainer.add_event_handler(get_event(params.schedule_steps), step_schedulers)
-        else:
-            raise ValueError(
-                '`schedule_steps` must be positve or "epoch"'
-                " when `lr_scheduler` is passed"
-            )
-
-    else:
-        logger.warning("LR scheduler not set")
+    # Setup lr scheduler.
+    setup_lr_scheduler(params, trainer, lr_scheduler)
 
     # Setup evaluate handlers.
     if params.eval_steps == "epoch" or params.eval_steps > 0:
