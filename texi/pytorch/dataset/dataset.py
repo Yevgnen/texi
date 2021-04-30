@@ -91,17 +91,34 @@ class Dataset(BaseDataset):
         train_batch_size: Optional[int] = None,
         eval_batch_size: Optional[int] = None,
         batch_size: Optional[int] = None,
+        drop_last: bool = False,
+        sort_key: Callable = lambda x: x,
         **kwargs
     ) -> Dict[str, DataLoader]:
+        # 1. Train dataset has individual batch size.
+        # 2. `drop_last` will alwarys be False for val and test datasets.
+        # 3. `sort_key` is passed only in train dataset.
+
         batch_sizes = {
             "train": batch_size if train_batch_size is None else train_batch_size,
             "val": batch_size if eval_batch_size is None else eval_batch_size,
             "test": batch_size if eval_batch_size is None else eval_batch_size,
         }
 
-        return {
-            k: v.get_dataloader(batch_sizes[k], **kwargs) for k, v in iterators.items()
-        }
+        loaders = {}
+        for mode, iterator in iterators.items():
+            if mode == "train":
+                loader = iterator.get_dataloader(
+                    batch_sizes[mode], drop_last=drop_last, sort_key=sort_key, **kwargs
+                )
+            else:
+                loader = iterator.get_dataloader(
+                    batch_sizes[mode], drop_last=False, **kwargs
+                )
+
+            loaders[mode] = loader
+
+        return loaders
 
     @classmethod
     def get_iterators(
