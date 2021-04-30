@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import os
 import random
-from typing import TYPE_CHECKING, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Dict, Iterable, List, Mapping, Optional, Union
 
 import torch.nn as nn
 from ignite.engine import Engine, Events
@@ -155,6 +156,47 @@ class SpERTTrainer(Trainer):
         }
 
 
+class SpERTEvalExporter(object):
+    def __init__(self, output_dir: str):
+        self.output_dir = output_dir
+        os.makedirs(self.output_dir, exist_ok=True)
+        self.reset()
+
+    def reset(self):
+        self.targets = []
+        self.predictions = []
+
+    def update(
+        self, targets: Iterable[Mapping], predictions: Iterable[Mapping]
+    ) -> None:
+        self.targets += list(targets)
+        self.predictions += list(predictions)
+
+    def export(
+        self,
+        epoch: Optional[int] = None,
+        iteration: Optional[int] = None,
+        filename: Optional[str] = None,
+    ) -> None:
+        if not filename:
+            if epoch is None and iteration is None:
+                raise ValueError(
+                    "Either `filename` or `epoch` and `iteration` must be given"
+                )
+            filename = ""
+            if epoch:
+                filename += f"_epoch_{epoch}"
+            if iteration:
+                filename += f"_iteration_{iteration}"
+
+        with open(os.path.join(self.output_dir, filename), mode="w") as f:
+            outputs = [
+                {"target": target, "prediction": prediction}
+                for target, prediction in zip(self.targets, self.predictions)
+            ]
+            json.dump(outputs, f, ensure_ascii=False)
+
+
 class SpERTEvalSampler(object):
     # pylint: disable=no-self-use, too-many-arguments
     def __init__(
@@ -182,6 +224,8 @@ class SpERTEvalSampler(object):
         self.sample_size = sample_size
         self.wandb_logger = wandb_logger
 
+        self.exporter = SpERTEvalExporter(os.path.join(self.save_dir, "data"))
+
         self.global_step_transform = None
         self.reset()
 
@@ -191,6 +235,7 @@ class SpERTEvalSampler(object):
 
     def started(self, _: Engine) -> None:
         self.reset()
+        self.exporter.reset()
 
     def _expand_entities(self, relations, entities):
         return [
@@ -293,6 +338,24 @@ class SpERTEvalSampler(object):
         self.entity_samples += entity_samples
         self.relation_samples += relation_samples
 
+        def _convert_to_example(entities, relations):
+            examples = [
+                {
+                    "tokens": tokens[1:-1],
+                    "entities": sample_entities,
+                    "relations": sample_relations,
+                }
+                for tokens, sample_entities, sample_relations in zip(
+                    input_["tokens"], entities, relations
+                )
+            ]
+
+            return examples
+
+        targets = _convert_to_example(entity_targets, relation_targets)
+        predictions = _convert_to_example(entity_predictions, relation_predictions)
+        self.exporter.update(targets, predictions)
+
     def _sample(self, examples):
         if self.sample_size is not None:
             examples = random.sample(examples, min(len(examples), self.sample_size))
@@ -302,15 +365,12 @@ class SpERTEvalSampler(object):
     def export(self, _: Engine) -> None:
         epoch = self.global_step_transform(_, Events.EPOCH_COMPLETED)
         iteration = self.global_step_transform(_, Events.ITERATION_COMPLETED)
+        suffix = f"epoch_{epoch}_iteration_{iteration}"
 
-        entity_html = os.path.join(
-            self.save_dir, f"entity_sample_epoch_{epoch}_iteration_{iteration}.html"
-        )
+        entity_html = os.path.join(self.save_dir, f"entity_sample_{suffix}.html")
         self.visualizer.export_entities(self._sample(self.entity_samples), entity_html)
 
-        relation_html = os.path.join(
-            self.save_dir, f"relation_sample_epoch_{epoch}_iteration_{iteration}.html"
-        )
+        relation_html = os.path.join(self.save_dir, f"relation_sample_{suffix}.html")
         self.visualizer.export_relations(
             self._sample(self.relation_samples), relation_html
         )
@@ -327,6 +387,8 @@ class SpERTEvalSampler(object):
                 {"Relation Extraction Examples": wandb.Html(open(relation_html))},
                 step=iteration,
             )
+
+        self.exporter.export(filename=f"sample_{suffix}.json")
 
     def setup(self, trainer: Engine, evaluator: Engine) -> None:
         self.global_step_transform = global_step_from_engine(trainer)
