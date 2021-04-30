@@ -367,10 +367,10 @@ class SpERTEvalSampler(object):
         iteration = self.global_step_transform(_, Events.ITERATION_COMPLETED)
         suffix = f"epoch_{epoch}_iteration_{iteration}"
 
-        entity_html = os.path.join(self.save_dir, f"entity_sample_{suffix}.html")
+        entity_html = os.path.join(self.save_dir, f"entity_{suffix}.html")
         self.visualizer.export_entities(self._sample(self.entity_samples), entity_html)
 
-        relation_html = os.path.join(self.save_dir, f"relation_sample_{suffix}.html")
+        relation_html = os.path.join(self.save_dir, f"relation_{suffix}.html")
         self.visualizer.export_relations(
             self._sample(self.relation_samples), relation_html
         )
