@@ -201,6 +201,8 @@ class SpERTEvalExporter(object):
             ]
             json.dump(outputs, f, ensure_ascii=False)
 
+        self.reset()
+
 
 class SpERTEvalSampler(object):
     # pylint: disable=no-self-use, too-many-arguments
@@ -240,7 +242,6 @@ class SpERTEvalSampler(object):
 
     def started(self, _: Engine) -> None:
         self.reset()
-        self.exporter.reset()
 
     def _expand_entities(self, relations, entities):
         return list(map(expand_entities, relations, entities))
