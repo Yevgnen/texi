@@ -17,11 +17,13 @@ from typing import (
     Union,
 )
 
+from carton.collections import dict_to_tuple
+
 from texi.preprocessing import LabelEncoder
 
 
 def entity_to_tuple(entity: Mapping) -> Tuple:
-    return entity["type"], entity["start"], entity["end"]
+    return dict_to_tuple(entity, ["type", "start", "end"])
 
 
 def relation_to_tuple(relation: Mapping, entities: Optional[Mapping] = None) -> Tuple:
