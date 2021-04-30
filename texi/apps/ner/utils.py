@@ -43,6 +43,36 @@ def relation_to_tuple(relation: Mapping, entities: Optional[Mapping] = None) -> 
     )
 
 
+def expand_entities(
+    relations: Iterable[Mapping], entities: Sequence[Mapping]
+) -> List[Dict]:
+    expanded = [
+        {
+            "type": relation["type"],
+            "head": dict(entities[relation["head"]]),
+            "tail": dict(entities[relation["tail"]]),
+        }
+        for relation in relations
+    ]
+    return expanded
+
+
+def collapse_entities(
+    relations: Iterable[Mapping], entities: Iterable[Mapping]
+) -> List[Mapping]:
+    entity_indices = {entity_to_tuple(entity): i for i, entity in enumerate(entities)}
+    collapsed = [
+        {
+            "type": relation["type"],
+            "head": entity_indices[entity_to_tuple(relation["head"])],
+            "tail": entity_indices[entity_to_tuple(relation["tail"])],
+        }
+        for relation in relations
+    ]
+
+    return collapsed
+
+
 def encode_labels(examples: Iterable[Mapping]) -> Tuple[LabelEncoder, LabelEncoder]:
     entity_label_encoder = LabelEncoder()
     relation_label_encoder = LabelEncoder()

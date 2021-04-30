@@ -9,10 +9,12 @@ from texi.apps.ner.eval import (
 )
 from texi.apps.ner.utils import (
     check_example,
+    collapse_entities,
     convert_pybrat_example,
     convert_pybrat_examples,
     encode_labels,
     entity_to_tuple,
+    expand_entities,
     filter_example_tokens,
     load_pybrat_examples,
     relation_to_tuple,
@@ -35,6 +37,8 @@ __all__ = [
     "filter_example_tokens",
     "load_pybrat_examples",
     "split_example",
+    "collapse_entities",
+    "expand_entities",
     "SpERTVisualizer",
     "spacy_visual_ner",
 ]

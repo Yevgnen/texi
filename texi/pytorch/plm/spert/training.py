@@ -11,7 +11,12 @@ import torch.nn as nn
 from ignite.engine import Engine, Events
 from ignite.handlers import global_step_from_engine
 
-from texi.apps.ner import SpERTVisualizer, entity_to_tuple, relation_to_tuple
+from texi.apps.ner import (
+    SpERTVisualizer,
+    entity_to_tuple,
+    expand_entities,
+    relation_to_tuple,
+)
 from texi.preprocessing import LabelEncoder
 from texi.pytorch.metrics import NerMetrics, ReMetrics
 from texi.pytorch.plm.spert import predict
@@ -238,17 +243,7 @@ class SpERTEvalSampler(object):
         self.exporter.reset()
 
     def _expand_entities(self, relations, entities):
-        return [
-            [
-                {
-                    "type": r["type"],
-                    "head": sample_entities[r["head"]],
-                    "tail": sample_entities[r["tail"]],
-                }
-                for r in sample_relations
-            ]
-            for sample_relations, sample_entities in zip(relations, entities)
-        ]
+        return list(map(expand_entities, relations, entities))
 
     def _compare(self, y, y_pred, f, scores):
         y_trans = {*map(f, y)}
