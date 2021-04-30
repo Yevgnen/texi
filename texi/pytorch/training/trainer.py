@@ -120,6 +120,23 @@ def setup_engine(
     return engine
 
 
+def setup_progress_bar(
+    params: Params, trainer: Engine, evaluators: Mapping[str, Engine]
+) -> None:
+    if params.pbar_steps > 0:
+        ProgressBar(ncols=0).attach(
+            trainer,
+            metric_names="all",
+            event_name=Events.ITERATION_COMPLETED(every=params.pbar_steps),
+        )
+
+        for evaluator in evaluators.values():
+            ProgressBar(ncols=0).attach(
+                evaluator,
+                event_name=Events.ITERATION_COMPLETED(every=params.pbar_steps),
+            )
+
+
 def setup_logger_handlers(
     save_path: str,
     log_steps: int,
@@ -247,18 +264,7 @@ def setup_handlers(
     trainer.add_event_handler(Events.ITERATION_COMPLETED, TerminateOnNan())
 
     # Setup progress bars.
-    if params.pbar_steps > 0:
-        ProgressBar(ncols=0).attach(
-            trainer,
-            metric_names="all",
-            event_name=Events.ITERATION_COMPLETED(every=params.pbar_steps),
-        )
-
-        for evaluator in evaluators.values():
-            ProgressBar(ncols=0).attach(
-                evaluator,
-                event_name=Events.ITERATION_COMPLETED(every=params.pbar_steps),
-            )
+    setup_progress_bar(params, trainer, evaluators)
 
     # Setup scheduler.
     if lr_scheduler is not None:
