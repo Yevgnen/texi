@@ -81,6 +81,22 @@ def configure_optimizers(
     return optimizer, lr_scheduler
 
 
+def get_event(steps: Union[int, str]) -> Events:
+    if isinstance(steps, int):
+        return Events.ITERATION_COMPLETED(every=steps)
+
+    if steps == "epoch":
+        return Events.EPOCH_COMPLETED(every=1)
+
+    raise ValueError(
+        (
+            "Event frequency should be either"
+            " integer for Events.ITERATION_COMPLETED"
+            ' or "epoch" for Events.EPOCH_COMPLETED'
+        )
+    )
+
+
 def setup_engine(
     engine: Engine,
     name: str,
@@ -170,21 +186,6 @@ def setup_handlers(
 ) -> Dict:
     # pylint: disable=not-callable, unused-argument, unused-variable
     # pylint: disable=too-many-locals, too-many-arguments
-
-    def get_event(steps):
-        if isinstance(steps, int):
-            return Events.ITERATION_COMPLETED(every=steps)
-
-        if steps == "epoch":
-            return Events.EPOCH_COMPLETED(every=1)
-
-        raise ValueError(
-            (
-                "Event frequency should be either"
-                " integer for Events.ITERATION_COMPLETED"
-                ' or "epoch" for Events.EPOCH_COMPLETED'
-            )
-        )
 
     # Other event handlers.
     def step_schedulers(engine):
