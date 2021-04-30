@@ -247,18 +247,20 @@ class SpERTEvalSampler(object):
         return list(map(expand_entities, relations, entities))
 
     def _compare(self, y, y_pred, f, scores):
-        y_trans = {*map(f, y)}
-        y_pred_trans = {*map(f, y_pred)}
+        y_trans = [*map(f, y)]
+        y_pred_trans = [*map(f, y_pred)]
+
+        tps = set(y_trans) & set(y_pred_trans)
 
         items = []
         for yi_pred, yi_pred_tran, score in zip(y_pred, y_pred_trans, scores):
-            if yi_pred_tran in y_trans:
+            if yi_pred_tran in tps:
                 items += [(yi_pred, 0, score)]  # tp
             else:
                 items += [(yi_pred, 1, score)]  # fp
 
         for yi, yi_tran in zip(y, y_trans):
-            if yi_tran not in y_pred_trans:  # fn
+            if yi_tran not in tps:  # fn
                 items += [(yi, -1, -1)]
 
         return items
