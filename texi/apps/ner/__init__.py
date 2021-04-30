@@ -15,6 +15,7 @@ from texi.apps.ner.utils import (
     encode_labels,
     entity_to_tuple,
     expand_entities,
+    expand_tokens,
     filter_example_tokens,
     load_pybrat_examples,
     relation_to_tuple,
@@ -39,6 +40,7 @@ __all__ = [
     "split_example",
     "collapse_entities",
     "expand_entities",
+    "expand_tokens",
     "SpERTVisualizer",
     "spacy_visual_ner",
 ]

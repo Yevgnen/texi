@@ -43,6 +43,19 @@ def relation_to_tuple(relation: Mapping, entities: Optional[Mapping] = None) -> 
     )
 
 
+def expand_tokens(entities: Iterable[Mapping], tokens: Sequence) -> List[Dict]:
+    expanded = [
+        {
+            "type": entity["type"],
+            "start": entity["start"],
+            "end": entity["end"],
+            "tokens": tokens[entity["start"] : entity["end"]],
+        }
+        for entity in entities
+    ]
+    return expanded
+
+
 def expand_entities(
     relations: Iterable[Mapping], entities: Sequence[Mapping]
 ) -> List[Dict]:
