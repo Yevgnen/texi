@@ -97,6 +97,12 @@ def get_event(steps: Union[int, str]) -> Events:
     )
 
 
+def handle_dataset_mode(engine: Engine) -> None:
+    if isinstance(engine.state.dataloader.dataset, Dataset):
+        engine.state.dataloader.dataset.train()
+        logger.info("Dataset [train] switched to train mode.")
+
+
 def setup_engine(
     engine: Engine,
     name: str,
@@ -234,15 +240,9 @@ def setup_handlers(
         else:
             traceback.print_exc()
 
-    def handel_dataset_mode(_):
-        train_dataset = data_loaders["train"].dataset
-        if isinstance(data_loaders["train"].dataset, Dataset):
-            train_dataset.train()
-            logger.info("Dataset [train] switched to train mode.")
-
     # Setup general handlers.
     handlers = {}
-    trainer.add_event_handler(Events.EPOCH_STARTED, handel_dataset_mode)
+    trainer.add_event_handler(Events.EPOCH_STARTED, handle_dataset_mode)
     trainer.add_event_handler(Events.EXCEPTION_RAISED, handle_exceptions)
     trainer.add_event_handler(Events.ITERATION_COMPLETED, TerminateOnNan())
 
