@@ -103,23 +103,6 @@ def handle_dataset_mode(engine: Engine) -> None:
         logger.info("Dataset [train] switched to train mode.")
 
 
-def setup_engine(
-    engine: Engine,
-    name: str,
-    log_file: Optional[str] = None,
-    metrics: Optional[MetricGroup] = None,
-    train: bool = True,
-) -> Engine:
-    engine.logger = setup_logger(name, filepath=log_file)
-
-    if metrics:
-        for metric_name, metric in metrics.items():
-            metric.attach(
-                engine, metric_name, usage=BatchWise() if train else EpochWise()
-            )
-    return engine
-
-
 def setup_progress_bar(
     params: Params, trainer: Engine, evaluators: Mapping[str, Engine]
 ) -> None:
@@ -215,6 +198,23 @@ def setup_logger_handlers(
         handlers["wandb_logger"] = wandb_logger
 
     return handlers
+
+
+def setup_engine(
+    engine: Engine,
+    name: str,
+    log_file: Optional[str] = None,
+    metrics: Optional[MetricGroup] = None,
+    train: bool = True,
+) -> Engine:
+    engine.logger = setup_logger(name, filepath=log_file)
+
+    if metrics:
+        for metric_name, metric in metrics.items():
+            metric.attach(
+                engine, metric_name, usage=BatchWise() if train else EpochWise()
+            )
+    return engine
 
 
 def setup_handlers(
