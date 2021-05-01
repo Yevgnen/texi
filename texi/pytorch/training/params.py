@@ -45,6 +45,7 @@ class Params(object):
         self.weight_decay = kwargs.get("weight_decay")
         self.max_grad_norm = kwargs.get("max_grad_norm")
         self.schedule_steps = kwargs.get("schedule_steps", -1)
+        self.gradient_accumulation_steps = kwargs.get("gradient_accumulation_steps")
 
         # Dataloader
         self.train_batch_size = kwargs.get("train_batch_size", 32)
@@ -61,6 +62,7 @@ class Params(object):
             "num_save_models",
             1 if self.eval_steps == "epoch" or self.eval_steps > 0 else 0,
         )
+        self.save_steps = kwargs.get("save_steps", 1000)
         self.early_stopping = kwargs.get("early_stopping", False)
         self.eval_metric = kwargs.get("eval_metric")
         self.patience = kwargs.get("patience")

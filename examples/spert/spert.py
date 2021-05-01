@@ -2,7 +2,6 @@
 
 import argparse
 import functools
-import logging
 
 from transformers import BertModel, BertTokenizerFast
 
@@ -11,16 +10,14 @@ from texi.datasets import JSONDatasets
 from texi.pytorch.plm.spert import (
     SpERT,
     SpERTDataset,
+    SpERTEnv,
     SpERTEvalSampler,
     SpERTLoss,
     SpERTParams,
     SpERTSampler,
-    SpERTTrainer,
 )
 from texi.pytorch.plm.utils import get_pretrained_optimizer_and_scheduler
 from texi.pytorch.training.trainer import setup_env
-
-logger = logging.getLogger(__name__)
 
 
 def get_dataset(
@@ -46,7 +43,7 @@ def get_dataset(
     return dataset
 
 
-def get_dataloaders(
+def get_dataflows(
     datasets, tokenizer, entity_label_encoder, relation_label_encoder, params
 ):
     loaders = SpERTDataset.get_dataloaders(
@@ -101,7 +98,7 @@ def main(args):
 
     # Get data loaders.
     tokenizer = BertTokenizerFast.from_pretrained(params["pretrained_model"])
-    loaders = get_dataloaders(
+    loaders = get_dataflows(
         datasets, tokenizer, entity_label_encoder, relation_label_encoder, params
     )
 
@@ -128,16 +125,14 @@ def main(args):
     )
 
     # Prepare trainer.
-    trainer = SpERTTrainer(
+    env = SpERTEnv(
         entity_label_encoder,
         negative_entity_index,
         relation_label_encoder,
         negative_relation_index,
         params["relation_filter_threshold"],
     )
-    trainer.setup(
-        params, loaders, model, criteria, optimizer, lr_scheduler=lr_scheduler
-    )
+    env.setup(params, loaders, model, criteria, optimizer, lr_scheduler=lr_scheduler)
 
     # Setup evaluation sampler.
     eval_sampler = SpERTEvalSampler(
@@ -149,12 +144,12 @@ def main(args):
         negative_relation_index,
         params["relation_filter_threshold"],
         params.sample_dir,
-        wandb_logger=trainer.handlers.get("wandb_logger"),
+        wandb_logger=env.trainer.handlers.get("wandb_logger"),
     )
-    eval_sampler.setup(trainer.trainer, trainer.evaluators["val_evaluator"])
+    eval_sampler.setup(env.trainer, env.evaluators["val"])
 
     # Train!
-    trainer.run()
+    env.trainer.run(env.dataflows["train"], max_epochs=params["max_epochs"])
 
 
 if __name__ == "__main__":

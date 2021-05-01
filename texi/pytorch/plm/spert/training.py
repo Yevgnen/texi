@@ -21,7 +21,7 @@ from texi.preprocessing import LabelEncoder
 from texi.pytorch.metrics import NerMetrics, ReMetrics
 from texi.pytorch.plm.spert import predict
 from texi.pytorch.training.params import Params
-from texi.pytorch.training.trainer import Batch, MetricGroup, Trainer
+from texi.pytorch.training.trainer import Batch, Env, Metrics
 
 try:
     import wandb
@@ -58,7 +58,7 @@ class SpERTParams(Params):
         return self.__dict__[key]
 
 
-class SpERTTrainer(Trainer):
+class SpERTEnv(Env):
     def __init__(
         self,
         entity_label_encoder: LabelEncoder,
@@ -74,7 +74,7 @@ class SpERTTrainer(Trainer):
         self.negative_relation_index = negative_relation_index
         self.relation_filter_threshold = relation_filter_threshold
 
-    def get_metrics(self, train: bool = True) -> MetricGroup:
+    def get_metrics(self, train: bool = True) -> Metrics:
         if train:
             return {}
 
@@ -123,9 +123,9 @@ class SpERTTrainer(Trainer):
         }
 
     def train_step(
-        self, _: Engine, net: nn.Module, batch: Batch, loss_function: nn.Module
+        self, engine: Engine, model: nn.Module, batch: Batch, criteria: nn.Module
     ) -> Dict:
-        output = net(
+        output = model(
             batch["input_ids"],
             batch["attention_mask"],
             batch["token_type_ids"],
@@ -134,7 +134,7 @@ class SpERTTrainer(Trainer):
             batch["relation_context_mask"],
         )
 
-        loss = loss_function(
+        loss = criteria(
             output["entity_logit"],
             batch["entity_label"],
             batch["entity_sample_mask"],
@@ -145,9 +145,9 @@ class SpERTTrainer(Trainer):
 
         return {"batch": batch, "loss": loss}
 
-    def eval_step(self, _: Engine, net: nn.Module, batch: Batch) -> Dict:
+    def eval_step(self, engine: Engine, model: nn.Module, batch: Batch) -> Dict:
         target, input_ = batch
-        output = net.infer(
+        output = model.infer(
             input_["input_ids"],
             input_["attention_mask"],
             input_["token_type_ids"],
