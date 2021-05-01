@@ -181,6 +181,53 @@ def build_eval_step_function(
     return _step
 
 
+def get_trainer(
+    net: nn.Module,
+    optimizer: Optimizer,
+    loss_function: nn.Module,
+    train_step: Optional[TrainStepFunction] = None,
+    max_grad_norm: Optional[float] = None,
+    gradient_accumulation_steps: Optional[int] = None,
+    device: torch.device = torch.device("cpu"),
+    non_blocking: bool = False,
+    metrics: Optional[MetricGroup] = None,
+    log_file: Optional[str] = None,
+    name: str = "trainer",
+) -> Engine:
+    # pylint: disable=too-many-arguments
+
+    engine = Engine(
+        build_train_step_function(
+            net,
+            optimizer,
+            loss_function,
+            train_step,
+            device=device,
+            non_blocking=non_blocking,
+            max_grad_norm=max_grad_norm,
+            gradient_accumulation_steps=gradient_accumulation_steps,
+        )
+    )
+
+    setup_engine(
+        engine,
+        name,
+        log_file=log_file,
+        metrics=metrics,
+        train=True,
+    )
+
+    if max_grad_norm is not None:
+        logger.info("Max gradient norm set to: %f", max_grad_norm)
+
+    if gradient_accumulation_steps is not None:
+        logger.info(
+            "Gradient accumulation steps set to: %d", gradient_accumulation_steps
+        )
+
+    return engine
+
+
 class Trainer(metaclass=abc.ABCMeta):
     # pylint: disable=no-self-use
 
@@ -210,53 +257,6 @@ class Trainer(metaclass=abc.ABCMeta):
         output["y_pred"] = self.predict_step(output)
 
         return output
-
-    def get_trainer(
-        self,
-        net: nn.Module,
-        optimizer: Optimizer,
-        loss_function: nn.Module,
-        train_step: Optional[TrainStepFunction] = None,
-        max_grad_norm: Optional[float] = None,
-        gradient_accumulation_steps: Optional[int] = None,
-        device: torch.device = torch.device("cpu"),
-        non_blocking: bool = False,
-        metrics: Optional[MetricGroup] = None,
-        log_file: Optional[str] = None,
-        name: str = "trainer",
-    ) -> Engine:
-        # pylint: disable=too-many-arguments
-
-        engine = Engine(
-            build_train_step_function(
-                net,
-                optimizer,
-                loss_function,
-                train_step or self.train_step,
-                device=device,
-                non_blocking=non_blocking,
-                max_grad_norm=max_grad_norm,
-                gradient_accumulation_steps=gradient_accumulation_steps,
-            )
-        )
-
-        setup_engine(
-            engine,
-            name,
-            log_file=log_file,
-            metrics=metrics or self.get_metrics(train=True),
-            train=True,
-        )
-
-        if max_grad_norm is not None:
-            logger.info("Max gradient norm set to: %f", max_grad_norm)
-
-        if gradient_accumulation_steps is not None:
-            logger.info(
-                "Gradient accumulation steps set to: %d", gradient_accumulation_steps
-            )
-
-        return engine
 
     def get_evaluator(
         self,
@@ -333,9 +333,9 @@ class Trainer(metaclass=abc.ABCMeta):
 
         params = params.to_dict()
 
-        trainer_params = _get_default_arguments(self.get_trainer, params)
+        trainer_params = _get_default_arguments(get_trainer, params)
         trainer_params.update(train_step=train_step)
-        trainer = self.get_trainer(net, optimizer, loss_function, **trainer_params)
+        trainer = get_trainer(net, optimizer, loss_function, **trainer_params)
 
         evaluator_params = _get_default_arguments(self.get_evaluators, params)
         evaluator_params.update(eval_step=eval_step)
