@@ -2,6 +2,7 @@
 
 import logging
 import os
+import traceback
 from typing import Callable, Dict, Mapping, Optional, Union, cast
 
 import torch
@@ -41,6 +42,21 @@ def handle_dataset_mode(engine: Engine) -> None:
     if isinstance(engine.state.dataloader.dataset, Dataset):
         engine.state.dataloader.dataset.train()
         logger.info("Dataset [train] switched to train mode.")
+
+
+def build_exception_handler(
+    trainer: Engine, test_evaluate_handler: Optional[Callable[[Engine], None]]
+) -> Callable[[Engine, Exception], None]:
+    def handle_exceptions(engine, e):
+        if isinstance(e, KeyboardInterrupt):
+            engine.logger.info("User terminated")
+            trainer.terminate()
+            if callable(test_evaluate_handler):
+                test_evaluate_handler(trainer)
+        else:
+            traceback.print_exc()
+
+    return handle_exceptions
 
 
 def build_evaluate_handler(

@@ -5,7 +5,6 @@ import abc
 import enum
 import logging
 import os
-import traceback
 from typing import Callable, Dict, Mapping, Optional, Tuple
 
 import torch
@@ -36,6 +35,7 @@ from texi.pytorch.metrics import (
 from texi.pytorch.optim import optim
 from texi.pytorch.training.handlers import (
     build_evaluate_handler,
+    build_exception_handler,
     get_event,
     handle_dataset_mode,
     setup_logger_handlers,
@@ -108,18 +108,9 @@ def setup_handlers(
     # pylint: disable=not-callable, unused-argument, unused-variable
     # pylint: disable=too-many-locals, too-many-arguments
 
-    def handle_exceptions(engine, e):
-        if isinstance(e, KeyboardInterrupt):
-            engine.logger.info("User terminated")
-            trainer.terminate()
-            test_evaluate_handler(trainer)
-        else:
-            traceback.print_exc()
-
     # Setup general handlers.
     handlers = {}
     trainer.add_event_handler(Events.EPOCH_STARTED, handle_dataset_mode)
-    trainer.add_event_handler(Events.EXCEPTION_RAISED, handle_exceptions)
     trainer.add_event_handler(Events.ITERATION_COMPLETED, TerminateOnNan())
 
     # Setup progress bars.
@@ -199,6 +190,7 @@ def setup_handlers(
         trainer.add_event_handler(Events.COMPLETED, test_evaluate_handler)
         logger.info("Setup evaluator for [test]")
     else:
+        test_evaluate_handler = None
         logger.warning("Test evaluate handlers not set")
 
     if params.log_steps > 0:
@@ -217,6 +209,10 @@ def setup_handlers(
         handlers.update(logger_handlers)
     else:
         logger.warning("Logger handlers not set")
+
+    trainer.add_event_handler(
+        Events.EXCEPTION_RAISED, build_exception_handler(trainer, test_evaluate_handler)
+    )
 
     return handlers
 
