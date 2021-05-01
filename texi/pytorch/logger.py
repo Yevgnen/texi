@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING, Mapping, Optional, Union
 
 from ignite.contrib.engines import common as logging_base
 from ignite.contrib.handlers.tensorboard_logger import (
@@ -27,8 +27,8 @@ if TYPE_CHECKING:
 def setup_tb_logging(
     log_dir: str,
     trainer: Trainer,
-    optimizers: Dict[str, Optimizer] = None,
-    evaluators: Dict[str, Engine] = None,
+    optimizers: Optional[Union[Optimizer, Mapping[str, Optimizer]]] = None,
+    evaluators: Optional[Mapping[str, Engine]] = None,
     log_steps: int = 1,
     net: Optional[nn.Module] = None,
     include_weights_and_grads: bool = True,

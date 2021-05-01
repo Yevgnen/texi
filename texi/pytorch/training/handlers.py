@@ -2,7 +2,7 @@
 
 import logging
 import os
-from typing import Dict, Mapping, Union, cast
+from typing import Dict, Mapping, Optional, Union, cast
 
 import torch.nn as nn
 from ignite.contrib.engines.common import setup_wandb_logging
@@ -83,8 +83,8 @@ def setup_logger_handlers(
     params: Mapping,
     trainer: Engine,
     net: nn.Module,
-    optimizer: Optimizer,
-    evaluators: Mapping[str, Engine],
+    optimizers: Optional[Union[Optimizer, Mapping[str, Optimizer]]] = None,
+    evaluators: Optional[Mapping[str, Engine]] = None,
     tensorboard: bool = False,
     wandb: bool = False,
     debug: bool = False,
@@ -97,7 +97,7 @@ def setup_logger_handlers(
         tensorboard_logger = setup_tb_logging(
             tensorboard_dir,
             trainer,
-            optimizers=optimizer,
+            optimizers=optimizers,
             evaluators=evaluators,
             log_steps=log_steps,
             net=net,
@@ -113,14 +113,15 @@ def setup_logger_handlers(
                 k: v for k, v in engine.state.metrics.items() if not isinstance(v, dict)
             }
 
-        for evaluator in evaluators.values():
-            evaluator.add_event_handler(Events.COMPLETED, filter_metrics)
+        if evaluators:
+            for evaluator in evaluators.values():
+                evaluator.add_event_handler(Events.COMPLETED, filter_metrics)
 
         wandb_dir = os.path.join(save_path, "wandb")
         os.makedirs(wandb_dir, exist_ok=True)
         wandb_logger = setup_wandb_logging(
             trainer,
-            optimizers=optimizer,
+            optimizers=optimizers,
             evaluators=evaluators,
             log_every_iters=log_steps,
             dir=wandb_dir,
