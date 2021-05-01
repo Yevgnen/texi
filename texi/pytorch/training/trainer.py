@@ -281,6 +281,38 @@ def get_evaluators(
     return evaluators
 
 
+def get_engines(
+    params: Params,
+    net: nn.Module,
+    optimizer: Optimizer,
+    loss_function: nn.Module,
+    train_step: Optional[TrainStepFunction] = None,
+    eval_step: Optional[EvalStepFunction] = None,
+) -> Tuple[Engine, Dict[str, Engine]]:
+    # Try to get engine params. Can't pass **params to
+    # `self.get_trainer` or `self.get_evaluators` because `params`
+    # contains invalid parameters for them.
+    def _get_default_arguments(f, params):
+        default_arguments = get_default_arguments(f)
+        for key, value in params.items():
+            if key in default_arguments:
+                default_arguments[key] = value
+
+        return default_arguments
+
+    params = params.to_dict()
+
+    trainer_params = _get_default_arguments(get_trainer, params)
+    trainer_params.update(train_step=train_step)
+    trainer = get_trainer(net, optimizer, loss_function, **trainer_params)
+
+    evaluator_params = _get_default_arguments(get_evaluators, params)
+    evaluator_params.update(eval_step=eval_step)
+    evaluators = get_evaluators(net, **evaluator_params)
+
+    return trainer, evaluators
+
+
 class Trainer(metaclass=abc.ABCMeta):
     # pylint: disable=no-self-use
 
@@ -311,38 +343,6 @@ class Trainer(metaclass=abc.ABCMeta):
 
         return output
 
-    def get_engines(
-        self,
-        params: Params,
-        net: nn.Module,
-        optimizer: Optimizer,
-        loss_function: nn.Module,
-        train_step: Optional[TrainStepFunction] = None,
-        eval_step: Optional[EvalStepFunction] = None,
-    ) -> Tuple[Engine, Dict[str, Engine]]:
-        # Try to get engine params. Can't pass **params to
-        # `self.get_trainer` or `self.get_evaluators` because `params`
-        # contains invalid parameters for them.
-        def _get_default_arguments(f, params):
-            default_arguments = get_default_arguments(f)
-            for key, value in params.items():
-                if key in default_arguments:
-                    default_arguments[key] = value
-
-            return default_arguments
-
-        params = params.to_dict()
-
-        trainer_params = _get_default_arguments(get_trainer, params)
-        trainer_params.update(train_step=train_step)
-        trainer = get_trainer(net, optimizer, loss_function, **trainer_params)
-
-        evaluator_params = _get_default_arguments(get_evaluators, params)
-        evaluator_params.update(eval_step=eval_step)
-        evaluators = get_evaluators(net, **evaluator_params)
-
-        return trainer, evaluators
-
     def setup_data_loaders(self, data_loaders):
         self.data_loaders = data_loaders
         for mode, loader in self.data_loaders.items():
@@ -366,7 +366,7 @@ class Trainer(metaclass=abc.ABCMeta):
         train_step: Optional[TrainStepFunction] = None,
         eval_step: Optional[EvalStepFunction] = None,
     ) -> None:
-        self.trainer, self.evaluators = self.get_engines(
+        self.trainer, self.evaluators = get_engines(
             params, net, optimizer, loss_fn, train_step=train_step, eval_step=eval_step
         )
         self.setup_data_loaders(data_loaders)
