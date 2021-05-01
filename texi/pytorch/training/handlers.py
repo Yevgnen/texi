@@ -244,34 +244,34 @@ def setup_evaluate_handlers(
 
 
 def setup_logger_handlers(
-    save_path: str,
-    log_steps: int,
-    params: Mapping,
+    params: Params,
     trainer: Engine,
     net: nn.Module,
     optimizers: Optional[Union[Optimizer, Mapping[str, Optimizer]]] = None,
     evaluators: Optional[Mapping[str, Engine]] = None,
-    tensorboard: bool = False,
-    wandb: bool = False,
-    debug: bool = False,
 ) -> Dict[str, BaseLogger]:
-    handlers = {}
+    handlers = dict.fromkeys(["tensorboard_logger", "wandb_logger"])
 
-    if tensorboard:
-        tensorboard_dir = os.path.join(save_path, "tensorboard")
+    if params.log_steps < 0:
+        logger.warning("Logger handlers not set")
+
+        return handlers
+
+    if params.tensorboard:
+        tensorboard_dir = os.path.join(params.save_path, "tensorboard")
         os.makedirs(tensorboard_dir, exist_ok=True)
         tensorboard_logger = setup_tb_logging(
             tensorboard_dir,
             trainer,
             optimizers=optimizers,
             evaluators=evaluators,
-            log_steps=log_steps,
+            log_steps=params.log_steps,
             net=net,
-            include_weights_and_grads=debug,
+            include_weights_and_grads=params.debug,
         )
         handlers["tensorboard_logger"] = tensorboard_logger
 
-    if wandb:
+    if params.wandb:
         # FIXME: Duplicated code with evaluator setup.
         # https://github.com/pytorch/ignite/issues/1476#issuecomment-826317167
         def filter_metrics(engine):
@@ -283,23 +283,23 @@ def setup_logger_handlers(
             for evaluator in evaluators.values():
                 evaluator.add_event_handler(Events.COMPLETED, filter_metrics)
 
-        wandb_dir = os.path.join(save_path, "wandb")
+        wandb_dir = os.path.join(params.save_path, "wandb")
         os.makedirs(wandb_dir, exist_ok=True)
         wandb_logger = setup_wandb_logging(
             trainer,
             optimizers=optimizers,
             evaluators=evaluators,
-            log_every_iters=log_steps,
+            log_every_iters=params.log_steps,
             dir=wandb_dir,
-            config=params,
-            project=params["project"],
+            config=params.to_dict(),
+            project=params.project,
             reinit=True,
         )
         wandb_logger.attach(
             trainer, lambda *args, **kwargs: wandb_logger.close, Events.COMPLETED
         )
-        if debug:
-            wandb_logger.watch(net, log="all", log_steps=log_steps)
+        if params.debug:
+            wandb_logger.watch(net, log="all", log_steps=params.log_steps)
         handlers["wandb_logger"] = wandb_logger
 
     return handlers

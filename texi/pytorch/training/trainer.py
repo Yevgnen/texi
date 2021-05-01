@@ -120,22 +120,9 @@ def setup_handlers(
     )
     handlers.update(evaluate_handlers)
 
-    if params.log_steps > 0:
-        logger_handlers = setup_logger_handlers(
-            params.save_path,
-            params.log_steps,
-            params.to_dict(),
-            trainer,
-            net,
-            optimizer,
-            evaluators,
-            tensorboard=params.tensorboard,
-            wandb=params.wandb,
-            debug=params.debug,
-        )
-        handlers.update(logger_handlers)
-    else:
-        logger.warning("Logger handlers not set")
+    # Setup logger handlers.
+    logger_handlers = setup_logger_handlers(params, trainer, net, optimizer, evaluators)
+    handlers.update(logger_handlers)
 
     trainer.add_event_handler(
         Events.EXCEPTION_RAISED,
