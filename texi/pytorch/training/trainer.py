@@ -228,6 +228,59 @@ def get_trainer(
     return engine
 
 
+def get_evaluator(
+    net: nn.Module,
+    eval_step: Optional[EvalStepFunction] = None,
+    metrics: Optional[MetricGroup] = None,
+    device: torch.device = torch.device("cpu"),
+    non_blocking: bool = False,
+    log_file: Optional[str] = None,
+    name: str = "evaluator",
+) -> Engine:
+    engine = Engine(
+        build_eval_step_function(
+            net,
+            eval_step,
+            device=device,
+            non_blocking=non_blocking,
+        )
+    )
+
+    setup_engine(
+        engine,
+        name,
+        log_file=log_file,
+        metrics=metrics,
+        train=False,
+    )
+
+    return engine
+
+
+def get_evaluators(
+    net: nn.Module,
+    eval_step: EvalStepFunction = None,
+    metrics: Optional[MetricGroup] = None,
+    device: torch.device = torch.device("cpu"),
+    non_blocking: bool = False,
+    log_file: Optional[str] = None,
+) -> Dict[str, Engine]:
+    evaluators = {
+        name: get_evaluator(
+            net,
+            eval_step=eval_step,
+            metrics=metrics,
+            device=device,
+            non_blocking=non_blocking,
+            log_file=log_file,
+            name=name,
+        )
+        for name in ["train_evaluator", "val_evaluator", "test_evaluator"]
+    }
+
+    return evaluators
+
+
 class Trainer(metaclass=abc.ABCMeta):
     # pylint: disable=no-self-use
 
@@ -258,59 +311,6 @@ class Trainer(metaclass=abc.ABCMeta):
 
         return output
 
-    def get_evaluator(
-        self,
-        net: nn.Module,
-        eval_step: Optional[EvalStepFunction] = None,
-        metrics: Optional[MetricGroup] = None,
-        device: torch.device = torch.device("cpu"),
-        non_blocking: bool = False,
-        log_file: Optional[str] = None,
-        name: str = "evaluator",
-    ) -> Engine:
-        engine = Engine(
-            build_eval_step_function(
-                net,
-                eval_step or self.eval_step,
-                device=device,
-                non_blocking=non_blocking,
-            )
-        )
-
-        setup_engine(
-            engine,
-            name,
-            log_file=log_file,
-            metrics=metrics or self.get_metrics(train=False),
-            train=False,
-        )
-
-        return engine
-
-    def get_evaluators(
-        self,
-        net: nn.Module,
-        eval_step: EvalStepFunction = None,
-        metrics: Optional[MetricGroup] = None,
-        device: torch.device = torch.device("cpu"),
-        non_blocking: bool = False,
-        log_file: Optional[str] = None,
-    ) -> Dict[str, Engine]:
-        evaluators = {
-            name: self.get_evaluator(
-                net,
-                eval_step=eval_step,
-                metrics=metrics,
-                device=device,
-                non_blocking=non_blocking,
-                log_file=log_file,
-                name=name,
-            )
-            for name in ["train_evaluator", "val_evaluator", "test_evaluator"]
-        }
-
-        return evaluators
-
     def get_engines(
         self,
         params: Params,
@@ -337,9 +337,9 @@ class Trainer(metaclass=abc.ABCMeta):
         trainer_params.update(train_step=train_step)
         trainer = get_trainer(net, optimizer, loss_function, **trainer_params)
 
-        evaluator_params = _get_default_arguments(self.get_evaluators, params)
+        evaluator_params = _get_default_arguments(get_evaluators, params)
         evaluator_params.update(eval_step=eval_step)
-        evaluators = self.get_evaluators(net, **evaluator_params)
+        evaluators = get_evaluators(net, **evaluator_params)
 
         return trainer, evaluators
 
