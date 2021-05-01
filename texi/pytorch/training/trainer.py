@@ -12,10 +12,7 @@ import torch.nn as nn
 from carton.logger import log_dict
 from carton.logger import setup_logger as carton_setup_logger
 from carton.random import set_seed
-from ignite.contrib.engines.common import (
-    add_early_stopping_by_val_score,
-    save_best_model_by_val_score,
-)
+from ignite.contrib.engines.common import save_best_model_by_val_score
 from ignite.engine import Engine, Events
 from ignite.handlers import TerminateOnNan
 from ignite.metrics import BatchWise, EpochWise, Metric
@@ -38,6 +35,7 @@ from texi.pytorch.training.handlers import (
     build_exception_handler,
     get_event,
     handle_dataset_mode,
+    setup_early_stopping_handler,
     setup_logger_handlers,
     setup_lr_scheduler,
     setup_progress_bar,
@@ -149,25 +147,7 @@ def setup_handlers(
         else:
             logger.warning("Save best model handler not set")
 
-        if params.early_stopping:
-            if params.eval_metric is None or params.patience is None:
-                raise ValueError(
-                    "`eval_metric` and `patience` must set when `early_stopping` is set"
-                )
-            if params.num_save_models < 0:
-                logger.warning("Early stopping is set, but best model is not saved")
-
-            handlers["early_stopping_handler"] = add_early_stopping_by_val_score(
-                params.patience,
-                evaluators["val_evaluator"],
-                trainer,
-                params.eval_metric,
-            )
-            logger.info(
-                "Early stopping is set with `eval_metric` = %s and `patience` = %d",
-                params.eval_metric,
-                params.patience,
-            )
+        setup_early_stopping_handler(params, trainer, evaluators["val_evaluator"])
     else:
         logger.warning("Evaluate handlers not set")
         if params.early_stopping:

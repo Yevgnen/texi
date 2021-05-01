@@ -7,10 +7,14 @@ from typing import Callable, Dict, Mapping, Optional, Union, cast
 
 import torch
 import torch.nn as nn
-from ignite.contrib.engines.common import setup_wandb_logging
+from ignite.contrib.engines.common import (
+    add_early_stopping_by_val_score,
+    setup_wandb_logging,
+)
 from ignite.contrib.handlers import ProgressBar
 from ignite.contrib.handlers.base_logger import BaseLogger
 from ignite.engine import Engine, Events
+from ignite.handlers import EarlyStopping
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data.dataloader import DataLoader
@@ -131,6 +135,33 @@ def setup_lr_scheduler(
 
     else:
         logger.warning("LR scheduler not set")
+
+
+def setup_early_stopping_handler(
+    params: Params, trainer: Engine, val_evaluator: Engine
+) -> Union[EarlyStopping, None]:
+    handler = None
+    if params.early_stopping:
+        if params.eval_metric is None or params.patience is None:
+            raise ValueError(
+                "`eval_metric` and `patience` must set when `early_stopping` is set"
+            )
+        if params.num_save_models < 0:
+            logger.warning("Early stopping is set, but best model is not saved")
+
+        handler = add_early_stopping_by_val_score(
+            params.patience,
+            val_evaluator,
+            trainer,
+            params.eval_metric,
+        )
+        logger.info(
+            "Early stopping is set with `eval_metric` = %s and `patience` = %d",
+            params.eval_metric,
+            params.patience,
+        )
+
+    return handler
 
 
 def setup_logger_handlers(
