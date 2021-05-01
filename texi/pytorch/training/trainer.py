@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=no-self-use
 
 import abc
 import enum
@@ -183,6 +182,8 @@ def build_eval_step_function(
 
 
 class Trainer(metaclass=abc.ABCMeta):
+    # pylint: disable=no-self-use
+
     def get_metrics(self, train: bool = True) -> MetricGroup:
         # pylint: disable=unused-argument
 
