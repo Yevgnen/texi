@@ -6,7 +6,7 @@ import enum
 import logging
 import os
 import traceback
-from typing import Callable, Dict, Mapping, Optional, Tuple, Union
+from typing import Callable, Dict, Mapping, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -35,6 +35,7 @@ from texi.pytorch.metrics import (
 )
 from texi.pytorch.optim import optim
 from texi.pytorch.training.handlers import (
+    build_evaluate_handler,
     get_event,
     handle_dataset_mode,
     setup_logger_handlers,
@@ -107,41 +108,6 @@ def setup_handlers(
     # pylint: disable=not-callable, unused-argument, unused-variable
     # pylint: disable=too-many-locals, too-many-arguments
 
-    def build_evaluate_handler(
-        dataset, evaluator, data_loader, best_model_handler=None
-    ):
-        def evaluate_handler(engine):
-            evaluator.logger.info("Evaluate on [%s]", dataset)
-            if best_model_handler is not None:
-                if best_model_handler.last_checkpoint is not None:
-                    checkpoint = os.path.join(
-                        best_model_handler.save_handler.dirname,
-                        best_model_handler.last_checkpoint,
-                    )
-                    evaluator.logger.info(
-                        "Loading checkpoint %r before evaluate",
-                        checkpoint,
-                    )
-                    net.load_state_dict(torch.load(checkpoint))
-
-            if isinstance(data_loader.dataset, Dataset):
-                data_loader.dataset.eval()
-                logger.info("Dataset [%s] switched to eval mode.", dataset)
-
-            evaluator.run(data_loader)
-
-            evaluator.logger.info("Evaluate metrics [%s]", dataset)
-            for key, metric in sorted(
-                evaluator.state.metrics.items(), key=lambda x: x[0]
-            ):
-                # Ignote Dict metrics flattend by ignite.
-                if isinstance(metric, Mapping):
-                    continue
-
-                evaluator.logger.info("%s = %s", key, metric)
-
-        return evaluate_handler
-
     def handle_exceptions(engine, e):
         if isinstance(e, KeyboardInterrupt):
             engine.logger.info("User terminated")
@@ -171,7 +137,7 @@ def setup_handlers(
             trainer.add_event_handler(
                 get_event(params.eval_steps),
                 build_evaluate_handler(
-                    mode, evaluators[f"{mode}_evaluator"], data_loaders[mode]
+                    evaluators[f"{mode}_evaluator"], mode, net, data_loaders[mode]
                 ),
             )
             logger.info("Setup evaluator for [%s]", mode)
@@ -228,7 +194,7 @@ def setup_handlers(
                 "`test_loader` must not be None when `test_evaluator` is passed"
             )
         test_evaluate_handler = build_evaluate_handler(
-            "test", test_evaluator, test_loader, handlers.get("best_model_handler")
+            test_evaluator, "test", net, test_loader, handlers.get("best_model_handler")
         )
         trainer.add_event_handler(Events.COMPLETED, test_evaluate_handler)
         logger.info("Setup evaluator for [test]")

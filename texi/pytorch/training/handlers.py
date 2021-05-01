@@ -2,8 +2,9 @@
 
 import logging
 import os
-from typing import Dict, Mapping, Optional, Union, cast
+from typing import Callable, Dict, Mapping, Optional, Union, cast
 
+import torch
 import torch.nn as nn
 from ignite.contrib.engines.common import setup_wandb_logging
 from ignite.contrib.handlers import ProgressBar
@@ -11,6 +12,7 @@ from ignite.contrib.handlers.base_logger import BaseLogger
 from ignite.engine import Engine, Events
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
+from torch.utils.data.dataloader import DataLoader
 
 from texi.pytorch.dataset.dataset import Dataset
 from texi.pytorch.logger import setup_tb_logging
@@ -39,6 +41,44 @@ def handle_dataset_mode(engine: Engine) -> None:
     if isinstance(engine.state.dataloader.dataset, Dataset):
         engine.state.dataloader.dataset.train()
         logger.info("Dataset [train] switched to train mode.")
+
+
+def build_evaluate_handler(
+    evaluator: Engine,
+    mode: str,
+    net: nn.Module,
+    loader: DataLoader,
+    best_model_handler: Optional[Callable[[Engine], None]] = None,
+):
+    def evaluate_handler(_):
+        evaluator.logger.info("Evaluate on [%s]", mode)
+        if best_model_handler is not None:
+            if best_model_handler.last_checkpoint is not None:
+                checkpoint = os.path.join(
+                    best_model_handler.save_handler.dirname,
+                    best_model_handler.last_checkpoint,
+                )
+                evaluator.logger.info(
+                    "Loading checkpoint %r before evaluate",
+                    checkpoint,
+                )
+                net.load_state_dict(torch.load(checkpoint))
+
+        if isinstance(loader.dataset, Dataset):
+            loader.dataset.eval()
+            logger.info("Dataset [%s] switched to eval mode.", mode)
+
+        evaluator.run(loader)
+
+        evaluator.logger.info("Evaluate metrics [%s]", mode)
+        for key, metric in sorted(evaluator.state.metrics.items(), key=lambda x: x[0]):
+            # Ignote Dict metrics flattend by ignite.
+            if isinstance(metric, Mapping):
+                continue
+
+            evaluator.logger.info("%s = %s", key, metric)
+
+    return evaluate_handler
 
 
 def setup_progress_bar(
