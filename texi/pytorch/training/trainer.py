@@ -10,6 +10,7 @@ from typing import Callable, Dict, Mapping, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
+from carton.logger import log_dict
 from carton.logger import setup_logger as carton_setup_logger
 from carton.random import set_seed
 from ignite.contrib.engines.common import (
@@ -56,13 +57,6 @@ def setup_env(params: Params):
 
     os.makedirs(os.path.dirname(params["log_file"]), exist_ok=True)
     carton_setup_logger(level=logging.INFO, filename=params["log_file"])
-
-
-def log_dict(
-    _logger: logging.Logger, d: Union[Mapping, Params], sep: str = " = "
-) -> None:
-    for key, value in d.items():
-        _logger.info(f"{key}{sep}{value}")
 
 
 def convert_tensor(*args, **kwargs):
