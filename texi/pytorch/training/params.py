@@ -11,11 +11,12 @@ from carton.random import random_state
 
 from texi.pytorch.utils import device
 
-_T = TypeVar("_T", bound="Params")
-
 
 class Params(object):
     # pylint: disable=too-many-instance-attributes
+
+    T = TypeVar("T", bound="Params")
+
     def __init__(self, **kwargs):
         # Project
         self.project = kwargs.get("project")
@@ -108,15 +109,15 @@ class Params(object):
         ParamDict(**self.to_dict()).to_toml(filename)
 
     @classmethod
-    def from_yaml(cls, filename: str) -> _T:
+    def from_yaml(cls, filename: str) -> T:
         return cls(**ParamDict.from_yaml(filename))
 
     @classmethod
-    def from_json(cls, filename: str) -> _T:
+    def from_json(cls, filename: str) -> T:
         return cls(**ParamDict.from_json(filename))
 
     @classmethod
-    def from_toml(cls, filename: str) -> _T:
+    def from_toml(cls, filename: str) -> T:
         return cls(**ParamDict.from_toml(filename))
 
 
