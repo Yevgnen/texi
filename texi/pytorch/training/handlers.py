@@ -3,12 +3,13 @@
 import logging
 import os
 import traceback
-from typing import Callable, Dict, Mapping, Optional, Union, cast
+from typing import Any, Callable, Dict, Mapping, Optional, Union, cast
 
 import torch
 import torch.nn as nn
 from ignite.contrib.engines.common import (
     add_early_stopping_by_val_score,
+    save_best_model_by_val_score,
     setup_wandb_logging,
 )
 from ignite.contrib.handlers import ProgressBar
@@ -162,6 +163,84 @@ def setup_early_stopping_handler(
         )
 
     return handler
+
+
+def setup_evaluate_handlers(
+    params: Params,
+    trainer: Engine,
+    evaluators: Mapping[str, Engine],
+    net: nn.Module,
+    data_loaders: Mapping[str, DataLoader],
+) -> Dict[str, Any]:
+    handlers = dict.fromkeys(
+        [
+            "best_model_handler",
+            "early_stopping_handler",
+            "train_evaluate_handler",
+            "val_evaluate_handler",
+            "test_evaluate_handler",
+        ]
+    )
+
+    if params.eval_steps == "epoch" or params.eval_steps > 0:
+        for mode in ["train", "val"]:
+            if mode == "train" and not params.eval_train:
+                continue
+
+            evaluate_handler = build_evaluate_handler(
+                evaluators[f"{mode}_evaluator"], mode, net, data_loaders[mode]
+            )
+            trainer.add_event_handler(get_event(params.eval_steps), evaluate_handler)
+            handlers[f"{mode}_evaluate_handler"] = evaluate_handler
+
+            logger.info("Setup evaluator for [%s]", mode)
+
+        if params.num_save_models > 0:
+            handlers["best_model_handler"] = save_best_model_by_val_score(
+                params.save_path,
+                evaluators["val_evaluator"],
+                net,
+                params.eval_metric,
+                n_saved=params.num_save_models,
+                trainer=trainer,
+            )
+            logger.info(
+                "Save best model hander set with `num_save_models` = %d",
+                params.num_save_models,
+            )
+        else:
+            logger.warning("Save best model handler not set")
+
+        handlers["early_stopping_handler"] = setup_early_stopping_handler(
+            params, trainer, evaluators["val_evaluator"]
+        )
+    else:
+        logger.warning("Evaluate handlers not set")
+        if params.early_stopping:
+            raise ValueError(
+                "Evaluate handlers must set when `early_stopping` is set"
+                ", check `eval_steps`, `eval_metric` and `patience`"
+            )
+
+    test_evaluator = evaluators.get("test_evaluator")
+    if test_evaluator is not None:
+        test_loader = data_loaders.get("test")
+        if test_loader is None:
+            raise ValueError(
+                "`test_loader` must not be None when `test_evaluator` is passed"
+            )
+
+        evaluate_handler = build_evaluate_handler(
+            test_evaluator, "test", net, test_loader, handlers["best_model_handler"]
+        )
+        trainer.add_event_handler(Events.COMPLETED, evaluate_handler)
+        handlers["test_evaluate_handler"] = evaluate_handler
+
+        logger.info("Setup evaluator for [test]")
+    else:
+        logger.warning("Test evaluate handlers not set")
+
+    return handlers
 
 
 def setup_logger_handlers(

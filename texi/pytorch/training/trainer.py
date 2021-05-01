@@ -12,7 +12,6 @@ import torch.nn as nn
 from carton.logger import log_dict
 from carton.logger import setup_logger as carton_setup_logger
 from carton.random import set_seed
-from ignite.contrib.engines.common import save_best_model_by_val_score
 from ignite.engine import Engine, Events
 from ignite.handlers import TerminateOnNan
 from ignite.metrics import BatchWise, EpochWise, Metric
@@ -31,11 +30,9 @@ from texi.pytorch.metrics import (
 )
 from texi.pytorch.optim import optim
 from texi.pytorch.training.handlers import (
-    build_evaluate_handler,
     build_exception_handler,
-    get_event,
     handle_dataset_mode,
-    setup_early_stopping_handler,
+    setup_evaluate_handlers,
     setup_logger_handlers,
     setup_lr_scheduler,
     setup_progress_bar,
@@ -118,60 +115,10 @@ def setup_handlers(
     setup_lr_scheduler(params, trainer, lr_scheduler)
 
     # Setup evaluate handlers.
-    if params.eval_steps == "epoch" or params.eval_steps > 0:
-        for mode in ["train", "val"]:
-            if mode == "train" and not params.eval_train:
-                continue
-
-            trainer.add_event_handler(
-                get_event(params.eval_steps),
-                build_evaluate_handler(
-                    evaluators[f"{mode}_evaluator"], mode, net, data_loaders[mode]
-                ),
-            )
-            logger.info("Setup evaluator for [%s]", mode)
-
-        if params.num_save_models > 0:
-            handlers["best_model_handler"] = save_best_model_by_val_score(
-                params.save_path,
-                evaluators["val_evaluator"],
-                net,
-                params.eval_metric,
-                n_saved=params.num_save_models,
-                trainer=trainer,
-            )
-            logger.info(
-                "Save best model hander set with `num_save_models` = %d",
-                params.num_save_models,
-            )
-        else:
-            logger.warning("Save best model handler not set")
-
-        setup_early_stopping_handler(params, trainer, evaluators["val_evaluator"])
-    else:
-        logger.warning("Evaluate handlers not set")
-        if params.early_stopping:
-            raise ValueError(
-                "Evaluate handlers must set when `early_stopping` is set"
-                ", check `eval_steps`, `eval_metric` and `patience`"
-            )
-
-    # Setup test evaluate handlers.
-    test_evaluator = evaluators.get("test_evaluator")
-    if test_evaluator is not None:
-        test_loader = data_loaders.get("test")
-        if test_loader is None:
-            raise ValueError(
-                "`test_loader` must not be None when `test_evaluator` is passed"
-            )
-        test_evaluate_handler = build_evaluate_handler(
-            test_evaluator, "test", net, test_loader, handlers.get("best_model_handler")
-        )
-        trainer.add_event_handler(Events.COMPLETED, test_evaluate_handler)
-        logger.info("Setup evaluator for [test]")
-    else:
-        test_evaluate_handler = None
-        logger.warning("Test evaluate handlers not set")
+    evaluate_handlers = setup_evaluate_handlers(
+        params, trainer, evaluators, net, data_loaders
+    )
+    handlers.update(evaluate_handlers)
 
     if params.log_steps > 0:
         logger_handlers = setup_logger_handlers(
@@ -191,7 +138,8 @@ def setup_handlers(
         logger.warning("Logger handlers not set")
 
     trainer.add_event_handler(
-        Events.EXCEPTION_RAISED, build_exception_handler(trainer, test_evaluate_handler)
+        Events.EXCEPTION_RAISED,
+        build_exception_handler(trainer, evaluate_handlers["test_evaluate_handler"]),
     )
 
     return handlers
