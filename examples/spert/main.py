@@ -16,8 +16,9 @@ from texi.pytorch.plm.spert import (
     SpERTParams,
     SpERTSampler,
 )
+from texi.pytorch.plm.spert.training import eval_step, train_step
 from texi.pytorch.plm.utils import get_pretrained_optimizer_and_scheduler
-from texi.pytorch.training.trainer import setup_env
+from texi.pytorch.training.training import create_engines, describe_dataflows, setup_env
 
 
 def get_dataset(
@@ -46,7 +47,7 @@ def get_dataset(
 def get_dataflows(
     datasets, tokenizer, entity_label_encoder, relation_label_encoder, params
 ):
-    loaders = SpERTDataset.get_dataloaders(
+    dataflows = SpERTDataset.get_dataloaders(
         {
             mode: get_dataset(
                 dataset,
@@ -64,7 +65,7 @@ def get_dataflows(
         sort_key=lambda x: len(x["tokens"]),
     )
 
-    return loaders
+    return dataflows
 
 
 def parse_args():
@@ -96,11 +97,12 @@ def main(args):
         params["negative_relation_type"]
     )
 
-    # Get data loaders.
+    # Get data dataflows.
     tokenizer = BertTokenizerFast.from_pretrained(params["pretrained_model"])
-    loaders = get_dataflows(
+    dataflows = get_dataflows(
         datasets, tokenizer, entity_label_encoder, relation_label_encoder, params
     )
+    describe_dataflows(dataflows)
 
     # Create model.
     model = SpERT(
@@ -131,7 +133,20 @@ def main(args):
         negative_relation_index,
         params["relation_filter_threshold"],
     )
-    env.setup(params, loaders, model, criteria, optimizer, lr_scheduler=lr_scheduler)
+
+    trainer, evaluators, loggers = create_engines(
+        params,
+        train_step,
+        eval_step,
+        dataflows,
+        model,
+        criteria,
+        optimizer,
+        lr_scheduler,
+        train_metrics=env.get_metrics(train=True),
+        eval_metrics=env.get_metrics(train=False),
+        with_handlers=True,
+    )
 
     # Setup evaluation sampler.
     eval_sampler = SpERTEvalSampler(
@@ -143,12 +158,12 @@ def main(args):
         negative_relation_index,
         params["relation_filter_threshold"],
         params.sample_dir,
-        wandb_logger=env.trainer.handlers.get("wandb_logger"),
+        wandb_logger=loggers.get("wandb_logger"),
     )
-    eval_sampler.setup(env.trainer, env.evaluators["val"])
+    eval_sampler.setup(trainer, evaluators["val"])
 
     # Train!
-    env.trainer.run(env.dataflows["train"], max_epochs=params["max_epochs"])
+    trainer.run(dataflows["train"], max_epochs=params["max_epochs"])
 
 
 if __name__ == "__main__":

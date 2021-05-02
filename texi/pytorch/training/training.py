@@ -2,7 +2,8 @@
 
 import logging
 import os
-from typing import Callable, Dict, Mapping, Optional, Tuple
+import traceback
+from typing import Callable, Dict, Mapping, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -10,8 +11,9 @@ from carton.logger import log_dict
 from carton.logger import setup_logger as carton_setup_logger
 from carton.random import set_seed
 from ignite.contrib.engines.common import setup_common_training_handlers
+from ignite.contrib.handlers.base_logger import BaseLogger
 from ignite.engine import Engine, Events
-from ignite.handlers import DiskSaver, TerminateOnNan
+from ignite.handlers import DiskSaver
 from ignite.metrics import BatchWise, EpochWise, Metric
 from ignite.utils import convert_tensor, setup_logger
 from torch.optim import Optimizer
@@ -20,14 +22,7 @@ from torch.utils.data import DataLoader
 
 from texi.pytorch.dataset.dataset import Batch, Dataset
 from texi.pytorch.optim import optim
-from texi.pytorch.training.handlers import (
-    build_exception_handler,
-    handle_dataset_mode,
-    setup_evaluate_handlers,
-    setup_logger_handlers,
-    setup_lr_scheduler,
-    setup_progress_bar,
-)
+from texi.pytorch.training.handlers import handle_dataset_mode, setup_extra_handlers
 from texi.pytorch.training.params import Params
 
 logger = logging.getLogger(__name__)
@@ -58,6 +53,21 @@ def configure_optimizers(
         lr_scheduler = optim.lr_scheduler(optimizer, **lr_scheduler_params)
 
     return optimizer, lr_scheduler
+
+
+def describe_dataflows(dataflows, logger_: Optional[logging.Logger] = None) -> None:
+    if logger_ is None:
+        logger_ = logger
+
+    for mode, flow in dataflows.items():
+        logger_.info("Dataset description [%s]:", mode)
+
+        if isinstance(flow.dataset, Dataset):
+            stats = flow.dataset.describe()
+        else:
+            stats = {"size": len(flow.dataset)}
+
+        log_dict(logger_, stats)
 
 
 def setup_engine(
@@ -123,14 +133,13 @@ def create_trainer(
             to_save.update({"lr_scheduler": lr_scheduler})
 
         trainer.add_event_handler(Events.EPOCH_STARTED, handle_dataset_mode)
-        setup_lr_scheduler(params, trainer, lr_scheduler)
 
         setup_common_training_handlers(
             trainer,
             train_sampler=None,  # TODO
             to_save=to_save,
             save_every_iters=params.save_steps,
-            lr_scheduler=lr_scheduler,
+            lr_scheduler=lr_scheduler,  # TODO
             with_gpu_stats=False,
             output_names=["loss"],
             with_pbars=True,
@@ -140,6 +149,18 @@ def create_trainer(
             clear_cuda_cache=True,
             save_handler=DiskSaver(params.save_path, require_empty=False),
         )
+        logger.info("Setup common training handlers.")
+
+        @trainer.on(Events.EXCEPTION_RAISED)
+        def handle_exceptions(engine, e):
+            if isinstance(e, KeyboardInterrupt):
+                engine.logger.info("KeyboardInterrupt caught. Exiting gracefully.")
+                trainer.terminate()
+            else:
+                traceback.print_exc()
+                raise e
+
+        logger.info("Setup exception handler.")
 
     return trainer
 
@@ -182,107 +203,50 @@ def create_evaluators(
     }
 
 
-def setup_handlers(
+def create_engines(
     params: Params,
-    trainer: Engine,
-    evaluators: Mapping[str, Engine],
-    data_loaders: Mapping[str, DataLoader],
-    net: nn.Module,
+    train_step: TrainStepFunction,
+    eval_step: EvalStepFunction,
+    dataflows: Dataflows,
+    model: nn.Module,
+    criteria: nn.Module,
     optimizer: Optimizer,
     lr_scheduler: Optional[_LRScheduler] = None,
-) -> Dict:
-    # pylint: disable=not-callable, unused-argument, unused-variable
-    # pylint: disable=too-many-locals, too-many-arguments
+    train_metrics: Optional[Metrics] = None,
+    eval_metrics: Optional[Metrics] = None,
+    metrics: Optional[Metrics] = None,
+    with_handlers: bool = True,
+) -> Union[
+    Tuple[Engine, Dict[str, Engine]], Tuple[Engine, Dict[str, Engine], BaseLogger]
+]:
+    # pylint: disable=too-many-arguments
 
-    # Setup general handlers.
-    handlers = {}
-    trainer.add_event_handler(Events.EPOCH_STARTED, handle_dataset_mode)
-    trainer.add_event_handler(Events.ITERATION_COMPLETED, TerminateOnNan())
+    if metrics:
+        if train_metrics or eval_metrics:
+            raise ValueError(
+                "Either `metrics` or `train_metrics` and `eval_metrics`"
+                " should be given"
+            )
+        train_metrics = metrics
+        eval_metrics = metrics
 
-    # Setup progress bars.
-    setup_progress_bar(params, trainer, evaluators)
-
-    # Setup lr scheduler.
-    setup_lr_scheduler(params, trainer, lr_scheduler)
-
-    # Setup evaluate handlers.
-    evaluate_handlers = setup_evaluate_handlers(
-        params, trainer, evaluators, net, data_loaders
+    trainer = create_trainer(
+        train_step,
+        params,
+        model,
+        criteria,
+        optimizer,
+        lr_scheduler=lr_scheduler,
+        metrics=train_metrics,
+        with_handlers=with_handlers,
     )
-    handlers.update(evaluate_handlers)
+    evaluators = create_evaluators(eval_step, params, model, eval_metrics)
 
-    # Setup logger handlers.
-    logger_handlers = setup_logger_handlers(params, trainer, net, optimizer, evaluators)
-    handlers.update(logger_handlers)
-
-    trainer.add_event_handler(
-        Events.EXCEPTION_RAISED,
-        build_exception_handler(trainer, evaluate_handlers["test_evaluate_handler"]),
-    )
-
-    return handlers
-
-
-def describe_dataflows(dataflows, logger_: Optional[logging.Logger] = None) -> None:
-    if logger_ is None:
-        logger_ = logger
-
-    for mode, flow in dataflows.items():
-        logger_.info("Dataset description [%s]:", mode)
-
-        if isinstance(flow.dataset, Dataset):
-            stats = flow.dataset.describe()
-        else:
-            stats = {"size": len(flow.dataset)}
-
-        log_dict(logger_, stats)
-
-
-class Env(object):
-    def get_metrics(self, train: bool):
-        pass
-
-    def train_step(
-        self, engine: Engine, model: nn.Module, batch: Batch, criteria: nn.Module
-    ) -> Dict:
-        pass
-
-    def eval_step(self, engine: Engine, model: nn.Module, batch: Batch) -> Dict:
-        pass
-
-    def setup(
-        self,
-        params: Params,
-        dataflows: Dataflows,
-        model: nn.Module,
-        criteria: nn.Module,
-        optimizer: Optimizer,
-        lr_scheduler: Optional[_LRScheduler] = None,
-    ):
-        self.dataflows = dataflows
-
-        self.trainer = create_trainer(
-            self.train_step,
-            params,
-            model,
-            criteria,
-            optimizer,
-            lr_scheduler=lr_scheduler,
-            metrics=self.get_metrics(train=True),
+    if with_handlers:
+        loggers = setup_extra_handlers(
+            params, trainer, evaluators, dataflows, model, optimizer
         )
 
-        self.evaluators = create_evaluators(
-            self.eval_step, params, model, self.get_metrics(train=False)
-        )
+        return trainer, evaluators, loggers
 
-        evaluate_handlers = setup_evaluate_handlers(
-            params, self.trainer, self.evaluators, model, dataflows
-        )
-        logger_handlers = setup_logger_handlers(
-            params, self.trainer, model, optimizer, self.evaluators
-        )
-        handlers = {**evaluate_handlers, **logger_handlers}
-
-        describe_dataflows(dataflows, self.trainer.logger)
-
-        return handlers
+    return trainer, evaluators

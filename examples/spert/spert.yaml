@@ -4,8 +4,6 @@ project: "spert"
 
 # Datasets
 data_dir: "./data"
-val_size: 0.1
-test_size: 0.2
 
 # Training
 seed: null
@@ -25,12 +23,14 @@ num_workers: 0
 pin_memory: true
 non_blocking: true
 
-# Evaluation & Early Stopping
+# Evaluation
 eval_train: false
 eval_steps: "epoch"
-num_save_models: 1
-early_stopping: false
 eval_metric: "RE.all.f1"
+save_best_models: 1
+
+# Early Stopping
+early_stopping: false
 patience: 10
 
 # Logging

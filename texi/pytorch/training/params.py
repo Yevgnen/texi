@@ -55,20 +55,24 @@ class Params(object):
         self.non_blocking = kwargs.get("non_blocking", True)
         self.num_workers = kwargs.get("num_workers", 0)
 
-        # Evaluation & Early Stopping
+        # Checkpoint
+        self.save_steps = kwargs.get("save_steps", 1000)
+
+        # Evaluation
         self.eval_train = kwargs.get("eval_train", False)
         self.eval_steps = kwargs.get("eval_steps", -1)
-        self.num_save_models = kwargs.get(
-            "num_save_models",
-            1 if self.eval_steps == "epoch" or self.eval_steps > 0 else 0,
-        )
-        self.save_steps = kwargs.get("save_steps", 1000)
-        self.early_stopping = kwargs.get("early_stopping", False)
         self.eval_metric = kwargs.get("eval_metric")
-        self.patience = kwargs.get("patience")
-        self.sample_dir = kwargs.get(
-            "sample_dir", os.path.join(self.save_path, "samples")
+        self.save_best_models = kwargs.get(
+            "save_best_models",
+            1
+            if (self.eval_steps == "epoch" or self.eval_steps > 0)
+            and self.eval_metric is not None
+            else 0,
         )
+
+        # Early Stopping
+        self.early_stopping = kwargs.get("early_stopping", False)
+        self.patience = kwargs.get("patience")
 
         # Logging
         self.pbar_steps = kwargs.get("pbar_steps", 10)
@@ -76,6 +80,9 @@ class Params(object):
         self.tensorboard = kwargs.get("tensorboard", False)
         self.wandb = kwargs.get("wandb", False)
         self.debug = kwargs.get("debug", False)
+        self.sample_dir = kwargs.get(
+            "sample_dir", os.path.join(self.save_path, "samples")
+        )
 
     def __repr__(self):
         return repr(self.__dict__)

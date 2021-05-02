@@ -2,7 +2,6 @@
 
 import logging
 import os
-import traceback
 from typing import Any, Callable, Dict, Mapping, Optional, Union, cast
 
 import torch
@@ -16,6 +15,7 @@ from ignite.contrib.handlers import ProgressBar
 from ignite.contrib.handlers.base_logger import BaseLogger
 from ignite.engine import Engine, Events
 from ignite.handlers import EarlyStopping
+from ignite.handlers.checkpoint import Checkpoint
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data.dataloader import DataLoader
@@ -47,22 +47,6 @@ def handle_dataset_mode(engine: Engine) -> None:
     if isinstance(engine.state.dataloader.dataset, Dataset):
         engine.state.dataloader.dataset.train()
         engine.logger.info("Dataset [train] switched to train mode.")
-
-
-def build_exception_handler(
-    trainer: Engine, test_evaluate_handler: Optional[Callable[[Engine], None]]
-) -> Callable[[Engine, Exception], None]:
-    def handle_exceptions(engine, e):
-        if isinstance(e, KeyboardInterrupt):
-            engine.logger.info("KeyboardInterrupt caught. Exiting gracefully.")
-            trainer.terminate()
-
-            if callable(test_evaluate_handler):
-                test_evaluate_handler(trainer)
-        else:
-            traceback.print_exc()
-
-    return handle_exceptions
 
 
 def build_evaluate_handler(
@@ -139,6 +123,34 @@ def setup_lr_scheduler(
         trainer.logger.warning("LR scheduler not set")
 
 
+def setup_save_best_model_handler(
+    params: Params, trainer: Engine, evaluator: Engine, model: nn.Module
+) -> Union[Checkpoint, None]:
+    handler = None
+    if params.save_best_models > 0:
+        if params.eval_metric is None:
+            raise ValueError("`eval_metric` must set when `save_best_models` is set")
+
+        handler = save_best_model_by_val_score(
+            params.save_path,
+            evaluator,
+            model,
+            params.eval_metric,
+            n_saved=params.save_best_models,
+            trainer=trainer,
+        )
+        trainer.logger.info(
+            "Save best model hander set with `eval_metric` = %s"
+            ", `save_best_models` = %d",
+            params.eval_metric,
+            params.save_best_models,
+        )
+    else:
+        trainer.logger.warning("Save best model handler not set")
+
+    return handler
+
+
 def setup_early_stopping_handler(
     params: Params, trainer: Engine, evaluator: Engine
 ) -> Union[EarlyStopping, None]:
@@ -148,7 +160,8 @@ def setup_early_stopping_handler(
             raise ValueError(
                 "`eval_metric` and `patience` must set when `early_stopping` is set"
             )
-        if params.num_save_models < 0:
+
+        if params.save_best_models < 0:
             trainer.logger.warning("Early stopping is set, but best model is not saved")
 
         handler = add_early_stopping_by_val_score(
@@ -169,8 +182,8 @@ def setup_early_stopping_handler(
 def setup_evaluate_handlers(
     params: Params,
     trainer: Engine,
-    evaluators: Mapping[str, Engine],
     model: nn.Module,
+    evaluators: Mapping[str, Engine],
     dataflows: Mapping[str, DataLoader],
 ) -> Dict[str, Any]:
     handlers = dict.fromkeys(
@@ -196,21 +209,9 @@ def setup_evaluate_handlers(
 
             trainer.logger.info("Setup evaluator for [%s]", mode)
 
-        if params.num_save_models > 0:
-            handlers["best_model_handler"] = save_best_model_by_val_score(
-                params.save_path,
-                evaluators["val"],
-                model,
-                params.eval_metric,
-                n_saved=params.num_save_models,
-                trainer=trainer,
-            )
-            trainer.logger.info(
-                "Save best model hander set with `num_save_models` = %d",
-                params.num_save_models,
-            )
-        else:
-            trainer.logger.warning("Save best model handler not set")
+        handlers["best_model_handler"] = setup_save_best_model_handler(
+            params, trainer, evaluators["val"], model
+        )
 
         handlers["early_stopping_handler"] = setup_early_stopping_handler(
             params, trainer, evaluators["val"]
@@ -235,11 +236,16 @@ def setup_evaluate_handlers(
             test_evaluator, "test", model, test_loader, handlers["best_model_handler"]
         )
         trainer.add_event_handler(Events.COMPLETED, evaluate_handler)
+
+        @trainer.on(Events.EXCEPTION_RAISED)
+        def evaluate_test_on_exceptions(_engine, _e):
+            evaluate_handler(test_evaluator)
+
         handlers["test_evaluate_handler"] = evaluate_handler
 
         trainer.logger.info("Setup evaluator for [test]")
     else:
-        trainer.logger.warning("Test evaluate handlers not set")
+        trainer.logger.warning("Test evaluate handler not set")
 
     return handlers
 
@@ -271,6 +277,7 @@ def setup_logger_handlers(
             include_weights_and_grads=params.debug,
         )
         handlers["tensorboard_logger"] = tensorboard_logger
+        logger.info("Setup tensorboard logger: %s", tensorboard_dir)
 
     if params.wandb:
         # FIXME: Duplicated code with evaluator setup.
@@ -302,5 +309,23 @@ def setup_logger_handlers(
         if params.debug:
             wandb_logger.watch(model, log="all", log_steps=params.log_steps)
         handlers["wandb_logger"] = wandb_logger
+        logger.info("Setup wandb logger: %s", wandb_dir)
 
     return handlers
+
+
+def setup_extra_handlers(
+    params: Params,
+    trainer: Engine,
+    evaluators: Mapping[str, Engine],
+    dataflows: Mapping[str, DataLoader],
+    model: nn.Module,
+    optimizer: Optimizer,
+) -> Dict[str, BaseLogger]:
+    # Evaluation.
+    setup_evaluate_handlers(params, trainer, model, evaluators, dataflows)
+
+    # Loggers.
+    loggers = setup_logger_handlers(params, trainer, model, optimizer, evaluators)
+
+    return loggers

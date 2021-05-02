@@ -21,12 +21,10 @@ if TYPE_CHECKING:
     from ignite.engine import Engine
     from torch.optim import Optimizer
 
-    from texi.pytorch.training.trainer import Trainer
-
 
 def setup_tb_logging(
     log_dir: str,
-    trainer: Trainer,
+    trainer: Engine,
     optimizers: Optional[Union[Optimizer, Mapping[str, Optimizer]]] = None,
     evaluators: Optional[Mapping[str, Engine]] = None,
     log_steps: int = 1,

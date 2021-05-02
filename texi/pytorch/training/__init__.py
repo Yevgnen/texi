@@ -2,4 +2,4 @@
 
 import texi.pytorch.training.handlers
 import texi.pytorch.training.params
-import texi.pytorch.training.trainer
+import texi.pytorch.training.training
