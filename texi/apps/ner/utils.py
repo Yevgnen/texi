@@ -86,7 +86,11 @@ def collapse_entities(
     return collapsed
 
 
-def encode_labels(examples: Iterable[Mapping]) -> Tuple[LabelEncoder, LabelEncoder]:
+def encode_labels(
+    examples: Iterable[Mapping],
+    negative_entity_type: Optional[str] = None,
+    negative_relation_type: Optional[str] = None,
+) -> Tuple[LabelEncoder, LabelEncoder]:
     entity_label_encoder = LabelEncoder()
     relation_label_encoder = LabelEncoder()
 
@@ -96,6 +100,12 @@ def encode_labels(examples: Iterable[Mapping]) -> Tuple[LabelEncoder, LabelEncod
 
         for relation in example["relations"]:
             relation_label_encoder.add(relation["type"])
+
+    if negative_entity_type:
+        entity_label_encoder.add(negative_entity_type)
+
+    if negative_relation_type:
+        relation_label_encoder.add(negative_relation_type)
 
     return entity_label_encoder, relation_label_encoder
 
