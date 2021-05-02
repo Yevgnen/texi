@@ -1,26 +1,22 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import annotations
-
 import itertools
-from typing import TYPE_CHECKING, Dict, cast
+from typing import Dict, Union, cast
 
 import torch
 import torch.nn as nn
+from transformers import BertModel
 
 from texi.pytorch.masking import create_span_mask
 from texi.pytorch.plm.pooling import get_pooling
 from texi.pytorch.plm.spert.dataset import stack_1d, stack_2d
 from texi.pytorch.utils import split_apply
 
-if TYPE_CHECKING:
-    from transformers import BertModel
-
 
 class SpERT(nn.Module):
     def __init__(
         self,
-        bert: BertModel,
+        bert: Union[BertModel, str],
         embedding_dim: int,
         num_entity_types: int,
         num_relation_types: int,
@@ -31,7 +27,10 @@ class SpERT(nn.Module):
         global_context_pooling: str = "cls",
     ):
         super().__init__()
+        if isinstance(bert, str):
+            bert = BertModel.from_pretrained(bert)
         self.bert = bert
+
         self.size_embedding = nn.Embedding(max_entity_length, embedding_dim)
         self.span_classifier = nn.Linear(
             embedding_dim + 2 * bert.config.hidden_size, num_entity_types

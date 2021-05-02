@@ -3,7 +3,7 @@
 import argparse
 import functools
 
-from transformers import BertModel, BertTokenizerFast
+from transformers import BertTokenizerFast
 
 from texi.apps.ner import SpERTVisualizer, encode_labels, split_example
 from texi.datasets import JSONDatasets
@@ -103,9 +103,8 @@ def main(args):
     )
 
     # Create model.
-    bert = BertModel.from_pretrained(params["pretrained_model"])
     model = SpERT(
-        bert,
+        params["pretrained_model"],
         params["embedding_dim"],
         len(entity_label_encoder),
         len(relation_label_encoder),
