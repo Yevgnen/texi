@@ -21,16 +21,14 @@ if TYPE_CHECKING:
     from ignite.engine import Engine
     from torch.optim import Optimizer
 
-    from texi.pytorch.training.trainer import Trainer
-
 
 def setup_tb_logging(
     log_dir: str,
-    trainer: Trainer,
+    trainer: Engine,
     optimizers: Optional[Union[Optimizer, Mapping[str, Optimizer]]] = None,
     evaluators: Optional[Mapping[str, Engine]] = None,
     log_steps: int = 1,
-    net: Optional[nn.Module] = None,
+    model: Optional[nn.Module] = None,
     include_weights_and_grads: bool = True,
     **kwargs,
 ) -> TensorboardLogger:
@@ -46,25 +44,25 @@ def setup_tb_logging(
     if include_weights_and_grads:
         tb_logger.attach(
             trainer,
-            log_handler=WeightsScalarHandler(net),
+            log_handler=WeightsScalarHandler(model),
             event_name=Events.ITERATION_COMPLETED(every=log_steps),
         )
 
         tb_logger.attach(
             trainer,
-            log_handler=WeightsHistHandler(net),
+            log_handler=WeightsHistHandler(model),
             event_name=Events.ITERATION_COMPLETED(every=log_steps),
         )
 
         tb_logger.attach(
             trainer,
-            log_handler=GradsScalarHandler(net),
+            log_handler=GradsScalarHandler(model),
             event_name=Events.ITERATION_COMPLETED(every=log_steps),
         )
 
         tb_logger.attach(
             trainer,
-            log_handler=GradsHistHandler(net),
+            log_handler=GradsHistHandler(model),
             event_name=Events.ITERATION_COMPLETED(every=log_steps),
         )
 

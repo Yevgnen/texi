@@ -16,13 +16,13 @@ from typing import (
 
 import torch
 import torch.nn as nn
+from ignite.utils import convert_tensor
 from torchcrf import CRF
 from transformers import BertModel
 
 from texi.preprocessing import LabelEncoder
 from texi.pytorch.masking import length_to_mask
 from texi.pytorch.rnn import LSTM
-from texi.pytorch.training.trainer import convert_tensor
 from texi.tagger.sequence_labeling import SequeceLabelingTagger
 
 if TYPE_CHECKING:

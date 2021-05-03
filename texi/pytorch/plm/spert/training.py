@@ -21,7 +21,7 @@ from texi.preprocessing import LabelEncoder
 from texi.pytorch.metrics import NerMetrics, ReMetrics
 from texi.pytorch.plm.spert import predict
 from texi.pytorch.training.params import Params
-from texi.pytorch.training.trainer import Batch, MetricGroup, Trainer
+from texi.pytorch.training.training import Batch, Metrics
 
 try:
     import wandb
@@ -58,7 +58,45 @@ class SpERTParams(Params):
         return self.__dict__[key]
 
 
-class SpERTTrainer(Trainer):
+def train_step(_: Engine, model: nn.Module, batch: Batch, criteria: nn.Module) -> Dict:
+    output = model(
+        batch["input_ids"],
+        batch["attention_mask"],
+        batch["token_type_ids"],
+        batch["entity_mask"],
+        batch["relation"],
+        batch["relation_context_mask"],
+    )
+
+    loss = criteria(
+        output["entity_logit"],
+        batch["entity_label"],
+        batch["entity_sample_mask"],
+        output["relation_logit"],
+        batch["relation_label"],
+        batch["relation_sample_mask"],
+    )
+
+    return {"batch": batch, "loss": loss}
+
+
+def eval_step(_: Engine, model: nn.Module, batch: Batch) -> Dict:
+    target, input_ = batch
+    output = model.infer(
+        input_["input_ids"],
+        input_["attention_mask"],
+        input_["token_type_ids"],
+        input_["entity_mask"],
+    )
+
+    return {
+        "target": target,
+        "input": input_,
+        "output": output,
+    }
+
+
+class SpERTEnv(object):
     def __init__(
         self,
         entity_label_encoder: LabelEncoder,
@@ -74,7 +112,7 @@ class SpERTTrainer(Trainer):
         self.negative_relation_index = negative_relation_index
         self.relation_filter_threshold = relation_filter_threshold
 
-    def get_metrics(self, train: bool = True) -> MetricGroup:
+    def get_metrics(self, train: bool = True) -> Metrics:
         if train:
             return {}
 
@@ -120,44 +158,6 @@ class SpERTTrainer(Trainer):
                     },
                 },
             ),
-        }
-
-    def train_step(
-        self, _: Engine, net: nn.Module, batch: Batch, loss_function: nn.Module
-    ) -> Dict:
-        output = net(
-            batch["input_ids"],
-            batch["attention_mask"],
-            batch["token_type_ids"],
-            batch["entity_mask"],
-            batch["relation"],
-            batch["relation_context_mask"],
-        )
-
-        loss = loss_function(
-            output["entity_logit"],
-            batch["entity_label"],
-            batch["entity_sample_mask"],
-            output["relation_logit"],
-            batch["relation_label"],
-            batch["relation_sample_mask"],
-        )
-
-        return {"batch": batch, "loss": loss}
-
-    def eval_step(self, _: Engine, net: nn.Module, batch: Batch) -> Dict:
-        target, input_ = batch
-        output = net.infer(
-            input_["input_ids"],
-            input_["attention_mask"],
-            input_["token_type_ids"],
-            input_["entity_mask"],
-        )
-
-        return {
-            "target": target,
-            "input": input_,
-            "output": output,
         }
 
 
