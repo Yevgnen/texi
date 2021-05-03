@@ -39,6 +39,8 @@ def setup_env(params: Params):
     os.makedirs(os.path.dirname(params["log_file"]), exist_ok=True)
     carton_setup_logger(level=logging.INFO, filename=params["log_file"])
 
+    params.to_yaml(os.path.join(params.save_path, "params.yaml"))
+
 
 def configure_optimizers(
     net: nn.Module,
