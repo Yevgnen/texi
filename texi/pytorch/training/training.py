@@ -242,6 +242,8 @@ def create_engines(
     Tuple[Engine, Dict[str, Engine]], Tuple[Engine, Dict[str, Engine], BaseLogger]
 ]:
     # pylint: disable=too-many-arguments
+    logger.info("Creating engines with params:")
+    log_dict(logger, params.to_dict())
 
     if metrics:
         if train_metrics or eval_metrics:
