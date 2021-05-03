@@ -10,7 +10,7 @@ import torch.nn as nn
 from carton.logger import log_dict
 from carton.logger import setup_logger as carton_setup_logger
 from carton.random import set_seed
-from ignite.contrib.engines.common import setup_common_training_handlers
+from ignite.contrib.engines.common import ProgressBar, setup_common_training_handlers
 from ignite.contrib.handlers.base_logger import BaseLogger
 from ignite.engine import Engine, Events
 from ignite.handlers import DiskSaver
@@ -124,6 +124,16 @@ def create_trainer(
     )
 
     if with_handlers:
+        if params.pbar_steps > 0:
+            ProgressBar(ncols=0).attach(
+                trainer,
+                metric_names="all",
+                event_name=Events.ITERATION_COMPLETED(every=params.pbar_steps),
+                closing_event_name=Events.EPOCH_COMPLETED,
+            )
+
+        trainer.add_event_handler(Events.EPOCH_STARTED, handle_dataset_mode)
+
         to_save = {
             "trainer": trainer,
             "model": model,
@@ -131,8 +141,6 @@ def create_trainer(
         }
         if lr_scheduler is not None:
             to_save.update({"lr_scheduler": lr_scheduler})
-
-        trainer.add_event_handler(Events.EPOCH_STARTED, handle_dataset_mode)
 
         setup_common_training_handlers(
             trainer,
@@ -142,8 +150,8 @@ def create_trainer(
             lr_scheduler=lr_scheduler,  # TODO
             with_gpu_stats=False,
             output_names=["loss"],
-            with_pbars=True,
-            with_pbar_on_iters=True,
+            with_pbars=False,
+            with_pbar_on_iters=False,
             log_every_iters=params.pbar_steps,
             stop_on_nan=True,
             clear_cuda_cache=True,
@@ -171,6 +179,7 @@ def create_evaluator(
     model: nn.Module,
     metrics: Metrics,
     tag: str,
+    with_handlers: bool = True,
 ) -> Engine:
     @torch.no_grad()
     def step(engine, batch):
@@ -191,14 +200,27 @@ def create_evaluator(
         train=False,
     )
 
+    if with_handlers:
+        ProgressBar(ncols=0, desc=f"Evaluation [{tag}]").attach(
+            evaluator,
+            event_name=Events.ITERATION_COMPLETED(every=params.pbar_steps),
+            closing_event_name=Events.EPOCH_COMPLETED,
+        )
+
     return evaluator
 
 
 def create_evaluators(
-    eval_step: EvalStepFunction, params: Params, model: nn.Module, metrics: Metrics
+    eval_step: EvalStepFunction,
+    params: Params,
+    model: nn.Module,
+    metrics: Metrics,
+    with_handlers: bool = True,
 ) -> Dict[str, Engine]:
     return {
-        mode: create_evaluator(eval_step, params, model, metrics, tag=mode)
+        mode: create_evaluator(
+            eval_step, params, model, metrics, mode, with_handlers=with_handlers
+        )
         for mode in ["train", "val", "test"]
     }
 
@@ -240,7 +262,9 @@ def create_engines(
         metrics=train_metrics,
         with_handlers=with_handlers,
     )
-    evaluators = create_evaluators(eval_step, params, model, eval_metrics)
+    evaluators = create_evaluators(
+        eval_step, params, model, eval_metrics, with_handlers=with_handlers
+    )
 
     if with_handlers:
         loggers = setup_extra_handlers(
