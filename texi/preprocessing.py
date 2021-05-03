@@ -96,10 +96,10 @@ class LabelEncoder(object):
     T = TypeVar("T", bound="LabelEncoder")
 
     def __init__(
-        self, tokens: Optional[Iterable[str]] = None, unknown: Optional[str] = None
+        self, labels: Optional[Iterable[str]] = None, default: Optional[str] = None
     ) -> None:
-        self.unknown = unknown
-        self.init(tokens)
+        self.default = default
+        self.init(labels)
 
     def __len__(self):
         return len(self.index2label)
@@ -112,35 +112,59 @@ class LabelEncoder(object):
     def num_labels(self):
         return len(self)
 
+    @property
+    def default_index(self):
+        return self.get_index(self.default)
+
     def reset(self) -> None:
         self.index2label = {}
         self.label2index = {}
 
-        if self.unknown:
-            self.label2index[self.unknown] = 0
-            self.index2label[0] = self.unknown
+        if self.default:
+            self.label2index[self.default] = 0
+            self.index2label[0] = self.default
 
-    def init(self, tokens: Iterable[str]) -> None:
+    def init(self, labels: Iterable[str]) -> None:
         self.reset()
 
-        if not tokens:
+        if not labels:
             return
 
-        for token in tokens:
-            self.label2index.setdefault(token, len(self.label2index))
+        for label in labels:
+            self.label2index.setdefault(label, len(self.label2index))
 
         self.index2label = {v: k for k, v in self.label2index.items()}
 
-    def add(self, token: str) -> int:
-        index = self.label2index.setdefault(token, len(self))
-        self.index2label.setdefault(index, token)
+    def add(self, label: str) -> int:
+        index = self.label2index.setdefault(label, len(self))
+        self.index2label.setdefault(index, label)
 
         return index
 
+    def get_index(self, label: str) -> int:
+        index = self.label2index.get(label)
+        if index is None:
+            if self.default is not None:
+                return 0
+
+            raise KeyError(label)
+
+        return index
+
+    def get_label(self, index: int) -> str:
+        label = self.index2label.get(index)
+        if label is None:
+            if self.default is not None:
+                return self.default
+
+            raise KeyError(index)
+
+        return label
+
     def encode_label(
-        self, token: str, return_tensors: Optional[str] = None
+        self, label: str, return_tensors: Optional[str] = None
     ) -> Union[int, torch.Tensor]:
-        index = self.label2index[token]
+        index = self.get_index(label)
 
         if return_tensors == "pt":
             return torch.tensor(index, dtype=torch.int64)
@@ -164,12 +188,12 @@ class LabelEncoder(object):
                 f"got: {index.__class__.__name__}"
             )
 
-        return self.index2label[index]
+        return self.get_label(index)
 
     def encode(
-        self, tokens: Iterable[str], return_tensors: Optional[str] = None
+        self, labels: Iterable[str], return_tensors: Optional[str] = None
     ) -> Union[List[int], torch.Tensor]:
-        indices = [self.label2index[x] for x in tokens]
+        indices = [self.get_index(x) for x in labels]
         if return_tensors == "pt":
             return torch.tensor(indices, dtype=torch.int64)
 
@@ -186,10 +210,10 @@ class LabelEncoder(object):
                 )
             indices = indices.cpu().numpy()
 
-        tokens = [self.index2label[x] for x in indices]
+        labels = [self.get_label(x) for x in indices]
 
-        return tokens
+        return labels
 
     @classmethod
-    def from_iterable(cls, tokens: Iterable[Iterable[str]]) -> T:
-        return cls(itertools.chain.from_iterable(tokens))
+    def from_iterable(cls, labels: Iterable[Iterable[str]]) -> T:
+        return cls(itertools.chain.from_iterable(labels))

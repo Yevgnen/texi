@@ -91,8 +91,8 @@ def encode_labels(
     negative_entity_type: Optional[str] = None,
     negative_relation_type: Optional[str] = None,
 ) -> Tuple[LabelEncoder, LabelEncoder]:
-    entity_label_encoder = LabelEncoder()
-    relation_label_encoder = LabelEncoder()
+    entity_label_encoder = LabelEncoder(default=negative_entity_type)
+    relation_label_encoder = LabelEncoder(default=negative_relation_type)
 
     for example in examples:
         for entity in example["entities"]:
@@ -100,12 +100,6 @@ def encode_labels(
 
         for relation in example["relations"]:
             relation_label_encoder.add(relation["type"])
-
-    if negative_entity_type:
-        entity_label_encoder.add(negative_entity_type)
-
-    if negative_relation_type:
-        relation_label_encoder.add(negative_relation_type)
 
     return entity_label_encoder, relation_label_encoder
 

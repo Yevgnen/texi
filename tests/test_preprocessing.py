@@ -19,24 +19,56 @@ class TestLabelEncoder(unittest.TestCase):
             self.assertEqual(encoder.decode_label(i), label)
 
     def test_init(self):
-        tokens = ["dog", "cat", "cat"]
-        encoder = LabelEncoder(tokens)
+        labels = ["dog", "cat", "cat"]
+        encoder = LabelEncoder(labels)
         self.valid_encoder(encoder, ["dog", "cat"])
 
-    def test_init_unknown(self):
-        tokens = ["dog"]
-        encoder = LabelEncoder(tokens, unknown="unk")
+    def test_init_default(self):
+        labels = ["dog"]
+        encoder = LabelEncoder(labels, default="unk")
         self.valid_encoder(encoder, ["unk", "dog"])
 
+    def test_get_index(self):
+        labels = ["dog", "cat"]
+        encoder = LabelEncoder(labels)
+        self.assertEqual(encoder.get_index("dog"), 0)
+        self.assertEqual(encoder.get_index("cat"), 1)
+        with self.assertRaises(KeyError) as ctx:
+            encoder.get_index("pig")
+        self.assertEqual(str(ctx.exception), "'pig'")
+
+    def test_get_index_default(self):
+        labels = ["dog", "cat"]
+        encoder = LabelEncoder(labels, default="unk")
+        self.assertEqual(encoder.get_index("dog"), 1)
+        self.assertEqual(encoder.get_index("cat"), 2)
+        self.assertEqual(encoder.get_index("pig"), 0)
+
+    def test_get_label(self):
+        labels = ["dog", "cat"]
+        encoder = LabelEncoder(labels)
+        self.assertEqual(encoder.get_label(0), "dog")
+        self.assertEqual(encoder.get_label(1), "cat")
+        with self.assertRaises(KeyError) as ctx:
+            encoder.get_label(99)
+        self.assertEqual(ctx.exception.args, (99,))
+
+    def test_get_label_default(self):
+        labels = ["dog", "cat"]
+        encoder = LabelEncoder(labels, default="unk")
+        self.assertEqual(encoder.get_label(1), "dog")
+        self.assertEqual(encoder.get_label(2), "cat")
+        self.assertEqual(encoder.get_label(0), "unk")
+
     def test_add(self):
-        tokens = ["dog"]
-        encoder = LabelEncoder(tokens)
+        labels = ["dog"]
+        encoder = LabelEncoder(labels)
         encoder.add("cat")
         self.valid_encoder(encoder, ["dog", "cat"])
 
     def test_encode_label(self):
-        tokens = ["dog"]
-        encoder = LabelEncoder(tokens)
+        labels = ["dog"]
+        encoder = LabelEncoder(labels)
         self.assertEqual(encoder.encode_label("dog"), 0)
         self.assertEqual(
             encoder.encode_label("dog", return_tensors="pt"),
@@ -47,8 +79,8 @@ class TestLabelEncoder(unittest.TestCase):
         self.assertEqual(str(ctx.exception), '`return_tensors` should be "pt" or None')
 
     def test_decode_label(self):
-        tokens = ["dog"]
-        encoder = LabelEncoder(tokens)
+        labels = ["dog"]
+        encoder = LabelEncoder(labels)
         self.assertEqual(encoder.decode_label(0), "dog")
         self.assertEqual(
             encoder.decode_label(torch.tensor(0, dtype=torch.int64)), "dog"
@@ -66,8 +98,8 @@ class TestLabelEncoder(unittest.TestCase):
         )
 
     def test_encode(self):
-        tokens = ["dog", "cat"]
-        encoder = LabelEncoder(tokens)
+        labels = ["dog", "cat"]
+        encoder = LabelEncoder(labels)
         self.assertEqual(encoder.encode(["dog", "cat"]), [0, 1])
         self.assertTrue(
             (
@@ -80,8 +112,8 @@ class TestLabelEncoder(unittest.TestCase):
         self.assertEqual(str(ctx.exception), '`return_tensors` should be "pt" or None')
 
     def test_decode(self):
-        tokens = ["dog", "cat"]
-        encoder = LabelEncoder(tokens)
+        labels = ["dog", "cat"]
+        encoder = LabelEncoder(labels)
         self.assertEqual(encoder.decode([0, 1]), ["dog", "cat"])
         self.assertEqual(
             encoder.decode(torch.tensor([0, 1], dtype=torch.int64)),
@@ -95,8 +127,8 @@ class TestLabelEncoder(unittest.TestCase):
         )
 
     def test_from_iterable(self):
-        tokens = [["dog"], ["cat"]]
-        encoder = LabelEncoder.from_iterable(tokens)
+        labels = [["dog"], ["cat"]]
+        encoder = LabelEncoder.from_iterable(labels)
         self.valid_encoder(encoder, ["dog", "cat"])
 
 
