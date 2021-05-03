@@ -279,7 +279,7 @@ def setup_logger_handlers(
             include_weights_and_grads=params.debug,
         )
         handlers["tensorboard_logger"] = tensorboard_logger
-        logger.info("Setup tensorboard logger: %s", tensorboard_dir)
+        trainer.logger.info("Setup tensorboard logger: %s", tensorboard_dir)
 
     if params.wandb:
         # FIXME: Duplicated code with evaluator setup.
@@ -311,7 +311,7 @@ def setup_logger_handlers(
         if params.debug:
             wandb_logger.watch(model, log="all", log_steps=params.log_steps)
         handlers["wandb_logger"] = wandb_logger
-        logger.info("Setup wandb logger: %s", wandb_dir)
+        trainer.logger.info("Setup wandb logger: %s", wandb_dir)
 
     return handlers
 
