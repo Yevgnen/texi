@@ -65,7 +65,7 @@ def build_evaluate_handler(
                     best_model_handler.last_checkpoint,
                 )
                 evaluator.logger.info(
-                    "Loading checkpoint %r before evaluate",
+                    "Loading checkpoint %r before evaluate.",
                     checkpoint,
                 )
                 model.load_state_dict(torch.load(checkpoint))
@@ -116,11 +116,11 @@ def setup_lr_scheduler(
         else:
             raise ValueError(
                 '`schedule_steps` must be positve or "epoch"'
-                " when `lr_scheduler` is passed"
+                " when `lr_scheduler` is passed."
             )
 
     else:
-        trainer.logger.warning("LR scheduler not set")
+        trainer.logger.warning("LR scheduler not set.")
 
 
 def setup_save_best_model_handler(
@@ -129,7 +129,7 @@ def setup_save_best_model_handler(
     handler = None
     if params.save_best_models > 0:
         if params.eval_metric is None:
-            raise ValueError("`eval_metric` must set when `save_best_models` is set")
+            raise ValueError("`eval_metric` must set when `save_best_models` is set.")
 
         handler = save_best_model_by_val_score(
             params.save_path,
@@ -141,12 +141,12 @@ def setup_save_best_model_handler(
         )
         trainer.logger.info(
             "Save best model hander set with `eval_metric` = %s"
-            ", `save_best_models` = %d",
+            ", `save_best_models` = %d.",
             params.eval_metric,
             params.save_best_models,
         )
     else:
-        trainer.logger.warning("Save best model handler not set")
+        trainer.logger.warning("Save best model handler not set.")
 
     return handler
 
@@ -162,7 +162,9 @@ def setup_early_stopping_handler(
             )
 
         if params.save_best_models < 0:
-            trainer.logger.warning("Early stopping is set, but best model is not saved")
+            trainer.logger.warning(
+                "Early stopping is set, but best model is not saved."
+            )
 
         handler = add_early_stopping_by_val_score(
             params.patience,
@@ -171,7 +173,7 @@ def setup_early_stopping_handler(
             params.eval_metric,
         )
         trainer.logger.info(
-            "Early stopping is set with `eval_metric` = %s and `patience` = %d",
+            "Early stopping is set with `eval_metric` = %s and `patience` = %d.",
             params.eval_metric,
             params.patience,
         )
@@ -221,7 +223,7 @@ def setup_evaluate_handlers(
         if params.early_stopping:
             raise ValueError(
                 "Evaluate handlers must set when `early_stopping` is set"
-                ", check `eval_steps`, `eval_metric` and `patience`"
+                ", check `eval_steps`, `eval_metric` and `patience`."
             )
 
     test_evaluator = evaluators.get("test")
@@ -229,7 +231,7 @@ def setup_evaluate_handlers(
         test_loader = dataflows.get("test")
         if test_loader is None:
             raise ValueError(
-                "`test_loader` must not be None when `test_evaluator` is passed"
+                "`test_loader` must not be None when `test_evaluator` is passed."
             )
 
         evaluate_handler = build_evaluate_handler(
@@ -243,9 +245,9 @@ def setup_evaluate_handlers(
 
         handlers["test_evaluate_handler"] = evaluate_handler
 
-        trainer.logger.info("Setup evaluator for [test]")
+        trainer.logger.info("Setup evaluator for [test].")
     else:
-        trainer.logger.warning("Test evaluate handler not set")
+        trainer.logger.warning("Test evaluate handler not set.")
 
     return handlers
 
@@ -260,7 +262,7 @@ def setup_logger_handlers(
     handlers = dict.fromkeys(["tensorboard_logger", "wandb_logger"])
 
     if params.log_steps < 0:
-        trainer.logger.warning("Logger handlers not set")
+        trainer.logger.warning("Logger handlers not set.")
 
         return handlers
 
