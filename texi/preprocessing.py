@@ -92,10 +92,9 @@ def get_opencc(conversion: Optional[str] = "t2s") -> Callable[[str], str]:
     return _wrapper
 
 
-T_LabelEncoder = TypeVar("T_LabelEncoder", bound="T_LabelEncoder")
-
-
 class LabelEncoder(object):
+    T = TypeVar("T", bound="LabelEncoder")
+
     def __init__(
         self, tokens: Optional[Iterable[str]] = None, unknown: Optional[str] = None
     ) -> None:
@@ -192,5 +191,5 @@ class LabelEncoder(object):
         return tokens
 
     @classmethod
-    def from_iterable(cls, tokens: Iterable[Iterable[str]]) -> T_LabelEncoder:
+    def from_iterable(cls, tokens: Iterable[Iterable[str]]) -> T:
         return cls(itertools.chain.from_iterable(tokens))
