@@ -90,7 +90,8 @@ def main(args):
             )
         )
 
-    # Get label encoders.
+    # Get text/label encoders.
+    tokenizer = BertTokenizerFast.from_pretrained(params["pretrained_model"])
     entity_label_encoder, relation_label_encoder = encode_labels(datasets.train)
     negative_entity_index = entity_label_encoder.add(params["negative_entity_type"])
     negative_relation_index = relation_label_encoder.add(
@@ -98,7 +99,6 @@ def main(args):
     )
 
     # Get data dataflows.
-    tokenizer = BertTokenizerFast.from_pretrained(params["pretrained_model"])
     dataflows = get_dataflows(
         datasets, tokenizer, entity_label_encoder, relation_label_encoder, params
     )
@@ -115,8 +115,8 @@ def main(args):
         global_context_pooling=params["global_context_pooling"],
     )
     model = model.to(params["device"])
-    criteria = SpERTLoss()
 
+    criteria = SpERTLoss()
     num_training_steps = (
         len(datasets.train) // params["train_batch_size"] * params["max_epochs"]
     )
