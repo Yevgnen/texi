@@ -5,7 +5,16 @@ from __future__ import annotations
 import json
 import os
 import random
-from typing import TYPE_CHECKING, Dict, Iterable, List, Mapping, Optional, Union
+from typing import (
+    TYPE_CHECKING,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Union,
+)
 
 import torch.nn as nn
 from ignite.engine import Engine, Events
@@ -21,17 +30,19 @@ from texi.preprocessing import LabelEncoder
 from texi.pytorch.metrics import NerMetrics, ReMetrics
 from texi.pytorch.plm.spert import predict
 from texi.pytorch.training.params import Params
-from texi.pytorch.training.training import Batch, Metrics
+from texi.pytorch.training.training import Metrics
 
 try:
     import wandb
 except ModuleNotFoundError:
-    wandb = None
+    wandb = None  # type: ignore
 
 
 if TYPE_CHECKING:
     from ignite.contrib.handlers import WandBLogger
     from transformers import BertTokenizer, BertTokenizerFast
+
+    from texi.pytorch.plm.spert.model import SpERT
 
 
 class SpERTParams(Params):
@@ -58,7 +69,7 @@ class SpERTParams(Params):
         return self.__dict__[key]
 
 
-def train_step(_: Engine, model: nn.Module, batch: Batch, criteria: nn.Module) -> Dict:
+def train_step(_: Engine, model: SpERT, batch: Mapping, criteria: nn.Module) -> Dict:
     output = model(
         batch["input_ids"],
         batch["attention_mask"],
@@ -80,7 +91,7 @@ def train_step(_: Engine, model: nn.Module, batch: Batch, criteria: nn.Module) -
     return {"batch": batch, "loss": loss}
 
 
-def eval_step(_: Engine, model: nn.Module, batch: Batch) -> Dict:
+def eval_step(_: Engine, model: SpERT, batch: Mapping) -> Dict:
     target, input_ = batch
     output = model.infer(
         input_["input_ids"],
@@ -205,7 +216,7 @@ class SpERTEvalExporter(object):
 
 
 class SpERTEvalSampler(object):
-    # pylint: disable=no-self-use, too-many-arguments
+    # pylint: disable=no-self-use, too-many-arguments, too-many-instance-attributes
     def __init__(
         self,
         visualizer: SpERTVisualizer,
@@ -233,7 +244,7 @@ class SpERTEvalSampler(object):
 
         self.exporter = SpERTEvalExporter(os.path.join(self.save_dir, "data"))
 
-        self.global_step_transform = None
+        self.global_step_transform = None  # type: Optional[Callable]
         self.reset()
 
     def reset(self) -> None:
@@ -288,8 +299,9 @@ class SpERTEvalSampler(object):
             self.negative_relation_index,
             self.relation_filter_threshold,
             return_scores=True,
-        )
+        )  # type: ignore
 
+        # pylint: disable=unbalanced-tuple-unpacking
         entity_targets, relation_targets = predict(
             target["entity_label"],
             target["entity_sample_mask"],
@@ -303,7 +315,7 @@ class SpERTEvalSampler(object):
             self.negative_relation_index,
             self.relation_filter_threshold,
             return_scores=False,
-        )
+        )  # type: ignore
 
         relation_targets = self._expand_entities(relation_targets, entity_targets)
         relation_predictions = self._expand_entities(
@@ -361,6 +373,9 @@ class SpERTEvalSampler(object):
         return examples
 
     def export(self, _: Engine) -> None:
+        if self.global_step_transform is None:
+            raise RuntimeError("Call `.setup()` first")
+
         epoch = self.global_step_transform(_, Events.EPOCH_COMPLETED)
         iteration = self.global_step_transform(_, Events.ITERATION_COMPLETED)
         suffix = f"epoch_{epoch}_iteration_{iteration}"

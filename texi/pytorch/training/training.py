@@ -20,7 +20,7 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data import DataLoader
 
-from texi.pytorch.dataset.dataset import Batch, Dataset
+from texi.pytorch.dataset.dataset import Dataset
 from texi.pytorch.optim import optim
 from texi.pytorch.training.handlers import handle_dataset_mode, setup_extra_handlers
 from texi.pytorch.training.params import Params
@@ -29,8 +29,6 @@ logger = logging.getLogger(__name__)
 
 Dataflows = Mapping[str, DataLoader]
 Metrics = Mapping[str, Metric]
-TrainStepFunction = Callable[[Engine, nn.Module, Batch, nn.Module], Dict]
-EvalStepFunction = Callable[[Engine, nn.Module, Batch], Dict]
 
 
 def setup_env(params: Params):
@@ -90,7 +88,7 @@ def setup_engine(
 
 
 def create_trainer(
-    train_step: TrainStepFunction,
+    train_step: Callable,
     params: Params,
     model: nn.Module,
     criteria: nn.Module,
@@ -176,7 +174,7 @@ def create_trainer(
 
 
 def create_evaluator(
-    eval_step: EvalStepFunction,
+    eval_step: Callable,
     params: Params,
     model: nn.Module,
     metrics: Metrics,
@@ -213,7 +211,7 @@ def create_evaluator(
 
 
 def create_evaluators(
-    eval_step: EvalStepFunction,
+    eval_step: Callable,
     params: Params,
     model: nn.Module,
     metrics: Metrics,
@@ -229,8 +227,8 @@ def create_evaluators(
 
 def create_engines(
     params: Params,
-    train_step: TrainStepFunction,
-    eval_step: EvalStepFunction,
+    train_step: Callable,
+    eval_step: Callable,
     dataflows: Dataflows,
     model: nn.Module,
     criteria: nn.Module,
