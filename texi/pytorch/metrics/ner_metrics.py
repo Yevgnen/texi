@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 
-from typing import Callable, Dict, Union
+from __future__ import annotations
+
+from collections.abc import Callable
+from typing import Union
 
 import torch
 from carton.collections import flatten_dict
@@ -35,7 +38,7 @@ class NerMetrics(Metric):
         )
 
     @reinit__is_reduced
-    def update(self, output: Dict) -> None:
+    def update(self, output: dict) -> None:
         def _combine_span_and_label(y):
             # label: [B, E]
             # span: [B, E, 2]
@@ -96,7 +99,7 @@ class NerMetrics(Metric):
         _update(targets, predictions)
 
     @sync_all_reduce("entity_stat:SUM", "typed_entity_stat:SUM")
-    def compute(self) -> Dict[str, float]:
+    def compute(self) -> dict[str, float]:
         metrics = prf1(self.entity_stat[0], self.entity_stat[1], self.entity_stat[2])
         typed_metrics = {
             self.entity_label_encoder.decode_label(i): prf1(

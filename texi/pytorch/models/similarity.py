@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
-from typing import Dict, Optional
+from __future__ import annotations
+
+from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -69,7 +71,7 @@ class SiameseLSTM(nn.Module):
             self._lstm_encode(self.input_encoder, sentence2, length2),
         )
 
-    def forward(self, inputs: Dict[str, torch.Tensor]):
+    def forward(self, inputs: dict[str, torch.Tensor]):
         sentence1, sentence2 = inputs["sentence1"], inputs["sentence2"]
         length1, length2 = inputs["length1"], inputs["length2"]
 
@@ -251,7 +253,7 @@ class ESIM(nn.Module):
             dim=-1,
         )
 
-    def forward(self, inputs: Dict[str, torch.Tensor]):
+    def forward(self, inputs: dict[str, torch.Tensor]):
         sentence1, sentence2 = inputs["sentence1"], inputs["sentence2"]
         length1, length2 = inputs["length1"], inputs["length2"]
 
@@ -302,7 +304,7 @@ class BertSimilarity(nn.Module):
         self.dropout = nn.Dropout(dropout)
         self.output = nn.Linear(self.bert.config.hidden_size * k, 1)
 
-    def forward(self, inputs: Dict[str, torch.Tensor]) -> torch.Tensor:
+    def forward(self, inputs: dict[str, torch.Tensor]) -> torch.Tensor:
         outputs = self.bert(**inputs)
         hidden = outputs[2][-2]
         mask = inputs["attention_mask"]

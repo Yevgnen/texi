@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
-from typing import Dict, Optional, Tuple
+from __future__ import annotations
+
+from typing import Optional
 
 import torch.nn as nn
 import torch.optim as optim
@@ -13,9 +15,9 @@ def get_pretrained_optimizer_and_scheduler(
     weight_decay: float,
     warmup_steps: int,
     num_training_steps: int,
-    optimizer_kwargs: Optional[Dict] = None,
-    scheduler_kwargs: Optional[Dict] = None,
-) -> Tuple[optim.Optimizer, optim.lr_scheduler._LRScheduler]:
+    optimizer_kwargs: Optional[dict] = None,
+    scheduler_kwargs: Optional[dict] = None,
+) -> tuple[optim.Optimizer, optim.lr_scheduler.LambdaLR]:
     if not optimizer_kwargs:
         optimizer_kwargs = {}
 

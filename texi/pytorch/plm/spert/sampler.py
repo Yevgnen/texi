@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import annotations
+
 import itertools
 import random
-from typing import Any, Dict, List, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 
 class SpERTSampler(object):
@@ -28,7 +31,7 @@ class SpERTSampler(object):
     def eval(self) -> None:
         self.is_train = False
 
-    def sample_negative_entities(self, example: Mapping) -> List[Dict[str, Any]]:
+    def sample_negative_entities(self, example: Mapping) -> list[dict[str, Any]]:
         text = example["tokens"]
         positives = example["entities"]
         positive_tuples = {(x["start"], x["end"]) for x in positives}
@@ -53,7 +56,7 @@ class SpERTSampler(object):
 
         return negatives
 
-    def sample_negative_relations(self, example: Mapping) -> List[Dict[str, Any]]:
+    def sample_negative_relations(self, example: Mapping) -> list[dict[str, Any]]:
         # No need to sample negative relations when evaluation.
         if not self.is_train:
             return []

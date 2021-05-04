@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import annotations
+
 import collections
 import itertools
 import re
-from typing import Any, Dict, List, Mapping, Sequence, Tuple
+from collections.abc import Mapping, Sequence
+from typing import Any
 
 import ahocorasick
 
@@ -37,13 +40,13 @@ class NERDataReport(object):
         return sentences
 
     @property
-    def entities(self) -> List[Tuple[str, str]]:
+    def entities(self) -> list[tuple[str, str]]:
         return [
             (x["tag"], x["token"]) for sample in self.examples for x in sample["chunks"]
         ]
 
     @property
-    def sentences(self) -> List[str]:
+    def sentences(self) -> list[str]:
         return [
             *itertools.chain.from_iterable(
                 self._split_sentence(x["tokens"]) for x in self.examples
@@ -174,14 +177,14 @@ class NERDataReport(object):
         return imbalance
 
     @property
-    def entity_size(self) -> Dict[str, int]:
+    def entity_size(self) -> dict[str, int]:
         entities = self._group_entities(self.entities, unique=False)
         sizes = {key: len(value) for key, value in entities}
 
         return sizes
 
     @property
-    def entity_frequence(self) -> Dict[str, int]:
+    def entity_frequence(self) -> dict[str, int]:
         entities = self._group_entities(self.entities, unique=False)
         counters = {key: collections.Counter(value) for key, value in entities}
         freqs = {
@@ -191,14 +194,14 @@ class NERDataReport(object):
         return freqs
 
     @property
-    def entity_uniques(self) -> Dict[str, int]:
+    def entity_uniques(self) -> dict[str, int]:
         entities = self._group_entities(self.entities, unique=True)
         uniques = {key: len(value) for key, value in entities}
 
         return uniques
 
     @property
-    def entity_overlapping_rate(self) -> Dict[Tuple[str, str], float]:
+    def entity_overlapping_rate(self) -> dict[tuple[str, str], float]:
         entities = self._group_entities(self.entities, unique=True)
         overlaps = {}
         for k1, v1 in entities:
@@ -208,7 +211,7 @@ class NERDataReport(object):
         return overlaps
 
     @property
-    def top_entities(self) -> Dict[str, Tuple[str, int, float, float]]:
+    def top_entities(self) -> dict[str, tuple[str, int, float, float]]:
         def _top_k(entities):
             counter = collections.Counter(entities)
             total = sum(counter.values())
@@ -221,7 +224,7 @@ class NERDataReport(object):
             for type_, entities in self._group_entities(self.entities, unique=False)
         }
 
-    def describe(self) -> Dict[str, Any]:
+    def describe(self) -> dict[str, Any]:
         indicators = [
             "sample_size",
             "annotation_consistency",

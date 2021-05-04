@@ -1,32 +1,25 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import annotations
+
 import copy
 import dataclasses
 import json
 import os
 import re
-from typing import (
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    Mapping,
-    Optional,
-    Sequence,
-    Tuple,
-    Union,
-)
+from collections.abc import Callable, Iterable, Mapping, Sequence
+from typing import Optional, Union
 
 from carton.collections import dict_to_tuple
 
 from texi.preprocessing import LabelEncoder
 
 
-def entity_to_tuple(entity: Mapping) -> Tuple:
+def entity_to_tuple(entity: Mapping) -> tuple:
     return dict_to_tuple(entity, ["type", "start", "end"])
 
 
-def relation_to_tuple(relation: Mapping, entities: Optional[Mapping] = None) -> Tuple:
+def relation_to_tuple(relation: Mapping, entities: Optional[Mapping] = None) -> tuple:
     def _convert_entity(entity):
         if isinstance(entity, Mapping):
             return entity_to_tuple(entity)
@@ -43,7 +36,7 @@ def relation_to_tuple(relation: Mapping, entities: Optional[Mapping] = None) -> 
     )
 
 
-def expand_tokens(entities: Iterable[Mapping], tokens: Sequence) -> List[Dict]:
+def expand_tokens(entities: Iterable[Mapping], tokens: Sequence) -> list[dict]:
     expanded = [
         {
             "type": entity["type"],
@@ -58,7 +51,7 @@ def expand_tokens(entities: Iterable[Mapping], tokens: Sequence) -> List[Dict]:
 
 def expand_entities(
     relations: Iterable[Mapping], entities: Sequence[Mapping]
-) -> List[Dict]:
+) -> list[dict]:
     expanded = [
         {
             "type": relation["type"],
@@ -72,7 +65,7 @@ def expand_entities(
 
 def collapse_entities(
     relations: Iterable[Mapping], entities: Iterable[Mapping]
-) -> List[Mapping]:
+) -> list[dict]:
     entity_indices = {entity_to_tuple(entity): i for i, entity in enumerate(entities)}
     collapsed = [
         {
@@ -90,7 +83,7 @@ def encode_labels(
     examples: Iterable[Mapping],
     negative_entity_type: Optional[str] = None,
     negative_relation_type: Optional[str] = None,
-) -> Tuple[LabelEncoder, LabelEncoder]:
+) -> tuple[LabelEncoder, LabelEncoder]:
     entity_label_encoder = LabelEncoder(default=negative_entity_type)
     relation_label_encoder = LabelEncoder(default=negative_relation_type)
 
@@ -104,7 +97,7 @@ def encode_labels(
     return entity_label_encoder, relation_label_encoder
 
 
-def convert_pybrat_example(example: Mapping) -> Dict:
+def convert_pybrat_example(example: Mapping) -> dict:
     # NOTE:
     # 1. ID fields are kept.
     # 2. Entities are sort before conversion.
@@ -148,7 +141,7 @@ def convert_pybrat_example(example: Mapping) -> Dict:
     return example
 
 
-def load_pybrat_examples(dirname: str, *args, **kwargs) -> List[Dict]:
+def load_pybrat_examples(dirname: str, *args, **kwargs) -> list[dict]:
     # pylint: disable=import-outside-toplevel
     from pybrat.parser import BratParser
 
@@ -239,7 +232,7 @@ def check_example(example: Mapping) -> bool:
 
 def filter_example_tokens(
     example: Mapping, filters: Iterable[Union[str, re.Pattern, Callable[[str], bool]]]
-) -> Dict:
+) -> dict:
     if not hasattr(filters, "__iter__") or isinstance(filters, str):
         filters = [filters]
 
@@ -318,7 +311,7 @@ def filter_example_tokens(
 
 def split_example(
     example: Mapping, delimiters: Union[str, Iterable[str]], ignore_errors: bool = False
-) -> List[Dict]:
+) -> list[dict]:
     if isinstance(delimiters, str):
         delimiters = {delimiters}
     else:
@@ -339,7 +332,7 @@ def split_example(
 
         if token in delimiters:
             # Collect entities.
-            entity_indices = {}  # type: Dict[int, int]
+            entity_indices = {}  # type: dict[int, int]
             while entity_index < len(entities) and entities[entity_index]["end"] <= i:
                 entity_indices[entity_index] = len(entity_indices)
                 entity = entities[entity_index]
@@ -409,13 +402,13 @@ def split_example(
     return splits
 
 
-def merge_examples(examples: Sequence[Mapping]) -> Dict[str, List]:
+def merge_examples(examples: Sequence[Mapping]) -> dict[str, list]:
     if len(examples) < 1:
         raise ValueError("At least one example must be given to merge")
 
-    tokens = []  # type: List[Dict]
-    entities = []  # type: List[Dict]
-    relations = []  # type: List[Dict]
+    tokens = []  # type: list[dict]
+    entities = []  # type: list[dict]
+    relations = []  # type: list[dict]
 
     for example in examples:
         token_offset = len(tokens)
@@ -452,7 +445,7 @@ def merge_examples(examples: Sequence[Mapping]) -> Dict[str, List]:
     }
 
 
-def texify_example(example: Dict, delimiter: str) -> Dict:
+def texify_example(example: dict, delimiter: str) -> dict:
     entities = example["entities"]
     if not entities:
         return {

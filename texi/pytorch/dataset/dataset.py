@@ -1,18 +1,9 @@
 # -*- coding: utf-8 -*-
 
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    Mapping,
-    Optional,
-    Sequence,
-    Tuple,
-    TypeVar,
-    Union,
-)
+from __future__ import annotations
+
+from collections.abc import Callable, Mapping, Sequence
+from typing import Any, Dict, Iterable, Optional, Tuple, TypeVar, Union
 
 import torch
 from torch.utils.data import DataLoader
@@ -29,7 +20,7 @@ class Dataset(BaseDataset):
 
     def __init__(
         self,
-        examples: Union[Iterable[Dict], Callable[[], Iterable[Dict]]],
+        examples: Union[Iterable[dict], Callable[[], Iterable[dict]]],
         tokenizer: Optional[Any] = None,
         train: bool = False,
     ) -> None:
@@ -48,13 +39,13 @@ class Dataset(BaseDataset):
     def eval(self) -> None:
         self.is_train = False
 
-    def encode(self, example: Mapping) -> Dict:
+    def encode(self, example: Mapping) -> dict:
         raise NotImplementedError()
 
     def collate(self, batch: Batch) -> Any:
         raise NotImplementedError()
 
-    def encode_batch(self, batch: Batch) -> List[Dict]:
+    def encode_batch(self, batch: Batch) -> list[dict]:
         return [*map(self.encode, batch)]
 
     def tokenize(self, text: Texts) -> torch.Tensor:
@@ -87,14 +78,14 @@ class Dataset(BaseDataset):
 
     @staticmethod
     def get_dataloaders(
-        iterators: Dict[str, T],
+        iterators: dict[str, T],
         train_batch_size: Optional[int] = None,
         eval_batch_size: Optional[int] = None,
         batch_size: Optional[int] = None,
         drop_last: bool = False,
         sort_key: Callable = lambda x: x,
         **kwargs
-    ) -> Dict[str, DataLoader]:
+    ) -> dict[str, DataLoader]:
         # 1. Train dataset has individual batch size.
         # 2. `drop_last` will alwarys be False for val and test datasets.
         # 3. `sort_key` is passed only in train dataset.
@@ -123,7 +114,7 @@ class Dataset(BaseDataset):
     @classmethod
     def get_iterators(
         cls, datasets: Sequence[Iterable], *args, **kwargs
-    ) -> Dict[str, T]:
+    ) -> dict[str, T]:
         assert len(datasets) in {1, 2, 3}
 
         train, *others = datasets

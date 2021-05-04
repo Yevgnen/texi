@@ -3,17 +3,8 @@
 from __future__ import annotations
 
 import itertools
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Dict,
-    Iterable,
-    List,
-    Mapping,
-    Sequence,
-    Tuple,
-    Union,
-)
+from collections.abc import Iterable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Union
 
 import torch
 from carton.collections import collate
@@ -56,7 +47,7 @@ def stack_2d(
 class SpERTDataset(Dataset):
     def __init__(
         self,
-        examples: Iterable[Dict],
+        examples: Iterable[dict],
         negative_sampler: SpERTSampler,
         entity_label_encoder: LabelEncoder,
         relation_label_encoder: LabelEncoder,
@@ -76,7 +67,7 @@ class SpERTDataset(Dataset):
         super().eval()
         self.negative_sampler.eval()
 
-    def describe(self) -> Dict[str, Any]:
+    def describe(self) -> dict[str, Any]:
         info = super().describe()
         num_tokens, num_entities, num_relations = zip(
             *[
@@ -189,10 +180,10 @@ class SpERTDataset(Dataset):
 
     def encode_example(
         self,
-        tokens: List[str],
-        entities: List[Mapping[str, Any]],
-        relations: List[Mapping[str, Any]],
-    ) -> Dict[str, Any]:
+        tokens: list[str],
+        entities: list[Mapping[str, Any]],
+        relations: list[Mapping[str, Any]],
+    ) -> dict[str, Any]:
         # Encode tokens.
         tokens = [self.tokenizer.cls_token] + tokens + [self.tokenizer.sep_token]
         output = self.tokenizer(tokens, add_special_tokens=False)
@@ -235,7 +226,7 @@ class SpERTDataset(Dataset):
 
     def encode(
         self, example: Mapping
-    ) -> Union[Dict[str, Any], Tuple[Dict[str, Any], Dict[str, Any]]]:
+    ) -> Union[dict[str, Any], tuple[dict[str, Any], dict[str, Any]]]:
         tokens = example["tokens"]
 
         positive_entities = example["entities"]
@@ -300,7 +291,7 @@ class SpERTDataset(Dataset):
             "relation_sample_mask": relation_sample_mask,
         }
 
-    def collate_train(self, batch: Batch) -> Dict[str, torch.Tensor]:
+    def collate_train(self, batch: Batch) -> dict[str, torch.Tensor]:
         assert self.is_train, "`collate_train` must be called in train mode"
 
         encoded = self.encode_batch(batch)
@@ -311,7 +302,7 @@ class SpERTDataset(Dataset):
     def collate_eval(
         self, batch: Batch
     ) -> Union[
-        Dict[str, torch.Tensor], Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor]]
+        dict[str, torch.Tensor], tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]
     ]:
         assert not self.is_train, "`collate_train` must NOT be called in train mode"
 
@@ -326,7 +317,7 @@ class SpERTDataset(Dataset):
     def collate(
         self, batch: Batch
     ) -> Union[
-        Dict[str, torch.Tensor], Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor]]
+        dict[str, torch.Tensor], tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]
     ]:
         fn = self.collate_train if self.is_train else self.collate_eval
 

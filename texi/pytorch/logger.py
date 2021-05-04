@@ -3,7 +3,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Mapping, Optional, Union
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Optional, Union
 
 from ignite.contrib.engines import common as logging_base
 from ignite.contrib.handlers.tensorboard_logger import (

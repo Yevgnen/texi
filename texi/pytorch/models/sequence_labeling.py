@@ -2,17 +2,8 @@
 
 from __future__ import annotations
 
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    List,
-    Optional,
-    Sequence,
-    Tuple,
-    Type,
-)
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Type
 
 import torch
 import torch.nn as nn
@@ -165,7 +156,7 @@ class CRFDecoder(object):
 
         return [x[:length] for x, length in zip(labels, x["length"])]
 
-    def decode(self, batch: Batch) -> Tuple[BatchId]:
+    def decode(self, batch: Batch) -> tuple[BatchId]:
         x, y = batch
 
         tokens = self.decode_tokens(x)
@@ -188,7 +179,7 @@ class SequenceDecoderForPreTraining(object):
         self.label_encoder = label_encoder
 
     def decode_tokens(
-        self, x: BatchInput, token_transform: Callable[[List[str]], str]
+        self, x: BatchInput, token_transform: Callable[[list[str]], str]
     ) -> BatchId:
         tokens = []
         for input_ids, offsets in zip(x["input_ids"], x["offset_mapping"]):
@@ -230,7 +221,7 @@ class SequenceDecoderForPreTraining(object):
     def decode(
         self,
         batch: Batch,
-        token_transform: Callable[[List[str]], str] = lambda x: "".join(
+        token_transform: Callable[[list[str]], str] = lambda x: "".join(
             w.replace("##", "") for w in x
         ),
     ):
@@ -286,7 +277,7 @@ class SequenceLabeler(object):
         device: torch.device = torch.device("cpu"),
         non_blocking: bool = False,
         batch_size: int = 32,
-    ) -> List[List[Dict]]:
+    ) -> list[list[dict]]:
         dummy_label = self.label_encoder.labels[0]
 
         examples = [

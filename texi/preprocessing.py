@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import annotations
+
 import itertools
 import re
 import string
 import unicodedata
-from typing import Callable, Iterable, List, Optional, TypeVar, Union
+from collections.abc import Callable, Iterable
+from typing import Optional, TypeVar, Union
 
 import torch
 
@@ -45,7 +48,7 @@ LIGATURE_TABLE = {
 }
 
 
-def split(text: str, sep: str) -> List:
+def split(text: str, sep: str) -> list:
     """Split text by separators."""
     sep = re.escape("".join(sep))
 
@@ -192,7 +195,7 @@ class LabelEncoder(object):
 
     def encode(
         self, labels: Iterable[str], return_tensors: Optional[str] = None
-    ) -> Union[List[int], torch.Tensor]:
+    ) -> Union[list[int], torch.Tensor]:
         indices = [self.get_index(x) for x in labels]
         if return_tensors == "pt":
             return torch.tensor(indices, dtype=torch.int64)
@@ -202,7 +205,7 @@ class LabelEncoder(object):
 
         return indices
 
-    def decode(self, indices: Union[torch.LongTensor, Iterable[int]]) -> List[str]:
+    def decode(self, indices: Union[torch.LongTensor, Iterable[int]]) -> list[str]:
         if isinstance(indices, torch.LongTensor):
             if indices.ndim != 1:
                 raise ValueError(

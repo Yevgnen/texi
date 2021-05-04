@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import annotations
+
 import inspect
-from typing import Callable, Dict, Iterable, List, Sequence, Tuple, Union
+from collections.abc import Callable, Iterable, Sequence
+from typing import Union
 
 import torch
 from torch.utils.data import BatchSampler, RandomSampler, SequentialSampler
@@ -27,7 +30,7 @@ def device(
 
 def split_tensors(
     tensors: Iterable[torch.Tensor], chunk_size: int, dim: int = 0
-) -> List[Tuple[torch.Tensor, ...]]:
+) -> list[tuple[torch.Tensor, ...]]:
     if len(set(x.size(dim=dim) for x in tensors)) != 1:
         raise ValueError(
             f"Size of dimension `dim` = {dim} must be same for all input tensors"
@@ -45,7 +48,7 @@ def split_apply(
     *args,
     dim: int = 0,
     **kwargs,
-) -> Union[torch.Tensor, Tuple[torch.Tensor, ...]]:
+) -> Union[torch.Tensor, tuple[torch.Tensor, ...]]:
     chunks = split_tensors(inputs, chunk_size=chunk_size, dim=dim)
     outputs = [f(*chunk, *args, **kwargs) for chunk in chunks]
 
@@ -79,7 +82,7 @@ def get_sampler(
     return batch_sampler
 
 
-def get_default_arguments(f: Callable) -> Dict:
+def get_default_arguments(f: Callable) -> dict:
     return {
         key: value.default
         for key, value in inspect.signature(f).parameters.items()

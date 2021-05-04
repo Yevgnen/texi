@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import annotations
+
 import collections
-from typing import Dict, Hashable, List, Sequence, TypeVar, Union
+from collections.abc import Sequence
+from typing import Hashable, TypeVar, Union
 
 T = TypeVar("T", bound=Hashable)
 
 
-def prf1(tp: int, fp: int, fn: int) -> Dict[str, float]:
+def prf1(tp: int, fp: int, fn: int) -> dict[str, float]:
     tpfp = tp + fp
     precision = tp / tpfp if tpfp > 0 else 0
 
@@ -25,7 +28,7 @@ def prf1(tp: int, fp: int, fn: int) -> Dict[str, float]:
 
 def tpfpfn(
     y: Sequence[T], y_pred: Sequence[T], return_index: bool = True
-) -> Union[Dict[str, List[int]], Dict[str, List[T]]]:
+) -> Union[dict[str, list[int]], dict[str, list[T]]]:
     tps, fps, fns = [], [], []
     union = set(y) | set(y_pred)
     for i, (yi, yi_pred) in enumerate(zip(y, y_pred)):

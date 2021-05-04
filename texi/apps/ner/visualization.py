@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import annotations
+
 import os
-from typing import Iterable, Mapping, Optional, Sequence
+from collections.abc import Iterable, Mapping, Sequence
+from typing import Optional
 
 from carton.palette import Colors
 from carton.random import random_colors

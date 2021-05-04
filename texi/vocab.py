@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import annotations
+
 import collections
 import itertools
 import sys
-from typing import Iterable, List, Optional, Sequence, Union
+from collections.abc import Iterable, Sequence
+from typing import Optional, Union
 
 import numpy as np
 
@@ -158,7 +161,7 @@ class Vocabulary(object):
     def get_word(self, index: int) -> str:
         return self.index2word[index]
 
-    def transform(self, words: Union[str, Iterable[str]]) -> Union[int, List[int]]:
+    def transform(self, words: Union[str, Iterable[str]]) -> Union[int, list[int]]:
         if isinstance(words, str):
             return self.get_index(words)
 
@@ -166,7 +169,7 @@ class Vocabulary(object):
 
     def inverse_transform(
         self, ids: Union[int, np.integer, Iterable[Union[int, np.integer]]]
-    ) -> Union[str, List[str]]:
+    ) -> Union[str, list[str]]:
         if isinstance(ids, (int, np.integer)):
             return self.get_word(ids)
 

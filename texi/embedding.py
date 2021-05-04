@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 
-from typing import Container, Dict, Optional
+from __future__ import annotations
+
+from collections.abc import Container
+from typing import Optional
 
 import numpy as np
 
@@ -12,7 +15,7 @@ def load_vectors(
     vocab: Optional[Container[str]] = None,
     keep_case: bool = False,
     sep: str = " ",
-) -> Dict[str, np.ndarray]:
+) -> dict[str, np.ndarray]:
     with open(filename) as f:
         for i in range(skip_headers):
             f.readline()

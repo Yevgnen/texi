@@ -1,12 +1,21 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import annotations
+
 import argparse
 import functools
+from typing import Union
 
+from torch.optim.lr_scheduler import LambdaLR
+from torch.utils.data.dataloader import DataLoader
 from transformers import BertTokenizerFast
+from transformers.models.bert.tokenization_bert import BertTokenizer
+from transformers.utils.dummy_pt_objects import AdamW
 
 from texi.apps.ner import SpERTVisualizer, encode_labels, split_example
 from texi.datasets import JSONDatasets
+from texi.datasets.dataset import Dataset, Datasets
+from texi.preprocessing import LabelEncoder
 from texi.pytorch.plm.spert import (
     SpERT,
     SpERTDataset,
@@ -22,8 +31,13 @@ from texi.pytorch.training.training import create_engines, describe_dataflows, s
 
 
 def get_dataset(
-    examples, tokenizer, entity_label_encoder, relation_label_encoder, params, train
-):
+    examples: Dataset,
+    tokenizer: Union[BertTokenizer, BertTokenizerFast],
+    entity_label_encoder: LabelEncoder,
+    relation_label_encoder: LabelEncoder,
+    params: SpERTParams,
+    train: bool,
+) -> SpERTDataset:
     negative_sampler = SpERTSampler(
         num_negative_entities=params["num_negative_entities"],
         num_negative_relations=params["num_negative_relations"],
@@ -45,8 +59,12 @@ def get_dataset(
 
 
 def get_dataflows(
-    datasets, tokenizer, entity_label_encoder, relation_label_encoder, params
-):
+    datasets: Datasets,
+    tokenizer: Union[BertTokenizerFast, BertTokenizer],
+    entity_label_encoder: LabelEncoder,
+    relation_label_encoder: LabelEncoder,
+    params: SpERTParams,
+) -> dict[str, DataLoader]:
     dataflows = SpERTDataset.get_dataloaders(
         {
             mode: get_dataset(
@@ -69,12 +87,12 @@ def get_dataflows(
 
 
 def initialize(
-    params,
-    num_entity_types,
-    num_relation_types,
-    negative_entity_index,
-    num_train_examples,
-):
+    params: SpERTParams,
+    num_entity_types: int,
+    num_relation_types: int,
+    negative_entity_index: int,
+    num_train_examples: int,
+) -> tuple[SpERT, SpERTLoss, AdamW, LambdaLR]:
     model = SpERT(
         params["pretrained_model"],
         params["embedding_dim"],
@@ -98,7 +116,7 @@ def initialize(
     return model, criteria, optimizer, lr_scheduler
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
@@ -107,7 +125,7 @@ def parse_args():
     return parser.parse_args()  # pylint: disable=redefined-outer-name
 
 
-def main(args):
+def main(args: argparse.Namespace):
     params = args.params
     setup_env(params)
 

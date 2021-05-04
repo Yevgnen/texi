@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import annotations
+
 import itertools
-from typing import Dict, Union, cast
+from typing import Union, cast
 
 import torch
 import torch.nn as nn
@@ -147,7 +149,7 @@ class SpERT(nn.Module):
         entity_mask: torch.LongTensor,  # [B, E, L]
         relations: torch.LongTensor,  # [B, R, 2]
         relation_context_mask: torch.LongTensor,  # [B, R, L]
-    ) -> Dict[str, torch.FloatTensor]:
+    ) -> dict[str, torch.FloatTensor]:
         # last_hidden_state: [B, L, H]
         # entity_logit: [B, E, NE]
         # entity: [B, E, H]
@@ -237,7 +239,7 @@ class SpERT(nn.Module):
         attention_mask: torch.LongTensor,  # [B, L]
         token_type_ids: torch.LongTensor,  # [B, L]
         entity_mask: torch.LongTensor,  # [B, E, L]
-    ) -> Dict[str, torch.Tensor]:
+    ) -> dict[str, torch.Tensor]:
         # last_hidden_state: [B, L, H]
         # entity_logit: [B, E, NE]
         # entity: [B, E, H]

@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import annotations
+
 import argparse
 import copy
 import datetime
 import os
-from typing import Dict, ItemsView, KeysView, Optional, TypeVar, ValuesView
+from collections.abc import ItemsView, KeysView, ValuesView
+from typing import Optional, TypeVar
 
 from carton.params import Params as ParamDict
 from carton.random import random_state
@@ -87,7 +90,7 @@ class Params(object):
     def __repr__(self):
         return repr(self.__dict__)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         return copy.deepcopy(self.__dict__)
 
     def keys(self) -> KeysView:

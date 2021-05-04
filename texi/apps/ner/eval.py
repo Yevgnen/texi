@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import annotations
+
 import itertools
 import os
 import re
 import subprocess
 import tempfile
-from typing import Dict, Iterable
-
-MetricDict = Dict[str, float]
+from collections.abc import Iterable
 
 
-def conlleval_file(filename: str) -> Dict:
+def conlleval_file(filename: str) -> dict:
     script = os.path.join(os.path.dirname(__file__), "conlleval.pl")
     with open(filename) as f:
         outputs = subprocess.run(
@@ -55,7 +55,7 @@ def conlleval_file(filename: str) -> Dict:
         return results
 
 
-def conlleval(data: Iterable[Iterable[str]], filename: str = None) -> Dict:
+def conlleval(data: Iterable[Iterable[str]], filename: str = None) -> dict:
     with (
         (filename and open(filename, mode="w"))
         or tempfile.NamedTemporaryFile(mode="w", delete=False)

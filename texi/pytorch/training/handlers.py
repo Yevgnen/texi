@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import annotations
+
 import logging
 import os
-from typing import Any, Callable, Dict, Mapping, Optional, Union, cast
+from collections.abc import Callable, Mapping
+from typing import Any, Optional, Union, cast
 
 import torch
 import torch.nn as nn
@@ -78,7 +81,7 @@ def build_evaluate_handler(
 
         evaluator.logger.info("Evaluate metrics [%s]", mode)
         for key, metric in sorted(evaluator.state.metrics.items(), key=lambda x: x[0]):
-            # Ignote Dict metrics flattened by ignite.
+            # Ignote dict metrics flattened by ignite.
             if isinstance(metric, Mapping):
                 continue
 
@@ -187,7 +190,7 @@ def setup_evaluate_handlers(
     model: nn.Module,
     evaluators: Mapping[str, Engine],
     dataflows: Mapping[str, DataLoader],
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     handlers = dict.fromkeys(
         [
             "best_model_handler",
@@ -258,7 +261,7 @@ def setup_logger_handlers(
     model: nn.Module,
     optimizers: Optional[Union[Optimizer, Mapping[str, Optimizer]]] = None,
     evaluators: Optional[Mapping[str, Engine]] = None,
-) -> Dict[str, BaseLogger]:
+) -> dict[str, BaseLogger]:
     handlers = dict.fromkeys(["tensorboard_logger", "wandb_logger"])
 
     if params.log_steps < 0:
@@ -323,7 +326,7 @@ def setup_extra_handlers(
     dataflows: Mapping[str, DataLoader],
     model: nn.Module,
     optimizer: Optimizer,
-) -> Dict[str, BaseLogger]:
+) -> dict[str, BaseLogger]:
     # Evaluation.
     setup_evaluate_handlers(params, trainer, model, evaluators, dataflows)
 

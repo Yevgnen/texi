@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import annotations
+
 import logging
 import os
 import traceback
-from typing import Callable, Dict, Mapping, Optional, Tuple, Union
+from collections.abc import Callable
+from typing import Mapping, Optional, Union
 
 import torch
 import torch.nn as nn
@@ -43,7 +46,7 @@ def setup_env(params: Params):
 def configure_optimizers(
     net: nn.Module,
     params: Mapping,
-) -> Tuple[Optimizer, _LRScheduler]:
+) -> tuple[Optimizer, _LRScheduler]:
     optimizer_params = {k: v for k, v in params.items() if k != "lr_scheduler"}
     optimizer = optim.optim(net.parameters(), **optimizer_params)
 
@@ -216,7 +219,7 @@ def create_evaluators(
     model: nn.Module,
     metrics: Metrics,
     with_handlers: bool = True,
-) -> Dict[str, Engine]:
+) -> dict[str, Engine]:
     return {
         mode: create_evaluator(
             eval_step, params, model, metrics, mode, with_handlers=with_handlers
@@ -239,7 +242,7 @@ def create_engines(
     metrics: Optional[Metrics] = None,
     with_handlers: bool = True,
 ) -> Union[
-    Tuple[Engine, Dict[str, Engine]], Tuple[Engine, Dict[str, Engine], BaseLogger]
+    tuple[Engine, dict[str, Engine]], tuple[Engine, dict[str, Engine], BaseLogger]
 ]:
     # pylint: disable=too-many-arguments
     logger.info("Creating engines with params:")

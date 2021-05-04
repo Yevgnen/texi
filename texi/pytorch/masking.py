@@ -1,13 +1,15 @@
 # -*- coding: utf-8 -*-
 
-from typing import List, Optional, Union
+from __future__ import annotations
+
+from typing import Optional, Union
 
 import torch
 
 
 def create_span_mask(
-    starts: Union[List[int], torch.Tensor],
-    ends: Union[List[int], torch.Tensor],
+    starts: Union[list[int], torch.Tensor],
+    ends: Union[list[int], torch.Tensor],
     length: int,
     dtype: torch.dtype = torch.int64,
     device: torch.device = torch.device("cpu"),

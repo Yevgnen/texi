@@ -5,16 +5,8 @@ from __future__ import annotations
 import json
 import os
 import random
-from typing import (
-    TYPE_CHECKING,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    Mapping,
-    Optional,
-    Union,
-)
+from collections.abc import Callable, Iterable, Mapping
+from typing import TYPE_CHECKING, Optional, Union
 
 import torch.nn as nn
 from ignite.engine import Engine, Events
@@ -69,7 +61,7 @@ class SpERTParams(Params):
         return self.__dict__[key]
 
 
-def train_step(_: Engine, model: SpERT, batch: Mapping, criteria: nn.Module) -> Dict:
+def train_step(_: Engine, model: SpERT, batch: Mapping, criteria: nn.Module) -> dict:
     output = model(
         batch["input_ids"],
         batch["attention_mask"],
@@ -91,7 +83,7 @@ def train_step(_: Engine, model: SpERT, batch: Mapping, criteria: nn.Module) -> 
     return {"batch": batch, "loss": loss}
 
 
-def eval_step(_: Engine, model: SpERT, batch: Mapping) -> Dict:
+def eval_step(_: Engine, model: SpERT, batch: Mapping) -> dict:
     target, input_ = batch
     output = model.infer(
         input_["input_ids"],
@@ -248,8 +240,8 @@ class SpERTEvalSampler(object):
         self.reset()
 
     def reset(self) -> None:
-        self.entity_samples = []  # type: List[Dict]
-        self.relation_samples = []  # type: List[Dict]
+        self.entity_samples = []  # type: list[dict]
+        self.relation_samples = []  # type: list[dict]
 
     def started(self, _: Engine) -> None:
         self.reset()

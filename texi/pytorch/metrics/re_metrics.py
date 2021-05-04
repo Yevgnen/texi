@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 
-from typing import Callable, Dict, Union
+from __future__ import annotations
+
+from collections.abc import Callable
+from typing import Union
 
 import torch
 from carton.collections import flatten_dict
@@ -37,7 +40,7 @@ class ReMetrics(Metric):
         )
 
     @reinit__is_reduced
-    def update(self, output: Dict) -> None:
+    def update(self, output: dict) -> None:
         def _combine_pair_and_label(y):
             label = (y["label"] > self.relation_filter_threshold).long()
 
@@ -56,9 +59,7 @@ class ReMetrics(Metric):
             return pair_with_one_hot_label  # [B, R, R']
 
         def _to_tuples(pair_with_one_hot_label, entity_span, entity_label):
-            pair_with_one_hot_labels = (
-                pair_with_one_hot_label.tolist()
-            )
+            pair_with_one_hot_labels = pair_with_one_hot_label.tolist()
             entity_spans = entity_span.tolist()
             entity_labels = entity_label.detach().cpu().numpy()
 
@@ -124,7 +125,7 @@ class ReMetrics(Metric):
         _update(targets, predictions)
 
     @sync_all_reduce("relation_stat:SUM", "typed_relation_stat:SUM")
-    def compute(self) -> Dict[str, float]:
+    def compute(self) -> dict[str, float]:
         metrics = prf1(
             self.relation_stat[0], self.relation_stat[1], self.relation_stat[2]
         )

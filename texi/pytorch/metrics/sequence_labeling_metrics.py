@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import annotations
+
 import itertools
-from typing import Callable, Optional, Sequence, Union
+from collections.abc import Callable, Sequence
+from typing import Optional, Union
 
 import torch
 from ignite.exceptions import NotComputableError

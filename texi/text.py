@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import annotations
+
 import itertools
 import math
 import multiprocessing
 import os
-from typing import Any, Callable, Generator, Iterable, Optional, Tuple
+from collections.abc import Callable, Generator, Iterable
+from typing import Any, Optional
 
 
 def _get_chunk_size(filename, num_workers=multiprocessing.cpu_count()):
@@ -33,7 +36,7 @@ def _iter_line_wrapper(filename, fn, start, end):
 
 def chunkify(
     filename: str, chunk_size: int = 1024 * 1024
-) -> Generator[Tuple[int, int], None, None]:
+) -> Generator[tuple[int, int], None, None]:
     start = 0
     size = os.path.getsize(filename)
     with open(filename, mode="rb") as f:

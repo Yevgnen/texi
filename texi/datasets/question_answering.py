@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from typing import Dict
+from __future__ import annotations
 
 from texi.datasets.dataset import JSONDatasets
 
@@ -18,7 +18,7 @@ class ZhidaoQA(JSONDatasets):
     }
 
     @classmethod
-    def format(cls, x: Dict) -> Dict:
+    def format(cls, x: dict) -> dict:
         x["id"] = x.pop("_id").pop("$oid")
 
         return x

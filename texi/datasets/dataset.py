@@ -1,27 +1,19 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import annotations
+
 import itertools
 import json
 import os
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Iterable,
-    Mapping,
-    Optional,
-    Tuple,
-    Type,
-    TypeVar,
-    Union,
-)
+from collections.abc import Callable, Iterable
+from typing import Any, Optional, Type, TypeVar, Union
 
 
 class Dataset(object):
     T = TypeVar("T", bound="Dataset")
 
     def __init__(
-        self, examples: Union[Iterable[Dict], Callable[[], Iterable[Dict]]]
+        self, examples: Union[Iterable[dict], Callable[[], Iterable[dict]]]
     ) -> None:
         if callable(examples):
             self.load_examples = examples
@@ -40,7 +32,7 @@ class Dataset(object):
 
         return self
 
-    def map(self, fn: Callable[[Mapping], Dict]) -> None:
+    def map(self, fn: Callable) -> None:
         self._check_loaded()
 
         examples = [fn(x) for x in self.examples]
@@ -49,7 +41,7 @@ class Dataset(object):
 
         self.examples = examples
 
-    def describe(self) -> Dict[str, Any]:
+    def describe(self) -> dict[str, Any]:
         return {"size": len(self)}
 
     def __getitem__(self, key):
@@ -78,7 +70,7 @@ class Dataset(object):
     def from_json_iter(
         cls: Type[T],
         filename: str,
-        format_function: Optional[Callable[[Dict], Dict]] = lambda x: x,
+        format_function: Optional[Callable[[dict], dict]] = lambda x: x,
         array: bool = False,
     ) -> T:
         def _iter_whole_file():
@@ -128,11 +120,11 @@ class Datasets(object):
 
         return self
 
-    def items(self) -> Iterable[Tuple[str, Dataset]]:
+    def items(self) -> Iterable[tuple[str, Dataset]]:
         for mode in self.modes:
             yield mode, getattr(self, mode)
 
-    def map(self, fn: Callable[[Mapping], Dict]) -> None:
+    def map(self, fn: Callable) -> None:
         for _, dataset in self.items():
             dataset.map(fn)
 
@@ -163,7 +155,7 @@ class JSONDatasets(Datasets):
     }
 
     @classmethod
-    def format(cls, x: Dict) -> Dict:
+    def format(cls, x: dict) -> dict:
         return x
 
     @classmethod
