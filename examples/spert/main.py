@@ -68,6 +68,36 @@ def get_dataflows(
     return dataflows
 
 
+def initialize(
+    params,
+    num_entity_types,
+    num_relation_types,
+    negative_entity_index,
+    num_train_examples,
+):
+    model = SpERT(
+        params["pretrained_model"],
+        params["embedding_dim"],
+        num_entity_types,
+        num_relation_types,
+        negative_entity_index=negative_entity_index,
+        dropout=params["dropout"],
+        global_context_pooling=params["global_context_pooling"],
+    )
+    model = model.to(params["device"])
+
+    num_training_steps = (
+        num_train_examples // params["train_batch_size"] * params["max_epochs"]
+    )
+    warmup_steps = params["lr_warmup"] * num_training_steps
+    optimizer, lr_scheduler = get_pretrained_optimizer_and_scheduler(
+        model, params["lr"], params["weight_decay"], warmup_steps, num_training_steps
+    )
+    criteria = SpERTLoss()
+
+    return model, criteria, optimizer, lr_scheduler
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
@@ -105,24 +135,12 @@ def main(args):
     describe_dataflows(dataflows)
 
     # Create model.
-    model = SpERT(
-        params["pretrained_model"],
-        params["embedding_dim"],
+    model, criteria, optimizer, lr_scheduler = initialize(
+        params,
         len(entity_label_encoder),
         len(relation_label_encoder),
-        negative_entity_index=negative_entity_index,
-        dropout=params["dropout"],
-        global_context_pooling=params["global_context_pooling"],
-    )
-    model = model.to(params["device"])
-
-    criteria = SpERTLoss()
-    num_training_steps = (
-        len(datasets.train) // params["train_batch_size"] * params["max_epochs"]
-    )
-    warmup_steps = params["lr_warmup"] * num_training_steps
-    optimizer, lr_scheduler = get_pretrained_optimizer_and_scheduler(
-        model, params["lr"], params["weight_decay"], warmup_steps, num_training_steps
+        negative_entity_index,
+        len(datasets.train),
     )
 
     # Prepare trainer.
