@@ -8,8 +8,8 @@ from texi.pytorch.metrics.metrics import (
     ranking_metrics,
     sequence_labeling_metrics,
 )
-from texi.pytorch.metrics.ner import NerMetrics
-from texi.pytorch.metrics.re import ReMetrics
+from texi.pytorch.metrics.ner_metrics import NerMetrics
+from texi.pytorch.metrics.re_metrics import ReMetrics
 from texi.pytorch.metrics.sequence_labeling_metrics import SequenceLabelingMetrics
 
 __all__ = [
