@@ -14,6 +14,7 @@ from ignite.contrib.engines.common import (
     save_best_model_by_val_score,
     setup_wandb_logging,
 )
+import ignite.distributed as idist
 from ignite.contrib.handlers import ProgressBar
 from ignite.contrib.handlers.base_logger import BaseLogger
 from ignite.engine import Engine, Events
@@ -331,6 +332,8 @@ def setup_extra_handlers(
     setup_evaluate_handlers(params, trainer, model, evaluators, dataflows)
 
     # Loggers.
-    loggers = setup_logger_handlers(params, trainer, model, optimizer, evaluators)
+    loggers = {}
+    if idist.get_rank() == 0:
+        loggers = setup_logger_handlers(params, trainer, model, optimizer, evaluators)
 
     return loggers
