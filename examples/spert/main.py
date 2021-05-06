@@ -6,6 +6,7 @@ import argparse
 import functools
 from typing import Union
 
+import ignite.distributed as idist
 from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data.dataloader import DataLoader
 from transformers import BertTokenizerFast
@@ -27,7 +28,12 @@ from texi.pytorch.plm.spert import (
 )
 from texi.pytorch.plm.spert.training import eval_step, train_step
 from texi.pytorch.plm.utils import get_pretrained_optimizer_and_scheduler
-from texi.pytorch.training.training import create_engines, describe_dataflows, setup_env
+from texi.pytorch.training.training import (
+    create_engines,
+    describe_dataflows,
+    run,
+    setup_env,
+)
 
 
 def get_dataset(
@@ -102,7 +108,6 @@ def initialize(
         dropout=params["dropout"],
         global_context_pooling=params["global_context_pooling"],
     )
-    model = model.to(params["device"])
 
     num_training_steps = (
         num_train_examples // params["train_batch_size"] * params["max_epochs"]
@@ -113,21 +118,16 @@ def initialize(
     )
     criteria = SpERTLoss()
 
+    model = idist.auto_model(model)
+    optimizer = idist.auto_optim(optimizer)
+    criteria = criteria.to(idist.device())
+
     return model, criteria, optimizer, lr_scheduler
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
-    parser.add_argument("--params", type=SpERTParams.from_yaml, default="spert.yaml")
-
-    return parser.parse_args()  # pylint: disable=redefined-outer-name
-
-
-def main(args: argparse.Namespace):
-    params = args.params
-    setup_env(params)
+def training(local_rank: int, params: SpERTParams) -> None:
+    if idist.get_rank() == 0:
+        setup_env(params)
 
     # Load datasets.
     datasets = JSONDatasets.from_dir(params.data_dir, array=True).load()
@@ -185,22 +185,32 @@ def main(args: argparse.Namespace):
     )
 
     # Setup evaluation sampler.
-    eval_sampler = SpERTEvalSampler(
-        SpERTVisualizer(params["token_delimiter"]),
-        tokenizer,
-        entity_label_encoder,
-        negative_entity_index,
-        relation_label_encoder,
-        negative_relation_index,
-        params["relation_filter_threshold"],
-        params.sample_dir,
-        wandb_logger=loggers.get("wandb_logger"),
-    )
-    eval_sampler.setup(trainer, evaluators["val"])
+    if idist.get_rank() == 0:
+        eval_sampler = SpERTEvalSampler(
+            SpERTVisualizer(params["token_delimiter"]),
+            tokenizer,
+            entity_label_encoder,
+            negative_entity_index,
+            relation_label_encoder,
+            negative_relation_index,
+            params["relation_filter_threshold"],
+            params.sample_dir,
+            wandb_logger=loggers.get("wandb_logger"),
+        )
+        eval_sampler.setup(trainer, evaluators["val"])
 
     # Train!
     trainer.run(dataflows["train"], max_epochs=params["max_epochs"])
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    parser.add_argument("--params", type=SpERTParams.from_yaml, default="spert.yaml")
+
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
-    main(parse_args())
+    run(training, parse_args().params)

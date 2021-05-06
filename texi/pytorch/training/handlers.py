@@ -7,6 +7,7 @@ import os
 from collections.abc import Callable, Mapping
 from typing import Any, Optional, Union, cast
 
+import ignite.distributed as idist
 import torch
 import torch.nn as nn
 from ignite.contrib.engines.common import (
@@ -60,6 +61,9 @@ def build_evaluate_handler(
     best_model_handler: Optional[Callable[[Engine], None]] = None,
 ):
     def evaluate_handler(_):
+        # Ensure model is saved by rank 0 before possibly loading it.
+        idist.barrier()
+
         evaluator.logger.info("Evaluate on [%s]", mode)
         if best_model_handler is not None:
             if best_model_handler.last_checkpoint is not None:
@@ -71,7 +75,8 @@ def build_evaluate_handler(
                     "Loading checkpoint %r before evaluate.",
                     checkpoint,
                 )
-                model.load_state_dict(torch.load(checkpoint))
+                checkpoint = torch.load(checkpoint, map_location="cpu")
+                Checkpoint.load_objects(to_load={"model": model}, checkpoint=checkpoint)
 
         if isinstance(dataflow.dataset, Dataset):
             dataflow.dataset.eval()
@@ -331,6 +336,8 @@ def setup_extra_handlers(
     setup_evaluate_handlers(params, trainer, model, evaluators, dataflows)
 
     # Loggers.
-    loggers = setup_logger_handlers(params, trainer, model, optimizer, evaluators)
+    loggers = {}
+    if idist.get_rank() == 0:
+        loggers = setup_logger_handlers(params, trainer, model, optimizer, evaluators)
 
     return loggers

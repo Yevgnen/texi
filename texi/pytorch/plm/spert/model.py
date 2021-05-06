@@ -30,7 +30,7 @@ class SpERT(nn.Module):
     ):
         super().__init__()
         if isinstance(bert, str):
-            bert = BertModel.from_pretrained(bert)
+            bert = BertModel.from_pretrained(bert, add_pooling_layer=False)
         self.bert = bert
 
         self.size_embedding = nn.Embedding(max_entity_length, embedding_dim)
