@@ -51,8 +51,9 @@ class SpERTDataset(Dataset):
         relation_label_encoder: LabelEncoder,
         tokenizer: Union[BertTokenizer, BertTokenizerFast] = None,
         train: bool = False,
+        eager: bool = True,
     ) -> None:
-        super().__init__(examples, tokenizer=tokenizer, train=train)
+        super().__init__(examples, tokenizer=tokenizer, train=train, eager=eager)
         self.negative_sampler = negative_sampler
         self.entity_label_encoder = entity_label_encoder
         self.relation_label_encoder = relation_label_encoder
@@ -245,8 +246,6 @@ class SpERTDataset(Dataset):
         )
 
     def _collate_internal(self, batch):
-        batch = collate(batch)
-
         max_length, max_entities = 0, 0
         for mask in batch["entity_mask"]:
             max_entities = max(max_entities, mask.size(0))
@@ -292,10 +291,10 @@ class SpERTDataset(Dataset):
     def collate_train(self, batch: Sequence[Mapping]) -> dict[str, torch.Tensor]:
         assert self.is_train, "`collate_train` must be called in train mode"
 
-        encoded = self.encode_batch(batch)
-        collated = self._collate_internal(encoded)
+        if self.eager:
+            return super().collate_eager(batch)
 
-        return collated
+        return super().collate(batch)
 
     def collate_eval(
         self, batch: Sequence[Mapping]
@@ -304,15 +303,23 @@ class SpERTDataset(Dataset):
     ]:
         assert not self.is_train, "`collate_train` must NOT be called in train mode"
 
+        if self.eager:
+            positives, negatives = zip(*batch)
+
+            return (
+                super().collate_eager(positives),
+                super().collate_eager(negatives),
+            )
+
         encoded = self.encode_batch(batch)
         positives, negatives = zip(*encoded)
 
         return (
-            self._collate_internal(positives),
-            self._collate_internal(negatives),
+            self._collate_internal(collate(positives)),
+            self._collate_internal(collate(negatives)),
         )
 
-    def collate(
+    def collate_fn(
         self, batch: Sequence[Mapping]
     ) -> Union[
         dict[str, torch.Tensor], tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]
