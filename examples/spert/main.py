@@ -6,6 +6,7 @@ import argparse
 import functools
 from typing import Union
 
+import ignite.distributed as idist
 from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data.dataloader import DataLoader
 from transformers import BertTokenizerFast
@@ -184,19 +185,20 @@ def main(args: argparse.Namespace):
         with_handlers=True,
     )
 
-    # Setup evaluation sampler.
-    eval_sampler = SpERTEvalSampler(
-        SpERTVisualizer(params["token_delimiter"]),
-        tokenizer,
-        entity_label_encoder,
-        negative_entity_index,
-        relation_label_encoder,
-        negative_relation_index,
-        params["relation_filter_threshold"],
-        params.sample_dir,
-        wandb_logger=loggers.get("wandb_logger"),
-    )
-    eval_sampler.setup(trainer, evaluators["val"])
+    if idist.get_rank() == 0:
+        # Setup evaluation sampler.
+        eval_sampler = SpERTEvalSampler(
+            SpERTVisualizer(params["token_delimiter"]),
+            tokenizer,
+            entity_label_encoder,
+            negative_entity_index,
+            relation_label_encoder,
+            negative_relation_index,
+            params["relation_filter_threshold"],
+            params.sample_dir,
+            wandb_logger=loggers.get("wandb_logger"),
+        )
+        eval_sampler.setup(trainer, evaluators["val"])
 
     # Train!
     trainer.run(dataflows["train"], max_epochs=params["max_epochs"])
