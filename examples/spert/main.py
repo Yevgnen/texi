@@ -28,7 +28,12 @@ from texi.pytorch.plm.spert import (
 )
 from texi.pytorch.plm.spert.training import eval_step, train_step
 from texi.pytorch.plm.utils import get_pretrained_optimizer_and_scheduler
-from texi.pytorch.training.training import create_engines, describe_dataflows, setup_env
+from texi.pytorch.training.training import (
+    create_engines,
+    describe_dataflows,
+    run,
+    setup_env,
+)
 
 
 def get_dataset(
@@ -198,15 +203,6 @@ def training(local_rank: int, params: SpERTParams) -> None:
     trainer.run(dataflows["train"], max_epochs=params["max_epochs"])
 
 
-def run(args: argparse.Namespace) -> None:
-    params = args.params
-
-    with idist.Parallel(
-        backend=params.backend, nproc_per_node=params.nproc_per_node
-    ) as parallel:
-        parallel.run(training, params)
-
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
@@ -217,4 +213,4 @@ def parse_args() -> argparse.Namespace:
 
 
 if __name__ == "__main__":
-    run(parse_args())
+    run(training, parse_args().params)
