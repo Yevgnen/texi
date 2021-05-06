@@ -8,6 +8,7 @@ import traceback
 from collections.abc import Callable
 from typing import Mapping, Optional, Union
 
+import ignite.distributed as idist
 import torch
 import torch.nn as nn
 from carton.logger import log_dict
@@ -93,7 +94,7 @@ def setup_engine(
 def create_trainer(
     train_step: Callable,
     params: Params,
-    model: nn.Module,
+    model: Union[nn.Module, nn.parallel.DistributedDataParallel],
     criteria: nn.Module,
     optimizer: Optimizer,
     lr_scheduler: Optional[_LRScheduler] = None,
@@ -104,9 +105,16 @@ def create_trainer(
     def step(engine, batch):
         model.train()
         batch = convert_tensor(
-            batch, device=params.device, non_blocking=params.non_blocking
+            batch, device=idist.device(), non_blocking=params.non_blocking
         )
-        output = train_step(engine, model, batch, criteria)
+        output = train_step(
+            engine,
+            model.module
+            if isinstance(model, nn.parallel.DistributedDataParallel)
+            else model,
+            batch,
+            criteria,
+        )
         loss = output["loss"]
         loss.backward()
         if (
@@ -179,7 +187,7 @@ def create_trainer(
 def create_evaluator(
     eval_step: Callable,
     params: Params,
-    model: nn.Module,
+    model: Union[nn.Module, nn.parallel.DistributedDataParallel],
     metrics: Metrics,
     tag: str,
     with_handlers: bool = True,
@@ -190,7 +198,13 @@ def create_evaluator(
         batch = convert_tensor(
             batch, device=params.device, non_blocking=params.non_blocking
         )
-        output = eval_step(engine, model, batch)
+        output = eval_step(
+            engine,
+            model.module
+            if isinstance(model, nn.parallel.DistributedDataParallel)
+            else model,
+            batch,
+        )
 
         return output
 
@@ -233,7 +247,7 @@ def create_engines(
     train_step: Callable,
     eval_step: Callable,
     dataflows: Dataflows,
-    model: nn.Module,
+    model: Union[nn.Module, nn.parallel.DistributedDataParallel],
     criteria: nn.Module,
     optimizer: Optimizer,
     lr_scheduler: Optional[_LRScheduler] = None,
