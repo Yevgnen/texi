@@ -120,17 +120,7 @@ def initialize(
     return model, criteria, optimizer, lr_scheduler
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
-    parser.add_argument("--params", type=SpERTParams.from_yaml, default="spert.yaml")
-
-    return parser.parse_args()  # pylint: disable=redefined-outer-name
-
-
-def main(local_rank: int, args: argparse.Namespace):
-    params = args.params
+def training(local_rank: int, params: SpERTParams) -> None:
     if idist.get_rank() == 0:
         setup_env(params)
 
@@ -208,9 +198,23 @@ def main(local_rank: int, args: argparse.Namespace):
     trainer.run(dataflows["train"], max_epochs=params["max_epochs"])
 
 
-if __name__ == "__main__":
-    backend = None
-    nproc_per_node = None
+def run(args: argparse.Namespace) -> None:
+    params = args.params
 
-    with idist.Parallel(backend=backend, nproc_per_node=nproc_per_node) as parallel:
-        parallel.run(main, parse_args())
+    with idist.Parallel(
+        backend=params.backend, nproc_per_node=params.nproc_per_node
+    ) as parallel:
+        parallel.run(training, params)
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    parser.add_argument("--params", type=SpERTParams.from_yaml, default="spert.yaml")
+
+    return parser.parse_args()
+
+
+if __name__ == "__main__":
+    run(parse_args())
