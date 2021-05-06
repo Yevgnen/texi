@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from typing import Any, Iterable, Optional, TypeVar, Union, cast
 
+import ignite.distributed as idist
 import torch
 from torch.utils.data import DataLoader
 
@@ -69,7 +70,7 @@ class Dataset(BaseDataset, torch.utils.data.Dataset):
         )
 
         collate_fn = kwargs.pop("collate_fn", self.collate)
-        dataloader = DataLoader(
+        dataloader = idist.auto_dataloader(
             self, batch_sampler=sampler, collate_fn=collate_fn, **kwargs
         )  # type: DataLoader[Dataset]
 
