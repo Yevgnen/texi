@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
-from typing import Any, Dict, Iterable, Optional, Tuple, TypeVar, Union
+from collections.abc import Callable, Sequence
+from typing import Any, Iterable, Optional, TypeVar, Union, cast
 
 import torch
 from torch.utils.data import DataLoader
@@ -11,16 +11,15 @@ from torch.utils.data import DataLoader
 from texi.datasets import Dataset as BaseDataset
 from texi.pytorch.utils import get_sampler
 
-Batch = Union[Tuple[Dict[str, torch.Tensor], torch.Tensor], Dict[str, torch.Tensor]]
 Texts = Union[Iterable[str], str]
 
 
-class Dataset(BaseDataset):
+class Dataset(BaseDataset, torch.utils.data.Dataset):
     T = TypeVar("T", bound="Dataset")
 
     def __init__(
         self,
-        examples: Union[Iterable[dict], Callable[[], Iterable[dict]]],
+        examples: Union[Iterable, Callable],
         tokenizer: Optional[Any] = None,
         train: bool = False,
     ) -> None:
@@ -39,13 +38,13 @@ class Dataset(BaseDataset):
     def eval(self) -> None:
         self.is_train = False
 
-    def encode(self, example: Mapping) -> dict:
+    def encode(self, example: Any) -> Any:
         raise NotImplementedError()
 
-    def collate(self, batch: Batch) -> Any:
+    def collate(self, batch: Sequence) -> Any:
         raise NotImplementedError()
 
-    def encode_batch(self, batch: Batch) -> list[dict]:
+    def encode_batch(self, batch: Sequence) -> list:
         return [*map(self.encode, batch)]
 
     def tokenize(self, text: Texts) -> torch.Tensor:
@@ -62,7 +61,7 @@ class Dataset(BaseDataset):
         **kwargs
     ) -> DataLoader:
         sampler = get_sampler(
-            self.examples,
+            cast(Sequence, self.examples),
             self.is_train,
             batch_size,
             drop_last=drop_last,
@@ -72,7 +71,7 @@ class Dataset(BaseDataset):
         collate_fn = kwargs.pop("collate_fn", self.collate)
         dataloader = DataLoader(
             self, batch_sampler=sampler, collate_fn=collate_fn, **kwargs
-        )
+        )  # type: DataLoader[Dataset]
 
         return dataloader
 
@@ -90,10 +89,22 @@ class Dataset(BaseDataset):
         # 2. `drop_last` will alwarys be False for val and test datasets.
         # 3. `sort_key` is passed only in train dataset.
 
+        if (train_batch_size is None or eval_batch_size is None) and batch_size is None:
+            raise ValueError(
+                "`batch_size` must not be None"
+                " if `train_batch_size` or `eval_batch_size` is None"
+            )
+
+        if train_batch_size is None:
+            train_batch_size = cast(int, batch_size)
+
+        if eval_batch_size is None:
+            eval_batch_size = cast(int, batch_size)
+
         batch_sizes = {
-            "train": batch_size if train_batch_size is None else train_batch_size,
-            "val": batch_size if eval_batch_size is None else eval_batch_size,
-            "test": batch_size if eval_batch_size is None else eval_batch_size,
+            "train": train_batch_size,
+            "val": eval_batch_size,
+            "test": eval_batch_size,
         }
 
         loaders = {}
@@ -110,27 +121,3 @@ class Dataset(BaseDataset):
             loaders[mode] = loader
 
         return loaders
-
-    @classmethod
-    def get_iterators(
-        cls, datasets: Sequence[Iterable], *args, **kwargs
-    ) -> dict[str, T]:
-        assert len(datasets) in {1, 2, 3}
-
-        train, *others = datasets
-        kwargs["train"] = True
-        train_iter = cls(train, *args, **kwargs)
-
-        kwargs["train"] = False
-        kwargs["tokenizer"] = train_iter.tokenizer
-        kwargs["label_encoder"] = train_iter.label_encoder
-        others = tuple(cls(other, *args, **kwargs) for other in others)
-
-        if not others:
-            others = (None,) * 2
-        elif len(others) == 1:
-            others = (None,) + others
-        iterators = dict(zip(["val", "test"], others))
-        iterators["train"] = train_iter
-
-        return iterators

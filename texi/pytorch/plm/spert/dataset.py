@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import itertools
 from collections.abc import Iterable, Mapping, Sequence
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any, Union, cast
 
 import torch
 from carton.collections import collate
@@ -17,8 +17,6 @@ from texi.pytorch.plm.spert.sampler import SpERTSampler
 
 if TYPE_CHECKING:
     from transformers import BertTokenizer, BertTokenizerFast
-
-    from texi.pytorch.dataset.dataset import Batch
 
 
 def stack_1d(tensors: Iterable[torch.Tensor], length: int) -> torch.Tensor:
@@ -68,16 +66,16 @@ class SpERTDataset(Dataset):
         self.negative_sampler.eval()
 
     def describe(self) -> dict[str, Any]:
+        examples = cast(list, self.examples)
+
         info = super().describe()
         num_tokens, num_entities, num_relations = zip(
             *[
                 (len(x["tokens"]), len(x["entities"]), len(x["relations"]))
-                for x in self.examples
+                for x in examples
             ]
         )
-        entity_sizes = [
-            e["end"] - e["start"] for x in self.examples for e in x["entities"]
-        ]
+        entity_sizes = [e["end"] - e["start"] for x in examples for e in x["entities"]]
 
         def _update_info(prefix, s):
             for key, value in describe_series(s).items():
@@ -180,12 +178,12 @@ class SpERTDataset(Dataset):
 
     def encode_example(
         self,
-        tokens: list[str],
-        entities: list[Mapping[str, Any]],
-        relations: list[Mapping[str, Any]],
+        tokens: Sequence[str],
+        entities: Sequence[Mapping[str, Any]],
+        relations: Sequence[Mapping[str, Any]],
     ) -> dict[str, Any]:
         # Encode tokens.
-        tokens = [self.tokenizer.cls_token] + tokens + [self.tokenizer.sep_token]
+        tokens = [self.tokenizer.cls_token] + list(tokens) + [self.tokenizer.sep_token]
         output = self.tokenizer(tokens, add_special_tokens=False)
 
         # Encode entities.
@@ -291,7 +289,7 @@ class SpERTDataset(Dataset):
             "relation_sample_mask": relation_sample_mask,
         }
 
-    def collate_train(self, batch: Batch) -> dict[str, torch.Tensor]:
+    def collate_train(self, batch: Sequence[Mapping]) -> dict[str, torch.Tensor]:
         assert self.is_train, "`collate_train` must be called in train mode"
 
         encoded = self.encode_batch(batch)
@@ -300,7 +298,7 @@ class SpERTDataset(Dataset):
         return collated
 
     def collate_eval(
-        self, batch: Batch
+        self, batch: Sequence[Mapping]
     ) -> Union[
         dict[str, torch.Tensor], tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]
     ]:
@@ -315,7 +313,7 @@ class SpERTDataset(Dataset):
         )
 
     def collate(
-        self, batch: Batch
+        self, batch: Sequence[Mapping]
     ) -> Union[
         dict[str, torch.Tensor], tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]
     ]:

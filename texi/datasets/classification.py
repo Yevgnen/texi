@@ -155,8 +155,8 @@ class CCKS2018(Datasets):
         val = _load_data("task3_dev", "val")
 
         test_zip = os.path.join(dirname, "task3_test_data_expand.zip")
-        with zipfile.ZipFile(test_zip) as zip:
-            with zip.open("task3_test_data_expand/test_with_id.txt", mode="r") as f:
+        with zipfile.ZipFile(test_zip) as zipf:
+            with zipf.open("task3_test_data_expand/test_with_id.txt", mode="r") as f:
                 test = pd.read_csv(f, sep="\t", names=["id", "sentence1", "sentence2"])
                 test = test.to_dict("records")
 
@@ -195,7 +195,7 @@ class ChineseSTSB(Datasets):
 
     @classmethod
     def from_dir(cls, dirname: str):
-        def _load_data(basename, mode):
+        def _load_data(basename):
             filename = os.path.join(dirname, f"cnsd-sts-{basename}.txt")
             columns = ["id", "sentence1", "sentence2", "label"]
             with open(filename, mode="r") as f:
@@ -208,9 +208,9 @@ class ChineseSTSB(Datasets):
                 return examples
 
         return cls(
-            train=_load_data("train", "train"),
-            val=_load_data("dev", "val"),
-            test=_load_data("test", "test"),
+            train=_load_data("ntrain"),
+            val=_load_data("dev"),
+            test=_load_data("test"),
             dirname=dirname,
         )
 

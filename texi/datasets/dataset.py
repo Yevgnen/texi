@@ -6,17 +6,15 @@ import itertools
 import json
 import os
 from collections.abc import Callable, Iterable
-from typing import Any, Optional, Type, TypeVar, Union
+from typing import Any, Optional, Type, TypeVar, Union, cast
 
 
 class Dataset(object):
     T = TypeVar("T", bound="Dataset")
 
-    def __init__(
-        self, examples: Union[Iterable[dict], Callable[[], Iterable[dict]]]
-    ) -> None:
+    def __init__(self, examples: Union[Iterable, Callable]) -> None:
         if callable(examples):
-            self.load_examples = examples
+            self.load_examples = examples  # type: Optional[Callable]
             self.examples = None
         else:
             self.examples = list(examples)
@@ -26,7 +24,7 @@ class Dataset(object):
         if self.examples is None:
             raise RuntimeError("Dataset is not loaded, call `.load()` first")
 
-    def load(self) -> "Dataset":
+    def load(self) -> T:
         if callable(self.load_examples) and self.examples is None:
             self.examples = list(self.load_examples())
 
@@ -35,7 +33,7 @@ class Dataset(object):
     def map(self, fn: Callable) -> None:
         self._check_loaded()
 
-        examples = [fn(x) for x in self.examples]
+        examples = [fn(x) for x in cast(list, self.examples)]
         if examples and isinstance(examples[0], list):
             examples = list(itertools.chain.from_iterable(examples))
 
@@ -70,7 +68,7 @@ class Dataset(object):
     def from_json_iter(
         cls: Type[T],
         filename: str,
-        format_function: Optional[Callable[[dict], dict]] = lambda x: x,
+        format_function: Optional[Callable] = lambda x: x,
         array: bool = False,
     ) -> T:
         def _iter_whole_file():
@@ -155,11 +153,13 @@ class JSONDatasets(Datasets):
     }
 
     @classmethod
-    def format(cls, x: dict) -> dict:
+    def format(cls, x: Any) -> Any:
         return x
 
     @classmethod
     def from_dir(cls: Type[T], dirname: str, array: bool = False) -> T:
+        # pylint: disable=arguments-differ
+
         data = {
             key: Dataset.from_json_iter(
                 os.path.join(dirname, value), cls.format, array=array
@@ -167,4 +167,4 @@ class JSONDatasets(Datasets):
             for key, value in cls.files.items()
         }
 
-        return cls(**data)
+        return cls(train=data["train"], val=data["val"], test=data["test"])
