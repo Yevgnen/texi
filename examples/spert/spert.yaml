@@ -6,6 +6,8 @@ project: "spert"
 data_dir: "./data"
 
 # Training
+backend: null
+nproc_per_node: 1
 seed: null
 save_path: "output/"
 max_epochs: 20

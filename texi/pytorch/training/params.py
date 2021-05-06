@@ -35,6 +35,8 @@ class Params(object):
         self.test_size = kwargs.get("test_size", 0.2)
 
         # Training
+        self.backend = kwargs.get("backend")
+        self.nproc_per_node = kwargs.get("nproc_per_node")
         self.seed = random_state(kwargs.get("seed"))
         self.save_path = os.path.join(
             kwargs.get("save_path", "output/"), datetime.datetime.now().isoformat()
