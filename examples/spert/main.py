@@ -103,7 +103,6 @@ def initialize(
         dropout=params["dropout"],
         global_context_pooling=params["global_context_pooling"],
     )
-    model = model.to(params["device"])
 
     num_training_steps = (
         num_train_examples // params["train_batch_size"] * params["max_epochs"]
@@ -113,6 +112,10 @@ def initialize(
         model, params["lr"], params["weight_decay"], warmup_steps, num_training_steps
     )
     criteria = SpERTLoss()
+
+    model = idist.auto_model(model)
+    optimizer = idist.auto_optim(optimizer)
+    criteria = criteria.to(idist.device())
 
     return model, criteria, optimizer, lr_scheduler
 
@@ -126,9 +129,10 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()  # pylint: disable=redefined-outer-name
 
 
-def main(args: argparse.Namespace):
+def main(local_rank: int, args: argparse.Namespace):
     params = args.params
-    setup_env(params)
+    if idist.get_rank() == 0:
+        setup_env(params)
 
     # Load datasets.
     datasets = JSONDatasets.from_dir(params.data_dir, array=True).load()
@@ -185,8 +189,8 @@ def main(args: argparse.Namespace):
         with_handlers=True,
     )
 
+    # Setup evaluation sampler.
     if idist.get_rank() == 0:
-        # Setup evaluation sampler.
         eval_sampler = SpERTEvalSampler(
             SpERTVisualizer(params["token_delimiter"]),
             tokenizer,
@@ -205,4 +209,8 @@ def main(args: argparse.Namespace):
 
 
 if __name__ == "__main__":
-    main(parse_args())
+    backend = None
+    nproc_per_node = None
+
+    with idist.Parallel(backend=backend, nproc_per_node=nproc_per_node) as parallel:
+        parallel.run(main, parse_args())
