@@ -196,7 +196,7 @@ def create_evaluator(
     def step(engine, batch):
         model.eval()
         batch = convert_tensor(
-            batch, device=params.device, non_blocking=params.non_blocking
+            batch, device=idist.device(), non_blocking=params.non_blocking
         )
         output = eval_step(
             engine,
