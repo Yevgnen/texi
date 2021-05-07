@@ -59,6 +59,7 @@ def get_dataset(
         relation_label_encoder,
         tokenizer,
         train=train,
+        device=idist.device(),
     )
 
     return dataset
@@ -71,6 +72,9 @@ def get_dataflows(
     relation_label_encoder: LabelEncoder,
     params: SpERTParams,
 ) -> dict[str, DataLoader]:
+    # `pin_memory = False` is required since `auto_dataloader` set
+    # `pin_memory` to True by default, but we have moved tensors to GPU
+    # by passing `device` to Dataset.
     dataflows = SpERTDataset.get_dataloaders(
         {
             mode: get_dataset(
@@ -87,6 +91,7 @@ def get_dataflows(
         eval_batch_size=params["eval_batch_size"],
         num_workers=params["num_workers"],
         sort_key=lambda x: len(x["tokens"]),
+        pin_memory=False,
     )
 
     return dataflows

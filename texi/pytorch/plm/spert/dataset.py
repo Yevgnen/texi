@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import itertools
 from collections.abc import Iterable, Mapping, Sequence
-from typing import TYPE_CHECKING, Any, Union, cast
+from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 import torch
 from carton.collections import collate
 from carton.data import describe_series
+from ignite.utils import convert_tensor
 
 from texi.preprocessing import LabelEncoder
 from texi.pytorch.dataset import Dataset
@@ -52,8 +53,12 @@ class SpERTDataset(Dataset):
         tokenizer: Union[BertTokenizer, BertTokenizerFast] = None,
         train: bool = False,
         eager: bool = True,
+        device: Optional[torch.device] = None,
     ) -> None:
-        super().__init__(examples, tokenizer=tokenizer, train=train, eager=eager)
+        super().__init__(
+            examples, tokenizer=tokenizer, train=train, eager=eager, device=device
+        )
+
         self.negative_sampler = negative_sampler
         self.entity_label_encoder = entity_label_encoder
         self.relation_label_encoder = relation_label_encoder
@@ -325,5 +330,8 @@ class SpERTDataset(Dataset):
         dict[str, torch.Tensor], tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]
     ]:
         fn = self.collate_train if self.is_train else self.collate_eval
+
+        if self.device is not None:
+            batch = convert_tensor(batch, device=self.device, non_blocking=True)
 
         return fn(batch)

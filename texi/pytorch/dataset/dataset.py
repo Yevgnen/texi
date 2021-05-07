@@ -8,6 +8,7 @@ from typing import Any, Iterable, Optional, TypeVar, Union, cast
 import ignite.distributed as idist
 import torch
 from carton.collections import collate
+from ignite.utils import convert_tensor
 from torch.utils.data import DataLoader
 
 from texi.datasets import Dataset as BaseDataset
@@ -25,6 +26,7 @@ class Dataset(torch.utils.data.Dataset, BaseDataset):
         tokenizer: Optional[Any] = None,
         train: bool = False,
         eager: bool = True,
+        device: Optional[torch.device] = None,
     ) -> None:
         super().__init__(examples)
 
@@ -37,6 +39,8 @@ class Dataset(torch.utils.data.Dataset, BaseDataset):
 
         self.eager = eager
         self._encoded_examples = None
+
+        self.device = device
 
     def __getitem__(self, key):
         if self._encoded_examples is None:
@@ -86,6 +90,9 @@ class Dataset(torch.utils.data.Dataset, BaseDataset):
         return collated
 
     def collate_fn(self, batch: Sequence) -> Any:
+        if self.device is not None:
+            batch = convert_tensor(batch, device=self.device, non_blocking=True)
+
         if self.eager:
             return self.collate_eager(batch)
 
