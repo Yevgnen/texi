@@ -17,7 +17,15 @@ from texi.pytorch.utils import get_sampler
 Texts = Union[Iterable[str], str]
 
 
-class Dataset(torch.utils.data.Dataset, BaseDataset):
+class _DatasetEagerMeta(type):
+    def __call__(cls, *args, **kwargs):
+        instance = super().__call__(*args, **kwargs)
+        instance._eager_encode_maybe()
+
+        return instance
+
+
+class Dataset(torch.utils.data.Dataset, BaseDataset, metaclass=_DatasetEagerMeta):
     T = TypeVar("T", bound="Dataset")
 
     def __init__(
@@ -43,9 +51,6 @@ class Dataset(torch.utils.data.Dataset, BaseDataset):
         self.device = device
 
     def __getitem__(self, key):
-        if self._encoded_examples is None:
-            self._eager_encode_maybe()
-
         return self._encoded_examples[key]
 
     def _eager_encode_maybe(self):
@@ -55,12 +60,18 @@ class Dataset(torch.utils.data.Dataset, BaseDataset):
             self._encoded_examples = cast(list, self.examples)
 
     def train(self) -> None:
+        changed = not self.is_train
         self.is_train = True
-        self._eager_encode_maybe()
+
+        if changed:
+            self._eager_encode_maybe()
 
     def eval(self) -> None:
+        changed = self.is_train
         self.is_train = False
-        self._eager_encode_maybe()
+
+        if changed:
+            self._eager_encode_maybe()
 
     def encode(self, example: Any) -> Any:
         raise NotImplementedError()
