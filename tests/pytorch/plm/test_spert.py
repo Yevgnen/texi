@@ -8,6 +8,7 @@ from transformers import BertTokenizer
 
 from texi.preprocessing import LabelEncoder
 from texi.pytorch.plm.spert import SpERTDataset, SpERTSampler
+from texi.pytorch.plm.utils import plm_path
 
 
 def random_entity_mask(num_entities, max_length=20):
@@ -124,7 +125,7 @@ class TestSpERTDataset(unittest.TestCase):
             Mock(),
             entity_label_encoder,
             relation_label_encoder,
-            tokenizer=BertTokenizer.from_pretrained("bert-base-uncased"),
+            tokenizer=BertTokenizer.from_pretrained(plm_path("bert-base-uncased")),
         )
         output = dataset.encode_example(
             self.example["tokens"], self.example["entities"], self.example["relations"]

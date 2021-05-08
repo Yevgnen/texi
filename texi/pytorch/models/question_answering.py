@@ -6,12 +6,16 @@ import torch
 import torch.nn as nn
 from transformers import BertModel
 
+from texi.pytorch.plm.utils import plm_path
+
 
 class BertForQuestionAnswering(nn.Module):
     def __init__(self, pretrained_model: str, **kwargs):
         super().__init__()
         if isinstance(pretrained_model, str):
-            self.bert = BertModel.from_pretrained(pretrained_model, **kwargs)
+            self.bert = BertModel.from_pretrained(
+                plm_path(pretrained_model), **kwargs
+            )
         else:
             self.bert = pretrained_model
         self.projection = nn.Linear(self.bert.config.hidden_size, 2)

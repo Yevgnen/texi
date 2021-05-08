@@ -13,6 +13,7 @@ from texi.pytorch.masking import create_span_mask
 from texi.pytorch.plm.pooling import get_pooling
 from texi.pytorch.plm.spert.dataset import stack_1d, stack_2d
 from texi.pytorch.utils import split_apply
+from texi.pytorch.plm.utils import plm_path
 
 
 class SpERT(nn.Module):
@@ -30,7 +31,9 @@ class SpERT(nn.Module):
     ):
         super().__init__()
         if isinstance(bert, str):
-            bert = BertModel.from_pretrained(bert, add_pooling_layer=False)
+            bert = BertModel.from_pretrained(
+                plm_path(bert), add_pooling_layer=False
+            )
         self.bert = bert
 
         self.size_embedding = nn.Embedding(max_entity_length, embedding_dim)

@@ -13,6 +13,7 @@ from transformers import BertModel
 
 from texi.preprocessing import LabelEncoder
 from texi.pytorch.masking import length_to_mask
+from texi.pytorch.plm.utils import plm_path
 from texi.pytorch.rnn import LSTM
 from texi.tagger.sequence_labeling import SequeceLabelingTagger
 
@@ -72,7 +73,7 @@ class BertForSequenceLabeling(nn.Module):
 
         if isinstance(pretrained_model, str):
             self.bert = BertModel.from_pretrained(
-                pretrained_model, num_labels=num_labels
+                plm_path(pretrained_model), num_labels=num_labels
             )
         else:
             self.bert = pretrained_model

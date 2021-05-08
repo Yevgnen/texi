@@ -12,6 +12,7 @@ from transformers import BertModel
 from texi.pytorch.attention import BidirectionalAttention
 from texi.pytorch.losses import ManhattanSimilarity
 from texi.pytorch.masking import length_to_mask
+from texi.pytorch.plm.utils import plm_path
 
 
 class SiameseLSTM(nn.Module):
@@ -295,7 +296,9 @@ class BertSimilarity(nn.Module):
         super().__init__()
         if isinstance(pretrained_model, str):
             self.bert = BertModel.from_pretrained(
-                pretrained_model, num_labels=2, output_hidden_states=True
+                plm_path(pretrained_model),
+                num_labels=2,
+                output_hidden_states=True,
             )
         else:
             self.bert = pretrained_model

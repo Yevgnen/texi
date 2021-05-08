@@ -2,11 +2,20 @@
 
 from __future__ import annotations
 
+import os
 from typing import Optional
 
 import torch.nn as nn
 import torch.optim as optim
 from transformers.optimization import AdamW, get_linear_schedule_with_warmup
+
+
+def plm_path(path: str) -> str:
+    root = os.getenv("PRETRAINED_MODEL_DIR")
+    if root:
+        return os.path.join(root, path)
+
+    return path
 
 
 def get_pretrained_optimizer_and_scheduler(

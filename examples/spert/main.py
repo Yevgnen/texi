@@ -27,7 +27,10 @@ from texi.pytorch.plm.spert import (
     SpERTSampler,
 )
 from texi.pytorch.plm.spert.training import eval_step, train_step
-from texi.pytorch.plm.utils import get_pretrained_optimizer_and_scheduler
+from texi.pytorch.plm.utils import (
+    get_pretrained_optimizer_and_scheduler,
+    plm_path,
+)
 from texi.pytorch.training.training import (
     create_engines,
     describe_dataflows,
@@ -144,7 +147,9 @@ def training(local_rank: int, params: SpERTParams) -> None:
         )
 
     # Get text/label encoders.
-    tokenizer = BertTokenizerFast.from_pretrained(params["pretrained_model"])
+    tokenizer = BertTokenizerFast.from_pretrained(
+        plm_path(params["pretrained_model"])
+    )
     entity_label_encoder, relation_label_encoder = encode_labels(datasets.train)
     negative_entity_index = entity_label_encoder.add(params["negative_entity_type"])
     negative_relation_index = relation_label_encoder.add(
