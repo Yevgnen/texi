@@ -7,7 +7,6 @@ from typing import Any, Iterable, Optional, TypeVar, Union, cast
 
 import ignite.distributed as idist
 import torch
-from carton.collections import collate
 from ignite.utils import convert_tensor
 from torch.utils.data import DataLoader
 
@@ -18,15 +17,7 @@ from texi.pytorch.utils import get_sampler
 Texts = Union[Iterable[str], str]
 
 
-class _DatasetEagerMeta(type):
-    def __call__(cls, *args, **kwargs):
-        instance = super().__call__(*args, **kwargs)
-        instance._eager_encode_maybe()
-
-        return instance
-
-
-class Dataset(torch.utils.data.Dataset, BaseDataset, metaclass=_DatasetEagerMeta):
+class Dataset(BaseDataset, torch.utils.data.Dataset):
     T = TypeVar("T", bound="Dataset")
 
     def __init__(
@@ -34,7 +25,6 @@ class Dataset(torch.utils.data.Dataset, BaseDataset, metaclass=_DatasetEagerMeta
         examples: Union[Iterable, Callable],
         tokenizer: Optional[Any] = None,
         train: bool = False,
-        eager: bool = True,
         device: Optional[torch.device] = None,
     ) -> None:
         super().__init__(examples)
@@ -45,34 +35,13 @@ class Dataset(torch.utils.data.Dataset, BaseDataset, metaclass=_DatasetEagerMeta
         self.label_encoder = None  # type: Optional[LabelEncoder]
 
         self.is_train = train
-
-        self.eager = eager
-        self._encoded_examples = None
-
         self.device = device
 
-    def __getitem__(self, key):
-        return self._encoded_examples[key]
-
-    def _eager_encode_maybe(self):
-        if self.eager:
-            self._encoded_examples = self.encode_batch(cast(list, self.examples))
-        else:
-            self._encoded_examples = cast(list, self.examples)
-
     def train(self) -> None:
-        changed = not self.is_train
         self.is_train = True
 
-        if changed:
-            self._eager_encode_maybe()
-
     def eval(self) -> None:
-        changed = self.is_train
         self.is_train = False
-
-        if changed:
-            self._eager_encode_maybe()
 
     def tokenize(self, text: Texts) -> torch.Tensor:
         if callable(self.tokenizer):
@@ -86,38 +55,22 @@ class Dataset(torch.utils.data.Dataset, BaseDataset, metaclass=_DatasetEagerMeta
     def encode_batch(self, batch: Sequence) -> list:
         return [*map(self.encode, batch)]
 
-    def _collate_internal(self, batch):
+    def collate_train(self, batch: Sequence) -> Any:
         raise NotImplementedError()
 
-    def collate_eager(self, batch: Sequence) -> Any:
-        # The differences between this method and `collate` is: this
-        # method assumes `batch` is already encoded. Hopefully this will
-        # speed up the collating process of `DataLoader`.
-
-        if not self.eager:
-            raise ValueError("`collate_eager` must only be called when `eager` = True")
-
-        collated = self._collate_internal(collate(batch))
-
-        return collated
-
-    def collate(self, batch: Sequence) -> Any:
-        if self.eager:
-            raise ValueError("`collate` must only be called when `eager` = False")
-
-        encoded = self.encode_batch(batch)
-        collated = self._collate_internal(collate(encoded))
-
-        return collated
+    def collate_eval(self, batch: Sequence) -> Any:
+        return self.collate_train(batch)
 
     def collate_fn(self, batch: Sequence) -> Any:
+        encoded = self.encode_batch(batch)
+
         if self.device is not None:
-            batch = convert_tensor(batch, device=self.device, non_blocking=True)
+            encoded = convert_tensor(encoded, device=self.device, non_blocking=True)
 
-        if self.eager:
-            return self.collate_eager(batch)
+        fn = self.collate_train if self.is_train else self.collate_eval
+        collated = fn(encoded)
 
-        return self.collate(batch)
+        return collated
 
     def get_dataloader(
         self,
