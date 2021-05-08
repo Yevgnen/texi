@@ -73,8 +73,17 @@ class Dataset(torch.utils.data.Dataset, BaseDataset, metaclass=_DatasetEagerMeta
         if changed:
             self._eager_encode_maybe()
 
-    def encode(self, example: Any) -> Any:
-        raise NotImplementedError()
+    def tokenize(self, text: Texts) -> torch.Tensor:
+        if callable(self.tokenizer):
+            return self.tokenizer(text)
+
+        return self.tokenizer.encode(text)
+
+    def encode(self, example: Any) -> Any:  # pylint: disable=no-self-use
+        return example
+
+    def encode_batch(self, batch: Sequence) -> list:
+        return [*map(self.encode, batch)]
 
     def _collate_internal(self, batch):
         raise NotImplementedError()
@@ -108,15 +117,6 @@ class Dataset(torch.utils.data.Dataset, BaseDataset, metaclass=_DatasetEagerMeta
             return self.collate_eager(batch)
 
         return self.collate(batch)
-
-    def encode_batch(self, batch: Sequence) -> list:
-        return [*map(self.encode, batch)]
-
-    def tokenize(self, text: Texts) -> torch.Tensor:
-        if callable(self.tokenizer):
-            return self.tokenizer(text)
-
-        return self.tokenizer.encode(text)
 
     def get_dataloader(
         self,
