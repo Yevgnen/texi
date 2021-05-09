@@ -71,11 +71,6 @@ class ReMetrics(Metric):
             # one-hot encoded. The separation makes the following steps
             # easier.
 
-            # All fields should match: (head/tail type, head/tail start, head/tail end).
-            # entity_mask: [B, R, 6] -> [B, R]
-            entity_mask = (y["entity"] == y_pred["entity"]).all(dim=-1)
-            entity_mask = entity_mask.unsqueeze(dim=-1)
-
             # Use negative/sample mask to filter non-related relations.
             num_relation_types = len(self.relation_label_encoder)
             negative_mask = torch.arange(num_relation_types)[None, None, :]
@@ -83,19 +78,41 @@ class ReMetrics(Metric):
                 negative_mask = negative_mask == self.negative_relation_index
             else:
                 negative_mask = negative_mask != index
-            y_sample_mask = y["mask"].unsqueeze(dim=-1).bool()
-            y_pred_sample_mask = y_pred["mask"].unsqueeze(dim=-1).bool()
-            y_mask = negative_mask | ~y_sample_mask
-            y_pred_mask = negative_mask | ~y_pred_sample_mask
-            y_label = y["label"].masked_fill(y_mask, 0)
-            y_pred_label = y_pred["label"].masked_fill(y_pred_mask, 0)
 
-            # A TP means:
-            # 1. `y_pred_label` predicts every `y_label != 0` successfully.
-            # 2. With matched head/tail entities.
-            tp = y_pred_label.masked_fill((y_label == 0) | ~entity_mask, 0)
-            fp = y_pred_label.masked_fill(tp > 0, 0)
-            fn = y_label.masked_fill(tp > 0, 0)
+            def _filter_negatives(label, sample_mask):
+                sample_mask = sample_mask.unsqueeze(dim=-1).bool()
+                mask = negative_mask | ~sample_mask
+
+                return label.masked_fill(mask, 0)
+
+            y_label = _filter_negatives(y["label"], y["mask"])
+            y_pred_label = _filter_negatives(y_pred["label"], y_pred["mask"])
+
+            def _generate_relations(label, entity):
+                nz = label.nonzero(as_tuple=True)
+                # relation: [#R, 1 + 1 + 6]
+                # where #R = numbers of non-negative relations in whole batch.
+                relation = torch.cat(
+                    [
+                        nz[0][:, None],
+                        nz[2][:, None],
+                        entity[nz[:-1]],
+                    ],
+                    dim=-1,
+                )
+
+                return relation
+
+            y_rel = _generate_relations(y_label, y["entity"])
+            y_pred_rel = _generate_relations(y_pred_label, y_pred["entity"])
+
+            # matrix: [#R, #R', 8]
+            matrix = y_rel.unsqueeze(dim=1) == y_pred_rel.unsqueeze(dim=0)
+
+            # tp: [#R, #R', 8] -> [#R, #R'] -> [#R] -> [0]
+            tp = matrix.all(dim=-1).any(dim=-1).sum()
+            fp = y_pred_label.sum() - tp
+            fn = y_label.sum() - tp
 
             stat[0] += tp.sum().to(self._device)
             stat[1] += fp.sum().to(self._device)
