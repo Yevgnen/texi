@@ -66,11 +66,11 @@ class TestNerMetrics(unittest.TestCase):
 
     def test_init(self):
         self.assertTrue(
-            torch.all(self.metric.entity_stat == torch.zeros((3,), device=self.device))
+            torch.all(self.metric.tpfpfn == torch.zeros((3,), device=self.device))
         )
         self.assertTrue(
             torch.all(
-                self.metric.typed_entity_stat
+                self.metric.typed_tpfpfn
                 == torch.zeros((len(self.label_encoder), 3), device=self.device)
             )
         )
@@ -79,11 +79,11 @@ class TestNerMetrics(unittest.TestCase):
         self.metric.reset()
 
         self.assertTrue(
-            torch.all(self.metric.entity_stat == torch.zeros((3,), device=self.device))
+            torch.all(self.metric.tpfpfn == torch.zeros((3,), device=self.device))
         )
         self.assertTrue(
             torch.all(
-                self.metric.typed_entity_stat
+                self.metric.typed_tpfpfn
                 == torch.zeros((len(self.label_encoder), 3), device=self.device)
             )
         )
@@ -92,12 +92,12 @@ class TestNerMetrics(unittest.TestCase):
         self.metric.update(self.output)
         self.assertTrue(
             torch.all(
-                self.metric.entity_stat == torch.tensor([1, 2, 2]),
+                self.metric.tpfpfn == torch.tensor([1, 2, 2]),
             )
         )
         self.assertTrue(
             torch.all(
-                self.metric.typed_entity_stat
+                self.metric.typed_tpfpfn
                 == torch.tensor(
                     [
                         [0, 1, 1],

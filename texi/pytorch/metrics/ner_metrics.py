@@ -32,8 +32,8 @@ class NerMetrics(Metric):
     @reinit__is_reduced
     def reset(self) -> None:
         # TP, FP, FN
-        self.entity_stat = torch.zeros((3,), device=self._device)
-        self.typed_entity_stat = torch.zeros(
+        self.tpfpfn = torch.zeros((3,), device=self._device)
+        self.typed_tpfpfn = torch.zeros(
             (len(self.entity_label_encoder), 3), device=self._device
         )
 
@@ -85,19 +85,19 @@ class NerMetrics(Metric):
         y = _combine_span_and_label(y)
         y_pred = _combine_span_and_label(y_pred)
 
-        _update(y, y_pred, self.entity_stat)
+        _update(y, y_pred, self.tpfpfn)
         for i in range(len(self.entity_label_encoder)):
             if i != self.negative_entity_index:
-                _update(y, y_pred, self.typed_entity_stat[i], i)
+                _update(y, y_pred, self.typed_tpfpfn[i], i)
 
-    @sync_all_reduce("entity_stat:SUM", "typed_entity_stat:SUM")
+    @sync_all_reduce("tpfpfn:SUM", "typed_tpfpfn:SUM")
     def compute(self) -> dict[str, float]:
-        metrics = prf1(self.entity_stat[0], self.entity_stat[1], self.entity_stat[2])
+        metrics = prf1(self.tpfpfn[0], self.tpfpfn[1], self.tpfpfn[2])
         typed_metrics = {
             self.entity_label_encoder.decode_label(i): prf1(
-                self.typed_entity_stat[i][0],
-                self.typed_entity_stat[i][1],
-                self.typed_entity_stat[i][2],
+                self.typed_tpfpfn[i][0],
+                self.typed_tpfpfn[i][1],
+                self.typed_tpfpfn[i][2],
             )
             for i in range(len(self.entity_label_encoder))
             if i != self.negative_entity_index
