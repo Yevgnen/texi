@@ -5,7 +5,7 @@ import unittest
 import torch
 
 from texi.preprocessing import LabelEncoder
-from texi.pytorch.metrics.ner import NerMetrics
+from texi.pytorch.metrics.ner_metrics import NerMetrics
 
 
 class TestNerMetrics(unittest.TestCase):
@@ -25,7 +25,7 @@ class TestNerMetrics(unittest.TestCase):
                 "label": torch.tensor(
                     [
                         [0, 2, 2],  # FP, #, #
-                        [1, 1, 1],  # T, FP, FP
+                        [1, 1, 1],  # TP, FP, FP
                     ]
                 ),
                 "span": torch.tensor(
@@ -58,7 +58,7 @@ class TestNerMetrics(unittest.TestCase):
                 "mask": torch.tensor(
                     [
                         [1, 1, 0],  # FN, FN, #
-                        [1, 0, 0],  # T, #, #
+                        [1, 0, 0],  # TP, #, #
                     ]
                 ),
             },
@@ -114,11 +114,11 @@ class TestNerMetrics(unittest.TestCase):
         precision = 1 / (1 + 2)
         recall = 1 / (1 + 2)
         f1 = 2 * precision * recall / (precision + recall)
-        self.assertAlmostEqual(metrics["all"]["precision"], precision)
-        self.assertAlmostEqual(metrics["all"]["recall"], recall)
-        self.assertAlmostEqual(metrics["all"]["f1"], f1)
+        self.assertAlmostEqual(metrics["all.precision"], precision)
+        self.assertAlmostEqual(metrics["all.recall"], recall)
+        self.assertAlmostEqual(metrics["all.f1"], f1)
 
-        relations = ["per", "loc", "NON_ENTITY"]
+        entities = ["per", "loc"]
         precisions = [0, 1 / (1 + 1), 0]
         recalls = [0, 1 / (1 + 1), 0]
         f1s = [
@@ -126,10 +126,10 @@ class TestNerMetrics(unittest.TestCase):
             2 * 1 / (1 + 1) * 1 / (1 + 1) / (1 / (1 + 1) + 1 / (1 + 1)),
             0,
         ]
-        for relation, p, r, f1 in zip(relations, precisions, recalls, f1s):
-            self.assertAlmostEqual(metrics[relation]["precision"], p)
-            self.assertAlmostEqual(metrics[relation]["recall"], r)
-            self.assertAlmostEqual(metrics[relation]["f1"], f1)
+        for entity, p, r, f1 in zip(entities, precisions, recalls, f1s):
+            self.assertAlmostEqual(metrics[f"{entity}.precision"], p)
+            self.assertAlmostEqual(metrics[f"{entity}.recall"], r)
+            self.assertAlmostEqual(metrics[f"{entity}.f1"], f1)
 
 
 if __name__ == "__main__":
