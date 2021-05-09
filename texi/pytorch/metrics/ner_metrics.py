@@ -60,9 +60,15 @@ class NerMetrics(Metric):
                 y_mask = y[..., 0] != self.negative_entity_index
                 y_pred_mask = y_pred[..., 0] != self.negative_entity_index
 
+            # For each entity in `y`, compare it to all entities in
+            # `y_pred`.
             # matrix: [B, E1, E2, 3]
             matrix = y.unsqueeze(dim=1) == y_pred.unsqueeze(dim=2)
 
+            # A TP means:
+            # 1. All fields (label, start, end) must match -> `.all()`.
+            # 2. For each entity in `y`, check if any entity in `y_pred`
+            #    matches it -> `.any()`.
             # tp: [B, E1, E2] -> [B, E1] -> [0]
             tp = matrix.all(dim=-1).any(dim=-1).masked_fill(~y_mask, 0).sum()
             fp = y_pred_mask.sum() - tp

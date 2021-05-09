@@ -42,8 +42,13 @@ class ReMetrics(Metric):
     @reinit__is_reduced
     def update(self, output: dict) -> None:
         def _combine_pair_and_label(y):
+            # label: [B, R, R']
+            # pair: [B, R, 2]
+            # mask: [B, R]
             label = (y["label"] > self.relation_filter_threshold).long()
 
+            # pair_with_one_hot_label: [B, R, R', 3]
+            # = torch.cat([[B, R, R', 1], [B, R, R', 2]])
             pair_with_one_hot_label = torch.cat(
                 [
                     label.unsqueeze(dim=-1),
