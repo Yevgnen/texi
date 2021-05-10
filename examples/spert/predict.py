@@ -98,13 +98,16 @@ def predict(
 ) -> None:
     # Load datasets.
     dataset = Dataset.from_json_iter(test_file, array=True).load()
+    dataset.map(add_dummy_labels)
+
     if params.split_delimiter:
-        dataset.split(
+        dataset = dataset.split(
             functools.partial(
                 split_example, delimiters=params.split_delimiter, ignore_errors=True
             )
         )
-        dataset.map(add_dummy_labels)
+    if params.max_length > 0:
+        dataset = dataset.mask(lambda x: len(x["tokens"]) < params["max_length"])
 
     # Get text/label encoders.
     tokenizer = BertTokenizerFast.from_pretrained(plm_path(params["pretrained_model"]))
@@ -118,7 +121,7 @@ def predict(
     )
 
     # Get data dataflows.
-    dataset = get_dataset(
+    th_dataset = get_dataset(
         dataset,
         tokenizer,
         entity_label_encoder,
@@ -126,8 +129,8 @@ def predict(
         params,
         train=False,
     )  # type: ignore
-    dataflow = dataset.get_dataloader(
-        params["eval_batch_size"], num_workers=params["num_workers"]
+    dataflow = th_dataset.get_dataloader(
+        params["eval_batch_size"], num_workers=params["num_workers"], pin_memory=False
     )
 
     # Create model.
@@ -156,9 +159,11 @@ def predict(
     # Merge tokens with predicted entities and relations.
     predictions = merge_tokens_with_predictions(dataset, engine.state.predictions)
 
-    # Merge example splits.
+    if params.max_length > 0:
+        dataset = dataset.unmask()
+
     if params.split_delimiter:
-        predictions.merge(merge_examples)
+        dataset = dataset.merge(merge_examples)
 
     # Save predictions.
     save_predictions(predictions, output)

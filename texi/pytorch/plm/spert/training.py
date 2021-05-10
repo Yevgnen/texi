@@ -57,6 +57,7 @@ class SpERTParams(Params):
         self.relation_filter_threshold = kwargs.get("relation_filter_threshold", 0.4)
         self.token_delimiter = kwargs.get("token_delimiter", " ")
         self.split_delimiter = kwargs.get("split_delimiter")
+        self.max_length = kwargs.get("max_length", -1)
 
     def __getitem__(self, key):
         return self.__dict__[key]

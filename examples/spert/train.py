@@ -145,6 +145,9 @@ def training(local_rank: int, params: SpERTParams) -> None:
             )
         )
 
+    if params.max_length > 0:
+        datasets = datasets.mask(lambda x: len(x["tokens"]) < params["max_length"])
+
     # Get text/label encoders.
     tokenizer = BertTokenizerFast.from_pretrained(plm_path(params["pretrained_model"]))
     entity_label_encoder, relation_label_encoder = encode_labels(datasets.train)

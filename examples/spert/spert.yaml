@@ -54,3 +54,4 @@ max_relation_pairs: 1000
 relation_filter_threshold: 0.4
 token_delimiter: " "
 split_delimiter: null
+max_length: 150

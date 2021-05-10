@@ -42,6 +42,9 @@ class Dataset(object):
     def split(self, fn: Callable) -> SplitDataset:
         return SplitDataset(self, fn)
 
+    def mask(self, fn: Callable) -> MaskedDataset:
+        return MaskedDataset(self, fn)
+
     def describe(self) -> dict[str, Any]:
         return {"size": len(self)}
 
@@ -120,6 +123,33 @@ class SplitDataset(Dataset):
         return self.dataset.__class__(examples)
 
 
+class MaskedDataset(Dataset):
+    T = TypeVar("T", bound="Dataset")
+
+    def __init__(self, dataset: T, fn: Callable) -> None:
+        super().__init__(self._mask(dataset, fn))
+
+    def _mask(self, dataset, fn):
+        positives, negatives = [], []
+        for i, example in enumerate(dataset):
+            flag = fn(example)
+            if flag:
+                positives += [(i, example)]
+            else:
+                negatives += [(i, example)]
+
+        self.dataset = dataset
+        self.positives = positives
+        self.negatives = negatives
+
+        return [x[1] for x in positives]
+
+    def unmask(self) -> T:
+        examples = sorted(self.positives + self.negatives, key=lambda x: x[0])
+
+        return self.dataset.__class__(examples)
+
+
 class Datasets(object):
     T = TypeVar("T", bound="Datasets")
 
@@ -164,6 +194,9 @@ class Datasets(object):
 
     def split(self, fn: Callable) -> dict:
         return self.__class__(**self._map_dataset_methods("split", fn))
+
+    def mask(self, fn: Callable) -> dict:
+        return self.__class__(**self._map_dataset_methods("mask", fn))
 
     def __getitem__(self, key):
         assert key in self.modes
