@@ -295,8 +295,8 @@ def create_engines(
     return trainer, evaluators
 
 
-def run(fn: Callable, params: Params) -> None:
+def run(fn: Callable, params: Params, *args, **kwargs) -> None:
     with idist.Parallel(
         backend=params.backend, nproc_per_node=params.nproc_per_node
     ) as parallel:
-        parallel.run(fn, params)
+        parallel.run(fn, params, *args, **kwargs)
