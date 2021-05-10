@@ -63,7 +63,7 @@ class NerMetrics(Metric):
             # For each entity in `y`, compare it to all entities in
             # `y_pred`.
             # matrix: [B, E1, E2, 3]
-            matrix = y.unsqueeze(dim=1) == y_pred.unsqueeze(dim=2)
+            matrix = y.unsqueeze(dim=2) == y_pred.unsqueeze(dim=1)
 
             # A TP means:
             # 1. All fields (label, start, end) must match -> `.all()`.
