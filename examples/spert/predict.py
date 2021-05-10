@@ -9,9 +9,9 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 import ignite.distributed as idist
-import torch
+import torch.nn as nn
+from ignite.engine.engine import Engine
 from ignite.engine.events import Events
-from ignite.handlers.checkpoint import Checkpoint
 from main import get_dataflows
 from transformers import BertTokenizerFast
 
@@ -23,6 +23,7 @@ from texi.pytorch.plm.spert.prediction import predict as predict_relations
 from texi.pytorch.plm.spert.training import eval_step
 from texi.pytorch.plm.utils import plm_path
 from texi.pytorch.training.training import create_evaluator, run
+from texi.pytorch.utils import load_checkpoint
 
 
 def add_dummy_labels(x: Mapping) -> dict:
@@ -48,6 +49,45 @@ def merge_tokens_with_predictions(
 def save_predictions(predictions: Sequence[Mapping], output: Path) -> None:
     with open(output, mode="w") as f:
         json.dump(predictions, f, ensure_ascii=False)
+
+
+def create_predictor(
+    model: nn.Module,
+    params: SpERTParams,
+    entity_label_encoder: LabelEncoder,
+    negative_entity_index: int,
+    relation_label_encoder: LabelEncoder,
+    negative_relation_index: int,
+) -> Engine:
+    def predict_step(engine, model, batch):
+        output = eval_step(engine, model, batch)
+
+        input_ = output["input"]
+        output = output["output"]
+
+        (entity_predictions, relation_predictions) = predict_relations(
+            output["entity_logit"],
+            input_["entity_sample_mask"],
+            input_["entity_span"],
+            entity_label_encoder,
+            negative_entity_index,
+            output["relation_logit"],
+            output["relation"],
+            output["relation_sample_mask"],
+            relation_label_encoder,
+            negative_relation_index,
+            params["relation_filter_threshold"],
+        )
+
+        engine.state.predictions += list(zip(entity_predictions, relation_predictions))
+
+    engine = create_evaluator(predict_step, params, model, "test")
+
+    @engine.on(Events.STARTED)
+    def init_states(engine) -> None:
+        engine.state.predictions = []
+
+    return engine
 
 
 def predict(
@@ -95,44 +135,24 @@ def predict(
         dropout=params["dropout"],
         global_context_pooling=params["global_context_pooling"],
     ).to(idist.device())
+    load_checkpoint(model, checkpoint)
 
-    checkpoint = torch.load(checkpoint, map_location="cpu")
-    Checkpoint.load_objects(to_load={"model": model}, checkpoint=checkpoint)
-
-    def predict_step(engine, model, batch):
-        output = eval_step(engine, model, batch)
-
-        input_ = output["input"]
-        output = output["output"]
-
-        (entity_predictions, relation_predictions) = predict_relations(
-            output["entity_logit"],
-            input_["entity_sample_mask"],
-            input_["entity_span"],
-            entity_label_encoder,
-            negative_entity_index,
-            output["relation_logit"],
-            output["relation"],
-            output["relation_sample_mask"],
-            relation_label_encoder,
-            negative_relation_index,
-            params["relation_filter_threshold"],
-        )
-
-        engine.state.predictions += list(zip(entity_predictions, relation_predictions))
-
-    evaluator = create_evaluator(predict_step, params, model, "test")
-
-    @evaluator.on(Events.STARTED)
-    def init_states(engine) -> None:
-        engine.state.predictions = []
+    # Create predictor.
+    engine = create_predictor(
+        model,
+        params,
+        entity_label_encoder,
+        negative_entity_index,
+        relation_label_encoder,
+        negative_relation_index,
+    )
 
     # Run predict.
-    evaluator.run(dataflows["test"])
+    engine.run(dataflows["test"])
 
     # Merge tokens with predicted entities and relations.
     predictions = merge_tokens_with_predictions(
-        datasets["test"], evaluator.state.predictions
+        datasets["test"], engine.state.predictions
     )
 
     # Save predictions.
