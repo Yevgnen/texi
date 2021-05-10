@@ -141,6 +141,60 @@ def from_pybrat_example(example: Mapping) -> dict:
     return example
 
 
+def to_pybrat_example(example: Mapping, delimiter: str = "") -> dict:
+    def _new_id_builder(prefix):
+        i = 1
+
+        def _new_id():
+            nonlocal i
+
+            while True:
+                yield f"{prefix}{i}"
+                i += 1
+
+        return _new_id()
+
+    token_lengths = [len(x) for x in example["tokens"]]
+    offsets = [0]
+    for length in token_lengths:
+        offsets += [offsets[-1] + length + len(delimiter)]
+    assert len(offsets) == len(example["tokens"]) + 1
+
+    entities = []
+    entity_id = _new_id_builder("T")
+    for entity in example["entities"]:
+        entity_slice = slice(entity["start"], entity["end"])
+
+        entity = {
+            "id": next(entity_id),
+            "word": delimiter.join(example["tokens"][entity_slice]),
+            "type": entity["type"],
+            "start": offsets[entity["start"]],
+            "end": offsets[entity["end"]] - len(delimiter),
+        }
+
+        entities += [entity]
+
+    relation_id = _new_id_builder("R")
+    relations = [
+        {
+            "id": next(relation_id),
+            "type": x["type"],
+            "arg1": entities[x["head"]],
+            "arg2": entities[x["tail"]],
+        }
+        for x in example["relations"]
+    ]
+
+    example = {
+        "text": delimiter.join(example["tokens"]),
+        "entities": entities,
+        "relations": relations,
+    }
+
+    return example
+
+
 def load_pybrat_examples(dirname: str, *args, **kwargs) -> list[dict]:
     # pylint: disable=import-outside-toplevel
     from pybrat.parser import BratParser

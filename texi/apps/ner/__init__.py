@@ -20,6 +20,7 @@ from texi.apps.ner.utils import (
     load_pybrat_examples,
     relation_to_tuple,
     split_example,
+    to_pybrat_example,
 )
 from texi.apps.ner.visualization import SpERTVisualizer, spacy_visual_ner
 
@@ -34,6 +35,7 @@ __all__ = [
     "entity_to_tuple",
     "relation_to_tuple",
     "from_pybrat_example",
+    "to_pybrat_example",
     "convert_pybrat_examples",
     "filter_example_tokens",
     "load_pybrat_examples",

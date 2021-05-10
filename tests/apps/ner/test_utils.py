@@ -9,6 +9,7 @@ from texi.apps.ner.utils import (
     merge_examples,
     split_example,
     texify_example,
+    to_pybrat_example,
 )
 
 
@@ -96,6 +97,84 @@ class TestFilterExampleTokens(unittest.TestCase):
         }
         output = filter_example_tokens(example, "was")
         self.assertEqual(output, expected)
+
+
+class TestToPyBratExample(unittest.TestCase):
+    def setUp(self):
+        self.example = {
+            "tokens": ["Bill", "was", "born", "in", "USA", "."],
+            "entities": [
+                {"type": "per", "start": 0, "end": 1},
+                {"type": "loc", "start": 4, "end": 5},
+            ],
+            "relations": [
+                {"type": "born in", "head": 0, "tail": 1},
+            ],
+        }
+
+    def test_to_pybrat_example(self):
+        expected = {
+            "text": "Bill was born in USA .",
+            "entities": [
+                {"id": "T1", "word": "Bill", "type": "per", "start": 0, "end": 4},
+                {"id": "T2", "word": "USA", "type": "loc", "start": 17, "end": 20},
+            ],
+            "relations": [
+                {
+                    "id": "R1",
+                    "type": "born in",
+                    "arg1": {
+                        "id": "T1",
+                        "word": "Bill",
+                        "type": "per",
+                        "start": 0,
+                        "end": 4,
+                    },
+                    "arg2": {
+                        "id": "T2",
+                        "word": "USA",
+                        "type": "loc",
+                        "start": 17,
+                        "end": 20,
+                    },
+                },
+            ],
+        }
+
+        output = to_pybrat_example(self.example, " ")
+        self.assertEqual(expected, output)
+
+    def test_to_pybrat_example_default_delimiter(self):
+        expected = {
+            "text": "BillwasborninUSA.",
+            "entities": [
+                {"id": "T1", "word": "Bill", "type": "per", "start": 0, "end": 4},
+                {"id": "T2", "word": "USA", "type": "loc", "start": 13, "end": 16},
+            ],
+            "relations": [
+                {
+                    "id": "R1",
+                    "type": "born in",
+                    "arg1": {
+                        "id": "T1",
+                        "word": "Bill",
+                        "type": "per",
+                        "start": 0,
+                        "end": 4,
+                    },
+                    "arg2": {
+                        "id": "T2",
+                        "word": "USA",
+                        "type": "loc",
+                        "start": 13,
+                        "end": 16,
+                    },
+                },
+            ],
+        }
+
+        output = to_pybrat_example(self.example)
+        self.assertEqual(expected, output)
 
 
 class TestFunctions(unittest.TestCase):
