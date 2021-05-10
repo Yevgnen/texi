@@ -9,10 +9,35 @@ from collections.abc import Callable, Iterable
 from typing import Any, Optional, Type, TypeVar, Union, cast
 
 
-class SplitableMixin(object):
-    T = TypeVar("T", bound="Dataset")
+class DatasetTransformMixin(object):
+    _mixin_attributes = []
+    _mixin_transform: str = None
+    _mixin_inverse_transform: str = None
+
+    def _check_transform(self):
+        if any(hasattr(self, x) for x in self._mixin_attributes):
+            raise RuntimeError(f"Can not call `.{self._mixin_transform}()` twice.")
+
+    def _check_inverse_transform(self):
+        if any(not hasattr(self, x) for x in self._mixin_attributes):
+            raise RuntimeError(
+                f"Can not call `.{self._mixin_inverse_transform}()`"
+                f" before `.{self._mixin_transform}()`."
+            )
+
+    def _remove_attributes(self):
+        for attr in self._mixin_attributes:
+            delattr(self, attr)
+
+
+class SplitableMixin(DatasetTransformMixin):
+    _mixin_attributes = ["_split_lengths"]
+    _mixin_transform = "split"
+    _mixin_inverse_transform = "merge"
 
     def split(self, fn: Callable) -> None:
+        self._check_transform()
+
         splits = [fn(x) for x in self]
         lengths = [len(x) for x in splits]
 
@@ -21,6 +46,8 @@ class SplitableMixin(object):
         self.examples = list(itertools.chain.from_iterable(splits))
 
     def merge(self, fn: Callable) -> None:
+        self._check_inverse_transform()
+
         examples = []
 
         offset = 0
@@ -30,9 +57,20 @@ class SplitableMixin(object):
 
         self.examples = examples
 
+        self._remove_attributes()
 
-class MaskableMixin(object):
+
+class MaskableMixin(DatasetTransformMixin):
+    _mixin_attributes = [
+        "_masked_positives",
+        "_masked_negatives",
+    ]
+    _mixin_transform = "mask"
+    _mixin_inverse_transform = "unmask"
+
     def mask(self, fn: Callable) -> None:
+        self._check_transform()
+
         positives, negatives = [], []
         for i, example in enumerate(self):
             flag = fn(example)
@@ -47,11 +85,15 @@ class MaskableMixin(object):
         self.examples = [x[1] for x in positives]
 
     def unmask(self) -> None:
+        self._check_inverse_transform()
+
         examples = sorted(
             self._masked_positives + self._masked_negatives, key=lambda x: x[0]
         )
 
         self.examples = [x[1] for x in examples]
+
+        self._remove_attributes()
 
 
 class Dataset(MaskableMixin, SplitableMixin):
