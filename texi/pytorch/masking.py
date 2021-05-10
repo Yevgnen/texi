@@ -19,25 +19,22 @@ def create_span_mask(
             f"`start` and `end` should have same lengths: {len(starts)} != {len(ends)}"
         )
 
-    if isinstance(starts, torch.Tensor):
-        if starts.ndim != 1:
-            raise ValueError(
-                f"`starts` must be 1d if passed as tensor, got ndim == {starts.ndim}"
-            )
-        starts = starts.tolist()
-
-    if isinstance(ends, torch.Tensor):
-        if ends.ndim != 1:
-            raise ValueError(
-                f"`ends` must be 1d if passed as tensor, got ndim == {ends.ndim}"
-            )
-        ends = ends.tolist()
-
     if len(starts) == 0:
         return torch.zeros((0, length), dtype=dtype, device=device)
 
-    start = torch.tensor(starts, dtype=dtype, device=device)
-    end = torch.tensor(ends, dtype=dtype, device=device)
+    def _convert_tensor(t, name):
+        if isinstance(t, torch.Tensor):
+            if t.ndim != 1:
+                raise ValueError(
+                    f"`{name}` must be 1d if passed as tensor, got ndim == {t.ndim}"
+                )
+
+            return t.clone().detach()
+
+        return torch.tensor(t, dtype=dtype, device=device)
+
+    start, end = _convert_tensor(starts, "starts"), _convert_tensor(ends, "ends")
+
     mask = torch.arange(length, dtype=dtype, device=device).unsqueeze(dim=-1)
     mask = (start <= mask) & (mask < end)
     mask = mask.transpose(0, 1).type_as(start)
