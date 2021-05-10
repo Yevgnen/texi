@@ -12,7 +12,7 @@ import ignite.distributed as idist
 import torch.nn as nn
 from ignite.engine.engine import Engine
 from ignite.engine.events import Events
-from main import get_dataflows
+from train import get_dataflows
 from transformers import BertTokenizerFast
 
 from texi.apps.ner import split_example
