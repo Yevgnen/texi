@@ -165,7 +165,7 @@ def create_trainer(
             with_pbar_on_iters=False,
             log_every_iters=params.pbar_steps,
             stop_on_nan=True,
-            clear_cuda_cache=True,
+            clear_cuda_cache=False,
             save_handler=DiskSaver(params.save_path, require_empty=False),
         )
         logger.info("Setup common training handlers.")
