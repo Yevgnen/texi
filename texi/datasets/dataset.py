@@ -124,7 +124,8 @@ class Datasets(object):
 
     def map(self, fn: Callable) -> None:
         for _, dataset in self.items():
-            dataset.map(fn)
+            if dataset is not None:
+                dataset.map(fn)
 
     def __getitem__(self, key):
         assert key in self.modes
