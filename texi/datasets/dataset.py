@@ -178,11 +178,11 @@ class Datasets(object):
     def map(self, fn: Callable) -> dict:
         self._map_dataset_methods("map", fn)
 
-    def split(self, fn: Callable) -> dict:
-        return self.__class__(**self._map_dataset_methods("split", fn))
+    def split(self, fn: Callable):
+        self._map_dataset_methods("split", fn)
 
-    def mask(self, fn: Callable) -> dict:
-        return self.__class__(**self._map_dataset_methods("mask", fn))
+    def mask(self, fn: Callable):
+        self._map_dataset_methods("mask", fn)
 
     def __getitem__(self, key):
         assert key in self.modes
