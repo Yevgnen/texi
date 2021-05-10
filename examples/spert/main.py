@@ -87,6 +87,7 @@ def get_dataflows(
                 mode == "train",
             )
             for mode, dataset in datasets.items()
+            if dataset is not None
         },
         train_batch_size=params["train_batch_size"],
         eval_batch_size=params["eval_batch_size"],
