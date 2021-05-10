@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import inspect
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from typing import Union
 
 import torch
+import torch.nn as nn
+from ignite.handlers.checkpoint import Checkpoint
 from torch.utils.data import BatchSampler, RandomSampler, SequentialSampler
 from torchnlp.samplers import BucketBatchSampler
 
@@ -88,3 +90,11 @@ def get_default_arguments(f: Callable) -> dict:
         for key, value in inspect.signature(f).parameters.items()
         if value.default is not value.empty
     }
+
+
+def load_checkpoint(to_load: Union[Mapping, nn.Module], checkpoint: str) -> None:
+    if isinstance(to_load, nn.Module):
+        to_load = {"model": to_load}
+
+    checkpoint = torch.load(checkpoint, map_location="cpu")
+    Checkpoint.load_objects(to_load=to_load, checkpoint=checkpoint)
