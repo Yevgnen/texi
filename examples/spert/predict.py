@@ -16,6 +16,7 @@ from transformers import BertTokenizerFast
 
 from examples.spert.train import get_dataset
 from texi.apps.ner import split_example
+from texi.apps.ner.utils import merge_examples
 from texi.datasets.dataset import Dataset
 from texi.preprocessing import LabelEncoder
 from texi.pytorch.plm.spert import SpERT, SpERTParams
@@ -35,15 +36,12 @@ def add_dummy_labels(x: Mapping) -> dict:
 
 def merge_tokens_with_predictions(
     dataset: Dataset, predictions: Sequence[Mapping]
-) -> list[dict]:
-    return [
-        {
-            "tokens": example["tokens"],
-            "entities": prediction[0],
-            "relations": prediction[1],
-        }
-        for example, prediction in zip(dataset, predictions)
-    ]
+) -> Dataset:
+    for example, prediction in zip(dataset, predictions):
+        example["entities"] = prediction[0]
+        example["relations"] = prediction[1]
+
+    return dataset
 
 
 def save_predictions(predictions: Sequence[Mapping], output: Path) -> None:
@@ -101,7 +99,7 @@ def predict(
     # Load datasets.
     dataset = Dataset.from_json_iter(test_file, array=True).load()
     if params.split_delimiter:
-        dataset.map(
+        dataset.split(
             functools.partial(
                 split_example, delimiters=params.split_delimiter, ignore_errors=True
             )
@@ -156,7 +154,11 @@ def predict(
     engine.run(dataflow)
 
     # Merge tokens with predicted entities and relations.
-    predictions = merge_tokens_with_predictions(dataflow, engine.state.predictions)
+    predictions = merge_tokens_with_predictions(dataset, engine.state.predictions)
+
+    # Merge example splits.
+    if params.split_delimiter:
+        predictions.merge(merge_examples)
 
     # Save predictions.
     save_predictions(predictions, output)

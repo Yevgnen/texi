@@ -139,7 +139,7 @@ def training(local_rank: int, params: SpERTParams) -> None:
     # Load datasets.
     datasets = JSONDatasets.from_dir(params.data_dir, array=True).load()
     if params.split_delimiter:
-        datasets.map(
+        datasets = datasets.split(
             functools.partial(
                 split_example, delimiters=params.split_delimiter, ignore_errors=True
             )

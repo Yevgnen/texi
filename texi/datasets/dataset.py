@@ -39,6 +39,9 @@ class Dataset(object):
 
         self.examples = examples
 
+    def split(self, fn: Callable) -> SplitDataset:
+        return SplitDataset(self, fn)
+
     def describe(self) -> dict[str, Any]:
         return {"size": len(self)}
 
@@ -91,6 +94,32 @@ class Dataset(object):
         return cls(list(cls.from_json_iter(filename)))
 
 
+class SplitDataset(Dataset):
+    T = TypeVar("T", bound="Dataset")
+
+    def __init__(self, dataset: T, fn: Callable) -> None:
+        super().__init__(self._split(dataset, fn))
+
+    def _split(self, dataset, fn):
+        splits = [fn(x) for x in dataset]
+        lengths = [len(x) for x in splits]
+
+        self.dataset = dataset
+        self.lengths = lengths
+
+        return itertools.chain.from_iterable(splits)
+
+    def merge(self, fn: Callable) -> T:
+        examples = []
+
+        offset = 0
+        for length in self.lengths:
+            examples += [fn(self[offset : offset + length])]
+            offset += length
+
+        return self.dataset.__class__(examples)
+
+
 class Datasets(object):
     T = TypeVar("T", bound="Datasets")
 
@@ -110,6 +139,14 @@ class Datasets(object):
 
         self.modes = {"train", "val", "test"}
 
+    def _map_dataset_methods(self, method, *args, **kwargs):
+        outputs = dict.fromkeys(self.modes)
+        for mode, dataset in self.items():
+            if dataset is not None:
+                outputs[mode] = getattr(dataset, method)(*args, **kwargs)
+
+        return outputs
+
     def load(self) -> "Datasets":
         for mode in self.modes:
             dataset = getattr(self, mode)
@@ -122,10 +159,11 @@ class Datasets(object):
         for mode in self.modes:
             yield mode, getattr(self, mode)
 
-    def map(self, fn: Callable) -> None:
-        for _, dataset in self.items():
-            if dataset is not None:
-                dataset.map(fn)
+    def map(self, fn: Callable) -> dict:
+        self._map_dataset_methods("map", fn)
+
+    def split(self, fn: Callable) -> dict:
+        return self.__class__(**self._map_dataset_methods("split", fn))
 
     def __getitem__(self, key):
         assert key in self.modes
