@@ -8,6 +8,7 @@ import random
 from collections.abc import Callable, Iterable, Mapping
 from typing import TYPE_CHECKING, Optional, Union
 
+import ignite.distributed as idist
 import torch.nn as nn
 from ignite.engine import Engine, Events
 from ignite.handlers import global_step_from_engine
@@ -136,6 +137,7 @@ class SpERTEnv(object):
                         "mask": outputs["input"]["entity_sample_mask"],
                     },
                 },
+                device=idist.device(),
             ),
             "re": ReMetrics(
                 self.relation_label_encoder,
@@ -160,6 +162,7 @@ class SpERTEnv(object):
                         ),
                     },
                 },
+                device=idist.device(),
             ),
         }
 

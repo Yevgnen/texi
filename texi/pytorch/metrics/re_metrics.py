@@ -73,7 +73,8 @@ class ReMetrics(Metric):
 
             # Use negative/sample mask to filter non-related relations.
             num_relation_types = len(self.relation_label_encoder)
-            negative_mask = torch.arange(num_relation_types)[None, None, :]
+            negative_mask = torch.arange(num_relation_types, device=self._device)
+            negative_mask = negative_mask[None, None, :]
             if index is None:
                 negative_mask = negative_mask == self.negative_relation_index
             else:
