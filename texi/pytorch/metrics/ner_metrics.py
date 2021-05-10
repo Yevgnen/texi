@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Union
 
 import torch
@@ -32,80 +32,72 @@ class NerMetrics(Metric):
     @reinit__is_reduced
     def reset(self) -> None:
         # TP, FP, FN
-        self.entity_stat = torch.zeros((3,), device=self._device)
-        self.typed_entity_stat = torch.zeros(
+        self.tpfpfn = torch.zeros((3,), device=self._device)
+        self.typed_tpfpfn = torch.zeros(
             (len(self.entity_label_encoder), 3), device=self._device
         )
 
     @reinit__is_reduced
-    def update(self, output: dict) -> None:
+    def update(self, output: tuple[Mapping, Mapping]) -> None:
         def _combine_span_and_label(y):
             # label: [B, E]
             # span: [B, E, 2]
             # mask: [B, E]
-            span_with_label = torch.cat(
-                [y["label"].unsqueeze(dim=-1), y["span"]], axis=-1
-            )
+            labeled_span = torch.cat([y["label"].unsqueeze(dim=-1), y["span"]], axis=-1)
             negative_mask = ~y["mask"].unsqueeze(dim=-1).bool()
-            span_with_label.masked_fill_(negative_mask, -1)
+            labeled_span.masked_fill_(negative_mask, self.negative_entity_index)
 
-            return span_with_label
+            return labeled_span
 
-        def _to_tuples(span_with_label):
-            span_with_labels = span_with_label.tolist()
+        def _update(y, y_pred, stat, index=None):
+            # y: [B, E1, 3]
+            # y_pred: [B, E2, 3]
 
-            tuples = []
-            for sample_span_with_labels in span_with_labels:
-                sample_tuples = []
-                for label, start, end in sample_span_with_labels:
-                    negative = label < 0 and start < 0 and end < 0
-                    positive = label >= 0 and start >= 0 and end >= 0
+            if index is not None:
+                y_mask = y[..., 0] == index
+                y_pred_mask = y_pred[..., 0] == index
+            else:
+                y_mask = y[..., 0] != self.negative_entity_index
+                y_pred_mask = y_pred[..., 0] != self.negative_entity_index
 
-                    assert (
-                        positive or negative
-                    ), f"Unexpected entity span with label: {(label, start, end)}"
+            # For each entity in `y`, compare it to all entities in
+            # `y_pred`.
+            # matrix: [B, E1, E2, 3]
+            matrix = y.unsqueeze(dim=2) == y_pred.unsqueeze(dim=1)
 
-                    if label >= 0 and start >= 0 and end >= 0:
-                        if label != self.negative_entity_index:
-                            sample_tuples += [(label, start, end)]
-                tuples += [sample_tuples]
+            # A TP means:
+            # 1. All fields (label, start, end) must match -> `.all()`.
+            # 2. For each entity in `y`, check if any entity in `y_pred`
+            #    matches it -> `.any()`.
+            # tp: [B, E1, E2] -> [B, E1] -> [0]
+            tp = matrix.all(dim=-1).any(dim=-1).masked_fill(~y_mask, 0).sum()
+            fp = y_pred_mask.sum() - tp
+            fn = y_mask.sum() - tp
 
-            return tuples
-
-        def _update(all_targets, all_predictions):
-            for targets, predictions in zip(all_targets, all_predictions):
-                targets, predictions = set(targets), set(predictions)
-
-                for entity in targets & predictions:
-                    self.entity_stat[0] += 1
-                    self.typed_entity_stat[entity[0]][0] += 1
-
-                for entity in predictions - targets:
-                    self.entity_stat[1] += 1
-                    self.typed_entity_stat[entity[0]][1] += 1
-
-                for entity in targets - predictions:
-                    self.entity_stat[2] += 1
-                    self.typed_entity_stat[entity[0]][2] += 1
+            stat[0] += tp.to(self._device)
+            stat[1] += fp.to(self._device)
+            stat[2] += fn.to(self._device)
 
         y_pred, y = output
+        y_pred = {k: v.detach() for k, v in y_pred.items()}
+        y = {k: v.detach() for k, v in y.items()}
 
-        target = _combine_span_and_label(y)
-        prediction = _combine_span_and_label(y_pred)
+        y = _combine_span_and_label(y)
+        y_pred = _combine_span_and_label(y_pred)
 
-        targets = _to_tuples(target)
-        predictions = _to_tuples(prediction)
+        _update(y, y_pred, self.tpfpfn)
+        for i in range(len(self.entity_label_encoder)):
+            if i != self.negative_entity_index:
+                _update(y, y_pred, self.typed_tpfpfn[i], i)
 
-        _update(targets, predictions)
-
-    @sync_all_reduce("entity_stat:SUM", "typed_entity_stat:SUM")
+    @sync_all_reduce("tpfpfn:SUM", "typed_tpfpfn:SUM")
     def compute(self) -> dict[str, float]:
-        metrics = prf1(self.entity_stat[0], self.entity_stat[1], self.entity_stat[2])
+        metrics = prf1(self.tpfpfn[0], self.tpfpfn[1], self.tpfpfn[2])
         typed_metrics = {
             self.entity_label_encoder.decode_label(i): prf1(
-                self.typed_entity_stat[i][0],
-                self.typed_entity_stat[i][1],
-                self.typed_entity_stat[i][2],
+                self.typed_tpfpfn[i][0],
+                self.typed_tpfpfn[i][1],
+                self.typed_tpfpfn[i][2],
             )
             for i in range(len(self.entity_label_encoder))
             if i != self.negative_entity_index

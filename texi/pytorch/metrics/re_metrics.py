@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Union
 
 import torch
@@ -34,106 +34,111 @@ class ReMetrics(Metric):
     @reinit__is_reduced
     def reset(self) -> None:
         # TP, FP, FN
-        self.relation_stat = torch.zeros((3,), device=self._device)
-        self.typed_relation_stat = torch.zeros(
+        self.tpfpfn = torch.zeros((3,), device=self._device)
+        self.typed_tpfpfn = torch.zeros(
             (len(self.relation_label_encoder), 3), device=self._device
         )
 
     @reinit__is_reduced
-    def update(self, output: dict) -> None:
-        def _combine_pair_and_label(y):
+    def update(self, output: tuple[Mapping, Mapping]) -> None:
+        def _expand_entities(y):
+            # Expand head/tail index by corresponding entity type and span.
+
+            # label: [B, R, R']
+            # pair: [B, R, 2]
+            # mask: [B, R]
             label = (y["label"] > self.relation_filter_threshold).long()
 
-            pair_with_one_hot_label = torch.cat(
-                [
-                    label.unsqueeze(dim=-1),
-                    y["pair"]
-                    .unsqueeze(dim=-2)
-                    .repeat(1, 1, len(self.relation_label_encoder), 1),
-                ],
-                axis=-1,
-            )
-            negative_mask = ~y["mask"].view(*y["mask"].size(), 1, 1).bool()
-            pair_with_one_hot_label.masked_fill_(negative_mask, -1)
+            batch_size = y["label"].size(0)
+            indices = torch.arange(batch_size).view(batch_size, 1, 1)
 
-            return pair_with_one_hot_label  # [B, R, R']
+            # entity_span: [B, R, 4]
+            # entity_label: [B, R, 2]
+            # entity: [B, R, 6]
+            entity_span = y["entity_span"][indices, y["pair"]].flatten(start_dim=-2)
+            entity_label = y["entity_label"][indices, y["pair"]]
+            entity = torch.cat([entity_span, entity_label], dim=-1)
 
-        def _to_tuples(pair_with_one_hot_label, entity_span, entity_label):
-            pair_with_one_hot_labels = pair_with_one_hot_label.tolist()
-            entity_spans = entity_span.tolist()
-            entity_labels = entity_label.detach().cpu().numpy()
+            return {
+                "label": label,
+                "entity": entity,
+                "mask": y["mask"],
+            }
 
-            tuples = []
-            for (
-                sample_pair_with_one_hot_labels,
-                sample_entity_spans,
-                sample_entity_labels,
-            ) in zip(pair_with_one_hot_labels, entity_spans, entity_labels):
-                sample_tuples = []
-                for pair_with_labels in sample_pair_with_one_hot_labels:
-                    for k, (label, head, tail) in enumerate(pair_with_labels):
-                        negative = label < 0 and head < 0 and tail < 0
-                        positive = label >= 0 and head >= 0 and tail >= 0
+        def _update(y, y_pred, stat, index=None):
+            # Compare head/tail entity for each relation. Separate the
+            # head/tail comparison because relation labels are assumed
+            # one-hot encoded. The separation makes the following steps
+            # easier.
 
-                        assert (
-                            positive or negative
-                        ), f"Unexpected relation pair with label: {(label, head, tail)}"
+            # Use negative/sample mask to filter non-related relations.
+            num_relation_types = len(self.relation_label_encoder)
+            negative_mask = torch.arange(num_relation_types, device=self._device)
+            negative_mask = negative_mask[None, None, :]
+            if index is None:
+                negative_mask = negative_mask == self.negative_relation_index
+            else:
+                negative_mask = negative_mask != index
 
-                        # Need to map `head` and `tail` to corresponding
-                        # spans because they may have different indices
-                        # in target and prediction.
-                        head_span = tuple(sample_entity_spans[head])
-                        tail_span = tuple(sample_entity_spans[tail])
-                        head_type = sample_entity_labels[head]
-                        tail_type = sample_entity_labels[tail]
+            def _filter_negatives(label, sample_mask):
+                sample_mask = sample_mask.unsqueeze(dim=-1).bool()
+                mask = negative_mask | ~sample_mask
 
-                        if label > 0 and k != self.negative_relation_index:
-                            sample_tuples += [
-                                (k, head_span, tail_span, head_type, tail_type, label)
-                            ]
+                return label.masked_fill(mask, 0)
 
-                tuples += [sample_tuples]
+            y_label = _filter_negatives(y["label"], y["mask"])
+            y_pred_label = _filter_negatives(y_pred["label"], y_pred["mask"])
 
-            return tuples
+            def _generate_relations(label, entity):
+                nz = label.nonzero(as_tuple=True)
+                # relation: [#R, 1 + 1 + 6]
+                # where #R = numbers of non-negative relations in whole batch.
+                relation = torch.cat(
+                    [
+                        nz[0][:, None],
+                        nz[2][:, None],
+                        entity[nz[:-1]],
+                    ],
+                    dim=-1,
+                )
 
-        def _update(all_targets, all_predictions):
-            for targets, predictions in zip(all_targets, all_predictions):
-                targets, predictions = set(targets), set(predictions)
+                return relation
 
-                for relation in targets & predictions:
-                    self.relation_stat[0] += 1
-                    self.typed_relation_stat[relation[0]][0] += 1
+            y_rel = _generate_relations(y_label, y["entity"])
+            y_pred_rel = _generate_relations(y_pred_label, y_pred["entity"])
 
-                for relation in predictions - targets:
-                    self.relation_stat[1] += 1
-                    self.typed_relation_stat[relation[0]][1] += 1
+            # matrix: [#R, #R', 8]
+            matrix = y_rel.unsqueeze(dim=1) == y_pred_rel.unsqueeze(dim=0)
 
-                for relation in targets - predictions:
-                    self.relation_stat[2] += 1
-                    self.typed_relation_stat[relation[0]][2] += 1
+            # tp: [#R, #R', 8] -> [#R, #R'] -> [#R] -> [0]
+            tp = matrix.all(dim=-1).any(dim=-1).sum()
+            fp = y_pred_label.sum() - tp
+            fn = y_label.sum() - tp
+
+            stat[0] += tp.sum().to(self._device)
+            stat[1] += fp.sum().to(self._device)
+            stat[2] += fn.sum().to(self._device)
 
         y_pred, y = output
+        y_pred = {k: v.detach() for k, v in y_pred.items()}
+        y = {k: v.detach() for k, v in y.items()}
 
-        target = _combine_pair_and_label(y)
-        prediction = _combine_pair_and_label(y_pred)
+        y = _expand_entities(y)
+        y_pred = _expand_entities(y_pred)
 
-        targets = _to_tuples(target, y["entity_span"], y["entity_label"])
-        predictions = _to_tuples(
-            prediction, y_pred["entity_span"], y_pred["entity_label"]
-        )
+        _update(y, y_pred, self.tpfpfn)
+        for i in range(len(self.relation_label_encoder)):
+            if i != self.negative_relation_index:
+                _update(y, y_pred, self.typed_tpfpfn[i], i)
 
-        _update(targets, predictions)
-
-    @sync_all_reduce("relation_stat:SUM", "typed_relation_stat:SUM")
+    @sync_all_reduce("tpfpfn:SUM", "typed_tpfpfn:SUM")
     def compute(self) -> dict[str, float]:
-        metrics = prf1(
-            self.relation_stat[0], self.relation_stat[1], self.relation_stat[2]
-        )
+        metrics = prf1(self.tpfpfn[0], self.tpfpfn[1], self.tpfpfn[2])
         typed_metrics = {
             self.relation_label_encoder.decode_label(i): prf1(
-                self.typed_relation_stat[i][0],
-                self.typed_relation_stat[i][1],
-                self.typed_relation_stat[i][2],
+                self.typed_tpfpfn[i][0],
+                self.typed_tpfpfn[i][1],
+                self.typed_tpfpfn[i][2],
             )
             for i in range(len(self.relation_label_encoder))
             if i != self.negative_relation_index
