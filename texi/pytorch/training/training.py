@@ -188,8 +188,8 @@ def create_evaluator(
     eval_step: Callable,
     params: Params,
     model: Union[nn.Module, nn.parallel.DistributedDataParallel],
-    metrics: Metrics,
     tag: str,
+    metrics: Optional[Metrics] = None,
     with_handlers: bool = True,
 ) -> Engine:
     @torch.no_grad()
@@ -231,12 +231,12 @@ def create_evaluators(
     eval_step: Callable,
     params: Params,
     model: nn.Module,
-    metrics: Metrics,
+    metrics: Optional[Metrics] = None,
     with_handlers: bool = True,
 ) -> dict[str, Engine]:
     return {
         mode: create_evaluator(
-            eval_step, params, model, metrics, mode, with_handlers=with_handlers
+            eval_step, params, model, mode, metrics=metrics, with_handlers=with_handlers
         )
         for mode in ["train", "val", "test"]
     }

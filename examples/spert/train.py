@@ -87,6 +87,7 @@ def get_dataflows(
                 mode == "train",
             )
             for mode, dataset in datasets.items()
+            if dataset is not None
         },
         train_batch_size=params["train_batch_size"],
         eval_batch_size=params["eval_batch_size"],
@@ -138,11 +139,14 @@ def training(local_rank: int, params: SpERTParams) -> None:
     # Load datasets.
     datasets = JSONDatasets.from_dir(params.data_dir, array=True).load()
     if params.split_delimiter:
-        datasets.map(
+        datasets = datasets.split(
             functools.partial(
                 split_example, delimiters=params.split_delimiter, ignore_errors=True
             )
         )
+
+    if params.max_length > 0:
+        datasets = datasets.mask(lambda x: len(x["tokens"]) < params["max_length"])
 
     # Get text/label encoders.
     tokenizer = BertTokenizerFast.from_pretrained(plm_path(params["pretrained_model"]))

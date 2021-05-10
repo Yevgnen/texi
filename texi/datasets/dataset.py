@@ -9,7 +9,52 @@ from collections.abc import Callable, Iterable
 from typing import Any, Optional, Type, TypeVar, Union, cast
 
 
-class Dataset(object):
+class SplitableMixin(object):
+    T = TypeVar("T", bound="Dataset")
+
+    def split(self, fn: Callable) -> None:
+        splits = [fn(x) for x in self]
+        lengths = [len(x) for x in splits]
+
+        self._split_lengths = lengths
+
+        self.examples = list(itertools.chain.from_iterable(splits))
+
+    def merge(self, fn: Callable) -> None:
+        examples = []
+
+        offset = 0
+        for length in self._split_lengths:
+            examples += [fn(self[offset : offset + length])]
+            offset += length
+
+        self.examples = examples
+
+
+class MaskableMixin(object):
+    def mask(self, fn: Callable) -> None:
+        positives, negatives = [], []
+        for i, example in enumerate(self):
+            flag = fn(example)
+            if flag:
+                positives += [(i, example)]
+            else:
+                negatives += [(i, example)]
+
+        self._masked_positives = positives
+        self._masked_negatives = negatives
+
+        self.examples = [x[1] for x in positives]
+
+    def unmask(self) -> None:
+        examples = sorted(
+            self._masked_positives + self._masked_negatives, key=lambda x: x[0]
+        )
+
+        self.examples = [x[1] for x in examples]
+
+
+class Dataset(MaskableMixin, SplitableMixin):
     T = TypeVar("T", bound="Dataset")
 
     def __init__(self, examples: Union[Iterable, Callable]) -> None:
@@ -110,6 +155,14 @@ class Datasets(object):
 
         self.modes = {"train", "val", "test"}
 
+    def _map_dataset_methods(self, method, *args, **kwargs):
+        outputs = dict.fromkeys(self.modes)
+        for mode, dataset in self.items():
+            if dataset is not None:
+                outputs[mode] = getattr(dataset, method)(*args, **kwargs)
+
+        return outputs
+
     def load(self) -> "Datasets":
         for mode in self.modes:
             dataset = getattr(self, mode)
@@ -122,10 +175,14 @@ class Datasets(object):
         for mode in self.modes:
             yield mode, getattr(self, mode)
 
-    def map(self, fn: Callable) -> None:
-        for _, dataset in self.items():
-            if dataset is not None:
-                dataset.map(fn)
+    def map(self, fn: Callable) -> dict:
+        self._map_dataset_methods("map", fn)
+
+    def split(self, fn: Callable) -> dict:
+        return self.__class__(**self._map_dataset_methods("split", fn))
+
+    def mask(self, fn: Callable) -> dict:
+        return self.__class__(**self._map_dataset_methods("mask", fn))
 
     def __getitem__(self, key):
         assert key in self.modes

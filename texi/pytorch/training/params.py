@@ -38,11 +38,9 @@ class Params(object):
         self.backend = kwargs.get("backend")
         self.nproc_per_node = kwargs.get("nproc_per_node")
         self.seed = random_state(kwargs.get("seed"))
-        save_path = kwargs.get("save_path")
-        if not save_path:
-            save_path = os.path.join("output", datetime.datetime.now().isoformat())
-        self.save_path = save_path
-
+        self.save_path = os.path.join(
+            kwargs.get("save_path", "output/"), datetime.datetime.now().isoformat()
+        )
         self.log_file = os.path.join(self.save_path, "output.log")
         self.max_epochs = kwargs.get("max_epochs")
         self.lr = kwargs.get("lr")
