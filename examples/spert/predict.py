@@ -12,11 +12,11 @@ import ignite.distributed as idist
 import torch.nn as nn
 from ignite.engine.engine import Engine
 from ignite.engine.events import Events
-from train import get_dataflows
 from transformers import BertTokenizerFast
 
+from examples.spert.train import get_dataset
 from texi.apps.ner import split_example
-from texi.datasets.dataset import Dataset, Datasets
+from texi.datasets.dataset import Dataset
 from texi.preprocessing import LabelEncoder
 from texi.pytorch.plm.spert import SpERT, SpERTParams
 from texi.pytorch.plm.spert.prediction import predict as predict_relations
@@ -100,14 +100,13 @@ def predict(
 ) -> None:
     # Load datasets.
     dataset = Dataset.from_json_iter(test_file, array=True).load()
-    datasets = Datasets(test=dataset)
     if params.split_delimiter:
-        datasets.map(
+        dataset.map(
             functools.partial(
                 split_example, delimiters=params.split_delimiter, ignore_errors=True
             )
         )
-        datasets.map(add_dummy_labels)
+        dataset.map(add_dummy_labels)
 
     # Get text/label encoders.
     tokenizer = BertTokenizerFast.from_pretrained(plm_path(params["pretrained_model"]))
@@ -121,8 +120,16 @@ def predict(
     )
 
     # Get data dataflows.
-    dataflows = get_dataflows(
-        datasets, tokenizer, entity_label_encoder, relation_label_encoder, params
+    dataset = get_dataset(
+        dataset,
+        tokenizer,
+        entity_label_encoder,
+        relation_label_encoder,
+        params,
+        train=False,
+    )  # type: ignore
+    dataflow = dataset.get_dataloader(
+        params["eval_batch_size"], num_workers=params["num_workers"]
     )
 
     # Create model.
@@ -137,7 +144,7 @@ def predict(
     ).to(idist.device())
     load_checkpoint(model, checkpoint)
 
-    # Create predictor.
+    # Run predict.
     engine = create_predictor(
         model,
         params,
@@ -146,14 +153,10 @@ def predict(
         relation_label_encoder,
         negative_relation_index,
     )
-
-    # Run predict.
-    engine.run(dataflows["test"])
+    engine.run(dataflow)
 
     # Merge tokens with predicted entities and relations.
-    predictions = merge_tokens_with_predictions(
-        datasets["test"], engine.state.predictions
-    )
+    predictions = merge_tokens_with_predictions(dataflow, engine.state.predictions)
 
     # Save predictions.
     save_predictions(predictions, output)
