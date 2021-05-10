@@ -52,6 +52,27 @@ class Vocabulary(object):
             self.learn(docs)
             self.trim(min_count=min_count, max_size=max_size)
 
+    def __contains__(self, key):
+        return key in self.freqs.keys()
+
+    def __delitem__(self, word):
+        if word in self.specials:
+            raise ValueError("can not delete special token")
+
+        if word not in self:
+            return
+
+        index = self.word2index[word]
+        del self.word2index[word]
+        del self.index2word[index]
+        del self.freqs[word]
+
+    def __getitem__(self, key):
+        return self.get_index(key)
+
+    def __len__(self):
+        return len(self.freqs)
+
     @property
     def words(self):
         return set(self.freqs.keys())
@@ -174,24 +195,3 @@ class Vocabulary(object):
             return self.get_word(ids)
 
         return [self.inverse_transform(x) for x in ids]
-
-    def __getitem__(self, key):
-        return self.get_index(key)
-
-    def __len__(self):
-        return len(self.freqs)
-
-    def __contains__(self, key):
-        return key in self.freqs.keys()
-
-    def __delitem__(self, word):
-        if word in self.specials:
-            raise ValueError("can not delete special token")
-
-        if word not in self:
-            return
-
-        index = self.word2index[word]
-        del self.word2index[word]
-        del self.index2word[index]
-        del self.freqs[word]

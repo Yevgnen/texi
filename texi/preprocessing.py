@@ -108,6 +108,12 @@ class LabelEncoder(object):
     def __len__(self):
         return len(self.index2label)
 
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}"
+            "(labels={self.labels!r}, default={self.default!r})"
+        )
+
     @property
     def labels(self):
         return list(self.label2index)

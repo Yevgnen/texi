@@ -65,28 +65,6 @@ class Dataset(MaskableMixin, SplitableMixin):
             self.examples = list(examples)
             self.load_examples = None
 
-    def _check_loaded(self):
-        if self.examples is None:
-            raise RuntimeError("Dataset is not loaded, call `.load()` first")
-
-    def load(self) -> T:
-        if callable(self.load_examples) and self.examples is None:
-            self.examples = list(self.load_examples())
-
-        return self
-
-    def map(self, fn: Callable) -> None:
-        self._check_loaded()
-
-        examples = [fn(x) for x in cast(list, self.examples)]
-        if examples and isinstance(examples[0], list):
-            examples = list(itertools.chain.from_iterable(examples))
-
-        self.examples = examples
-
-    def describe(self) -> dict[str, Any]:
-        return {"size": len(self)}
-
     def __getitem__(self, key):
         self._check_loaded()
 
@@ -108,6 +86,28 @@ class Dataset(MaskableMixin, SplitableMixin):
             return f"{self.__class__.__name__}(Not loaded)"
 
         return f"{self.__class__.__name__}({len(self)} examples)"
+
+    def _check_loaded(self):
+        if self.examples is None:
+            raise RuntimeError("Dataset is not loaded, call `.load()` first")
+
+    def load(self) -> T:
+        if callable(self.load_examples) and self.examples is None:
+            self.examples = list(self.load_examples())
+
+        return self
+
+    def map(self, fn: Callable) -> None:
+        self._check_loaded()
+
+        examples = [fn(x) for x in cast(list, self.examples)]
+        if examples and isinstance(examples[0], list):
+            examples = list(itertools.chain.from_iterable(examples))
+
+        self.examples = examples
+
+    def describe(self) -> dict[str, Any]:
+        return {"size": len(self)}
 
     @classmethod
     def from_json_iter(
@@ -155,6 +155,18 @@ class Datasets(object):
 
         self.modes = {"train", "val", "test"}
 
+    def __getitem__(self, key):
+        assert key in self.modes
+
+        return getattr(self, key)
+
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}(train={self.train}"
+            f", val={self.val}, test={self.test}"
+            f", dirname={self.dirname}, filename={self.filename})"
+        )
+
     def _map_dataset_methods(self, method, *args, **kwargs):
         outputs = dict.fromkeys(self.modes)
         for mode, dataset in self.items():
@@ -183,18 +195,6 @@ class Datasets(object):
 
     def mask(self, fn: Callable):
         self._map_dataset_methods("mask", fn)
-
-    def __getitem__(self, key):
-        assert key in self.modes
-
-        return getattr(self, key)
-
-    def __repr__(self):
-        return (
-            f"{self.__class__.__name__}(train={self.train}"
-            f", val={self.val}, test={self.test}"
-            f", dirname={self.dirname}, filename={self.filename})"
-        )
 
     @classmethod
     def from_dir(cls: Type[T], dirname: str) -> T:
