@@ -34,14 +34,10 @@ def add_dummy_labels(x: Mapping) -> dict:
     return dict(x)
 
 
-def merge_tokens_with_predictions(
-    dataset: Dataset, predictions: Sequence[Mapping]
-) -> Dataset:
+def merge_tokens_with_predictions(dataset: Dataset, predictions: Sequence[Mapping]):
     for example, prediction in zip(dataset, predictions):
         example["entities"] = prediction[0]
         example["relations"] = prediction[1]
-
-    return dataset
 
 
 def save_predictions(predictions: Sequence[Mapping], output: Path) -> None:
@@ -101,13 +97,13 @@ def predict(
     dataset.map(add_dummy_labels)
 
     if params.split_delimiter:
-        dataset = dataset.split(
+        dataset.split(
             functools.partial(
                 split_example, delimiters=params.split_delimiter, ignore_errors=True
             )
         )
     if params.max_length > 0:
-        dataset = dataset.mask(lambda x: len(x["tokens"]) < params["max_length"])
+        dataset.mask(lambda x: len(x["tokens"]) < params["max_length"])
 
     # Get text/label encoders.
     tokenizer = BertTokenizerFast.from_pretrained(plm_path(params["pretrained_model"]))
@@ -157,16 +153,16 @@ def predict(
     engine.run(dataflow)
 
     # Merge tokens with predicted entities and relations.
-    predictions = merge_tokens_with_predictions(dataset, engine.state.predictions)
+    merge_tokens_with_predictions(dataset, engine.state.predictions)
 
     if params.max_length > 0:
-        dataset = dataset.unmask()
+        dataset.unmask()
 
     if params.split_delimiter:
-        dataset = dataset.merge(merge_examples)
+        dataset.merge(merge_examples)
 
     # Save predictions.
-    save_predictions(predictions, output)
+    save_predictions(dataset.examples, output)
 
 
 def parse_args() -> argparse.Namespace:

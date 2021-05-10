@@ -9,7 +9,52 @@ from collections.abc import Callable, Iterable
 from typing import Any, Optional, Type, TypeVar, Union, cast
 
 
-class Dataset(object):
+class SplitableMixin(object):
+    T = TypeVar("T", bound="Dataset")
+
+    def split(self, fn: Callable) -> None:
+        splits = [fn(x) for x in self]
+        lengths = [len(x) for x in splits]
+
+        self._split_lengths = lengths
+
+        self.examples = list(itertools.chain.from_iterable(splits))
+
+    def merge(self, fn: Callable) -> None:
+        examples = []
+
+        offset = 0
+        for length in self._split_lengths:
+            examples += [fn(self[offset : offset + length])]
+            offset += length
+
+        self.examples = examples
+
+
+class MaskableMixin(object):
+    def mask(self, fn: Callable) -> None:
+        positives, negatives = [], []
+        for i, example in enumerate(self):
+            flag = fn(example)
+            if flag:
+                positives += [(i, example)]
+            else:
+                negatives += [(i, example)]
+
+        self._masked_positives = positives
+        self._masked_negatives = negatives
+
+        self.examples = [x[1] for x in positives]
+
+    def unmask(self) -> None:
+        examples = sorted(
+            self._masked_positives + self._masked_negatives, key=lambda x: x[0]
+        )
+
+        self.examples = [x[1] for x in examples]
+
+
+class Dataset(MaskableMixin, SplitableMixin):
     T = TypeVar("T", bound="Dataset")
 
     def __init__(self, examples: Union[Iterable, Callable]) -> None:
@@ -38,12 +83,6 @@ class Dataset(object):
             examples = list(itertools.chain.from_iterable(examples))
 
         self.examples = examples
-
-    def split(self, fn: Callable) -> SplitDataset:
-        return SplitDataset(self, fn)
-
-    def mask(self, fn: Callable) -> MaskedDataset:
-        return MaskedDataset(self, fn)
 
     def describe(self) -> dict[str, Any]:
         return {"size": len(self)}
@@ -95,59 +134,6 @@ class Dataset(object):
     @classmethod
     def from_json(cls: Type[T], filename: str) -> T:
         return cls(list(cls.from_json_iter(filename)))
-
-
-class SplitDataset(Dataset):
-    T = TypeVar("T", bound="Dataset")
-
-    def __init__(self, dataset: T, fn: Callable) -> None:
-        super().__init__(self._split(dataset, fn))
-
-    def _split(self, dataset, fn):
-        splits = [fn(x) for x in dataset]
-        lengths = [len(x) for x in splits]
-
-        self.dataset = dataset
-        self.lengths = lengths
-
-        return itertools.chain.from_iterable(splits)
-
-    def merge(self, fn: Callable) -> T:
-        examples = []
-
-        offset = 0
-        for length in self.lengths:
-            examples += [fn(self[offset : offset + length])]
-            offset += length
-
-        return self.dataset.__class__(examples)
-
-
-class MaskedDataset(Dataset):
-    T = TypeVar("T", bound="Dataset")
-
-    def __init__(self, dataset: T, fn: Callable) -> None:
-        super().__init__(self._mask(dataset, fn))
-
-    def _mask(self, dataset, fn):
-        positives, negatives = [], []
-        for i, example in enumerate(dataset):
-            flag = fn(example)
-            if flag:
-                positives += [(i, example)]
-            else:
-                negatives += [(i, example)]
-
-        self.dataset = dataset
-        self.positives = positives
-        self.negatives = negatives
-
-        return [x[1] for x in positives]
-
-    def unmask(self) -> T:
-        examples = sorted(self.positives + self.negatives, key=lambda x: x[0])
-
-        return self.dataset.__class__(examples)
 
 
 class Datasets(object):
