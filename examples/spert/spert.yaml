@@ -7,7 +7,7 @@ data_dir: "./data"
 
 # Training
 backend: null
-nproc_per_node: 1
+nproc_per_node: null
 seed: null
 save_path: "output/"
 max_epochs: 20
@@ -20,7 +20,6 @@ schedule_steps: 1
 # Dataloader
 train_batch_size: 8
 eval_batch_size: 4
-device: 'cuda'
 num_workers: 0
 pin_memory: true
 non_blocking: true
