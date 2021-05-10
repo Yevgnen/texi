@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import functools
+import os
 from typing import Union
 
 import ignite.distributed as idist
@@ -27,10 +28,7 @@ from texi.pytorch.plm.spert import (
     SpERTSampler,
 )
 from texi.pytorch.plm.spert.training import eval_step, train_step
-from texi.pytorch.plm.utils import (
-    get_pretrained_optimizer_and_scheduler,
-    plm_path,
-)
+from texi.pytorch.plm.utils import get_pretrained_optimizer_and_scheduler, plm_path
 from texi.pytorch.training.training import (
     create_engines,
     describe_dataflows,
@@ -147,14 +145,14 @@ def training(local_rank: int, params: SpERTParams) -> None:
         )
 
     # Get text/label encoders.
-    tokenizer = BertTokenizerFast.from_pretrained(
-        plm_path(params["pretrained_model"])
-    )
+    tokenizer = BertTokenizerFast.from_pretrained(plm_path(params["pretrained_model"]))
     entity_label_encoder, relation_label_encoder = encode_labels(datasets.train)
     negative_entity_index = entity_label_encoder.add(params["negative_entity_type"])
     negative_relation_index = relation_label_encoder.add(
         params["negative_relation_type"]
     )
+    entity_label_encoder.save(os.path.join(params.save_path, "entity_labels.json"))
+    relation_label_encoder.save(os.path.join(params.save_path, "relation_labels.json"))
 
     # Get data dataflows.
     dataflows = get_dataflows(

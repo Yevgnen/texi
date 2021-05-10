@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import itertools
+import json
 import re
 import string
 import unicodedata
 from collections.abc import Callable, Iterable
-from typing import Optional, TypeVar, Union
+from typing import Optional, Type, TypeVar, Union
 
 import torch
 
@@ -217,6 +218,21 @@ class LabelEncoder(object):
 
         return labels
 
+    def save(self, filename: str) -> None:
+        with open(filename, mode="w") as f:
+            data = {
+                "labels": self.labels,
+                "default": self.default,
+            }
+            json.dump(data, f, ensure_ascii=False, indent=4)
+
     @classmethod
     def from_iterable(cls, labels: Iterable[Iterable[str]]) -> T:
         return cls(itertools.chain.from_iterable(labels))
+
+    @classmethod
+    def load(cls: Type[T], filename) -> T:
+        with open(filename) as f:
+            data = json.load(f)
+
+            return cls(data["labels"], default=data["default"])
