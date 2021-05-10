@@ -97,7 +97,7 @@ def encode_labels(
     return entity_label_encoder, relation_label_encoder
 
 
-def convert_pybrat_example(example: Mapping) -> dict:
+def from_pybrat_example(example: Mapping) -> dict:
     # NOTE:
     # 1. ID fields are kept.
     # 2. Entities are sort before conversion.
@@ -151,7 +151,7 @@ def load_pybrat_examples(dirname: str, *args, **kwargs) -> list[dict]:
     examples = []
     for parsed_example in parsed:
         example = dataclasses.asdict(parsed_example)
-        example = convert_pybrat_example(example)
+        example = from_pybrat_example(example)
         examples += [example]
 
     return examples
