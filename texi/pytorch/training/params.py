@@ -89,6 +89,9 @@ class Params(object):
             "sample_dir", os.path.join(self.save_path, "samples")
         )
 
+    def __getitem__(self, key):
+        return self.__dict__[key]
+
     def __repr__(self):
         return repr(self.__dict__)
 

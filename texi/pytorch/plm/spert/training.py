@@ -59,9 +59,6 @@ class SpERTParams(Params):
         self.split_delimiter = kwargs.get("split_delimiter")
         self.max_length = kwargs.get("max_length", -1)
 
-    def __getitem__(self, key):
-        return self.__dict__[key]
-
 
 def train_step(_: Engine, model: SpERT, batch: Mapping, criteria: nn.Module) -> dict:
     output = model(
