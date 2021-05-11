@@ -183,15 +183,21 @@ class Datasets(object):
 
     def __init__(
         self,
-        train: Optional[Dataset] = None,
-        val: Optional[Dataset] = None,
-        test: Optional[Dataset] = None,
+        train: Optional[Union[Dataset, Iterable, Callable]] = None,
+        val: Optional[Union[Dataset, Iterable, Callable]] = None,
+        test: Optional[Union[Dataset, Iterable, Callable]] = None,
         dirname: Optional[str] = None,
         filename: Optional[str] = None,
     ) -> None:
-        self.train = train
-        self.val = val
-        self.test = test
+        def _wrap(d):
+            if not isinstance(d, Dataset):
+                return Dataset(d)
+
+            return d
+
+        self.train = _wrap(train)
+        self.val = _wrap(val)
+        self.test = _wrap(test)
         self.dirname = dirname
         self.filename = filename
 
