@@ -9,22 +9,25 @@ import ignite.distributed as idist
 import torch
 from ignite.utils import convert_tensor
 from torch.utils.data import DataLoader
+from torch.utils.data import Dataset as TorchDataset
 
 from texi.datasets import Dataset as BaseDataset
 from texi.preprocessing import LabelEncoder
 from texi.pytorch.utils import get_sampler
+from texi.utils import ModeKeys
 
 Texts = Union[Iterable[str], str]
 
 
-class Dataset(BaseDataset, torch.utils.data.Dataset):
+class Dataset(BaseDataset, TorchDataset):
+
     T = TypeVar("T", bound="Dataset")
 
     def __init__(
         self,
         examples: Union[Iterable, Callable],
         tokenizer: Optional[Any] = None,
-        train: bool = False,
+        mode: ModeKeys = ModeKeys.TRAIN,
         device: Optional[torch.device] = None,
     ) -> None:
         super().__init__(examples)
@@ -34,14 +37,8 @@ class Dataset(BaseDataset, torch.utils.data.Dataset):
         self.tokenizer = tokenizer
         self.label_encoder = None  # type: Optional[LabelEncoder]
 
-        self.is_train = train
+        self.mode = mode
         self.device = device
-
-    def train(self) -> None:
-        self.is_train = True
-
-    def eval(self) -> None:
-        self.is_train = False
 
     def tokenize(self, text: Texts) -> torch.Tensor:
         if callable(self.tokenizer):
@@ -67,7 +64,7 @@ class Dataset(BaseDataset, torch.utils.data.Dataset):
         if self.device is not None:
             encoded = convert_tensor(encoded, device=self.device, non_blocking=True)
 
-        fn = self.collate_train if self.is_train else self.collate_eval
+        fn = self.collate_train if self.is_train() else self.collate_eval
         collated = fn(encoded)
 
         return collated
@@ -81,7 +78,7 @@ class Dataset(BaseDataset, torch.utils.data.Dataset):
     ) -> DataLoader:
         sampler = get_sampler(
             cast(Sequence, self.examples),
-            self.is_train,
+            self.is_train(),
             batch_size,
             drop_last=drop_last,
             sort_key=lambda index: sort_key(self[index]),

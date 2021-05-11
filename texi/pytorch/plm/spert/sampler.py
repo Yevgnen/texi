@@ -6,9 +6,10 @@ from collections.abc import Mapping
 from typing import Any
 
 from texi.apps.ner.span_utils import sample_negative_entities, sample_negative_relations
+from texi.utils import ModeKeys, PhaseMixin
 
 
-class SpERTSampler(object):
+class SpERTSampler(PhaseMixin):
     def __init__(
         self,
         num_negative_entities: int,
@@ -16,20 +17,14 @@ class SpERTSampler(object):
         max_entity_length: int,
         negative_entity_type: str = "NEGATIVE_ENTITY",
         negative_relation_type: str = "NEGATIVE_RELATION",
-        train: bool = True,
+        mode: ModeKeys = ModeKeys.TRAIN,
     ) -> None:
         self.num_negative_entities = num_negative_entities
         self.num_negative_relations = num_negative_relations
         self.max_entity_length = max_entity_length
         self.negative_entity_type = negative_entity_type
         self.negative_relation_type = negative_relation_type
-        self.is_train = train
-
-    def train(self) -> None:
-        self.is_train = True
-
-    def eval(self) -> None:
-        self.is_train = False
+        self.mode = mode
 
     def sample_negative_entities(self, example: Mapping) -> list[dict[str, Any]]:
         return sample_negative_entities(

@@ -16,6 +16,7 @@ from texi.pytorch.masking import length_to_mask
 from texi.pytorch.plm.utils import plm_path
 from texi.pytorch.rnn import LSTM
 from texi.tagger.sequence_labeling import SequeceLabelingTagger
+from texi.utils import ModeKeys
 
 if TYPE_CHECKING:
     from transformers.tokenization_utils import PreTrainedTokenizer
@@ -288,7 +289,7 @@ class SequenceLabeler(object):
             examples,
             tokenizer=self.tokenizer,
             label_encoder=self.label_encoder,
-            train=False,
+            mode=ModeKeys.PREDICT,
         )
         data_loader = dataset.get_dataloader(sampler_kwargs={"batch_size": batch_size})
 

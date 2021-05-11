@@ -9,6 +9,8 @@ import os
 from collections.abc import Callable, Iterable
 from typing import Any, Optional, Type, TypeVar, Union, cast
 
+from texi.utils import ModeKeys, PhaseMixin
+
 
 class DatasetTransformMixin(Iterable, metaclass=abc.ABCMeta):
     _mixin_attributes: list[str] = []
@@ -99,16 +101,20 @@ class MaskableMixin(DatasetTransformMixin):
         self._remove_attributes()
 
 
-class Dataset(MaskableMixin, SplitableMixin):
+class Dataset(PhaseMixin, MaskableMixin, SplitableMixin):
     T = TypeVar("T", bound="Dataset")
 
-    def __init__(self, examples: Union[Iterable, Callable]) -> None:
+    def __init__(
+        self, examples: Union[Iterable, Callable], mode: ModeKeys = ModeKeys.TRAIN
+    ) -> None:
         if callable(examples):
             self.load_examples = examples  # type: Optional[Callable]
             self.examples = None  # type: ignore
         else:
             self.examples = list(examples)
             self.load_examples = None
+
+        self.mode = mode
 
     def __getitem__(self, key):
         self._check_loaded()
@@ -160,6 +166,7 @@ class Dataset(MaskableMixin, SplitableMixin):
         filename: Union[str, os.PathLike],
         format_function: Optional[Callable] = lambda x: x,
         array: bool = False,
+        mode: ModeKeys = ModeKeys.TRAIN,
     ) -> T:
         def _iter_whole_file():
             with open(filename) as f:
@@ -174,11 +181,13 @@ class Dataset(MaskableMixin, SplitableMixin):
 
         fn = _iter_whole_file if array else _iter_multiple_lines
 
-        return cls(fn)
+        return cls(fn, mode=mode)
 
     @classmethod
-    def from_json(cls: Type[T], filename: Union[str, os.PathLike]) -> T:
-        return cls(list(cls.from_json_iter(filename)))
+    def from_json(
+        cls: Type[T], filename: Union[str, os.PathLike], mode: ModeKeys = ModeKeys.TRAIN
+    ) -> T:
+        return cls(list(cls.from_json_iter(filename)), mode=mode)
 
 
 class Datasets(object):
@@ -247,6 +256,14 @@ class Datasets(object):
     def mask(self, fn: Callable):
         self._map_dataset_methods("mask", fn)
 
+    @staticmethod
+    def _map_modekeys(mode):
+        return {
+            "train": ModeKeys.TRAIN,
+            "val": ModeKeys.EVAL,
+            "test": ModeKeys.PREDICT,
+        }
+
     @classmethod
     def from_dir(cls: Type[T], dirname: Union[str, os.PathLike]) -> T:
         raise NotImplementedError()
@@ -273,7 +290,10 @@ class JSONDatasets(Datasets):
 
         data = {
             key: Dataset.from_json_iter(
-                os.path.join(dirname, value), cls.format, array=array
+                os.path.join(dirname, value),
+                cls.format,
+                array=array,
+                mode=cls._map_modekeys(key),
             )
             for key, value in cls.files.items()
         }
