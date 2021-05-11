@@ -33,7 +33,7 @@ class DatasetTransformMixin(Iterable, metaclass=abc.ABCMeta):
             delattr(self, attr)
 
 
-class SplitableMixin(DatasetTransformMixin, metaclass=abc.ABCMeta):
+class SplitableMixin(DatasetTransformMixin):
     _mixin_attributes = ["_split_lengths"]
     _mixin_transform = "split"
     _mixin_inverse_transform = "merge"
@@ -63,7 +63,7 @@ class SplitableMixin(DatasetTransformMixin, metaclass=abc.ABCMeta):
         self._remove_attributes()
 
 
-class MaskableMixin(DatasetTransformMixin, metaclass=abc.ABCMeta):
+class MaskableMixin(DatasetTransformMixin):
     _mixin_attributes = [
         "_masked_positives",
         "_masked_negatives",
