@@ -35,6 +35,7 @@ from texi.pytorch.training.training import (
     run,
     setup_env,
 )
+from texi.utils import ModeKeys
 
 
 def get_dataset(
@@ -43,7 +44,7 @@ def get_dataset(
     entity_label_encoder: LabelEncoder,
     relation_label_encoder: LabelEncoder,
     params: SpERTParams,
-    train: bool,
+    mode: ModeKeys,
 ) -> SpERTDataset:
     negative_sampler = SpERTSampler(
         num_negative_entities=params["num_negative_entities"],
@@ -51,7 +52,7 @@ def get_dataset(
         max_entity_length=params["max_entity_length"],
         negative_entity_type=params["negative_entity_type"],
         negative_relation_type=params["negative_relation_type"],
-        train=train,
+        mode=mode,
     )
     dataset = SpERTDataset(
         examples,
@@ -59,7 +60,7 @@ def get_dataset(
         entity_label_encoder,
         relation_label_encoder,
         tokenizer,
-        train=train,
+        mode=mode,
         device=idist.device(),
     )
 
@@ -84,7 +85,7 @@ def get_dataflows(
                 entity_label_encoder,
                 relation_label_encoder,
                 params,
-                mode == "train",
+                ModeKeys.TRAIN if mode == "train" else ModeKeys.EVAL,
             )
             for mode, dataset in datasets.items()
             if dataset is not None

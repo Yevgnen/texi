@@ -15,6 +15,7 @@ from texi.preprocessing import LabelEncoder
 from texi.pytorch.dataset import Dataset
 from texi.pytorch.masking import create_span_mask
 from texi.pytorch.plm.spert.sampler import SpERTSampler
+from texi.utils import ModeKeys
 
 if TYPE_CHECKING:
     from transformers import BertTokenizer, BertTokenizerFast
@@ -51,12 +52,12 @@ class SpERTDataset(Dataset):
         entity_label_encoder: LabelEncoder,
         relation_label_encoder: LabelEncoder,
         tokenizer: Union[BertTokenizer, BertTokenizerFast] = None,
-        train: bool = False,
+        mode: ModeKeys = ModeKeys.TRAIN,
         eager: bool = True,
         device: Optional[torch.device] = None,
     ) -> None:
         super().__init__(
-            examples, tokenizer=tokenizer, train=train, eager=eager, device=device
+            examples, tokenizer=tokenizer, mode=mode, eager=eager, device=device
         )
 
         self.negative_sampler = negative_sampler
@@ -237,7 +238,7 @@ class SpERTDataset(Dataset):
         positive_relations = example["relations"]
         negative_entities = self.negative_sampler.sample_negative_entities(example)
 
-        if self.is_train:
+        if self.is_train():
             negative_relations = self.negative_sampler.sample_negative_relations(
                 example
             )
@@ -295,7 +296,7 @@ class SpERTDataset(Dataset):
         }
 
     def collate_train(self, batch: Sequence[Mapping]) -> dict[str, torch.Tensor]:
-        assert self.is_train, "`collate_train` must be called in train mode"
+        assert self.is_train(), "`collate_train` must be called in train mode"
 
         if self.eager:
             return super().collate_eager(batch)
@@ -307,7 +308,7 @@ class SpERTDataset(Dataset):
     ) -> Union[
         dict[str, torch.Tensor], tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]
     ]:
-        assert not self.is_train, "`collate_train` must NOT be called in train mode"
+        assert not self.is_train(), "`collate_train` must NOT be called in train mode"
 
         if self.eager:
             positives, negatives = zip(*batch)
@@ -330,7 +331,7 @@ class SpERTDataset(Dataset):
     ) -> Union[
         dict[str, torch.Tensor], tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]
     ]:
-        fn = self.collate_train if self.is_train else self.collate_eval
+        fn = self.collate_train if self.is_train() else self.collate_eval
 
         if self.device is not None:
             batch = convert_tensor(batch, device=self.device, non_blocking=True)

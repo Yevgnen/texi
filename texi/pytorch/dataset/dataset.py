@@ -10,9 +10,11 @@ import torch
 from carton.collections import collate
 from ignite.utils import convert_tensor
 from torch.utils.data import DataLoader
+from torch.utils.data import Dataset as TorchDataset
 
 from texi.datasets import Dataset as BaseDataset
 from texi.pytorch.utils import get_sampler
+from texi.utils import ModeKeys
 
 Texts = Union[Iterable[str], str]
 
@@ -25,14 +27,14 @@ class _DatasetEagerMeta(type):
         return instance
 
 
-class Dataset(torch.utils.data.Dataset, BaseDataset, metaclass=_DatasetEagerMeta):
+class Dataset(TorchDataset, BaseDataset, metaclass=_DatasetEagerMeta):
     T = TypeVar("T", bound="Dataset")
 
     def __init__(
         self,
         examples: Union[Iterable, Callable],
         tokenizer: Optional[Any] = None,
-        train: bool = False,
+        mode: ModeKeys = ModeKeys.TRAIN,
         eager: bool = True,
         device: Optional[torch.device] = None,
     ) -> None:
@@ -43,7 +45,7 @@ class Dataset(torch.utils.data.Dataset, BaseDataset, metaclass=_DatasetEagerMeta
         self.tokenizer = tokenizer
         self.label_encoder = None
 
-        self.is_train = train
+        self.mode = mode
 
         self.eager = eager
         self._encoded_examples = None
@@ -60,15 +62,15 @@ class Dataset(torch.utils.data.Dataset, BaseDataset, metaclass=_DatasetEagerMeta
             self._encoded_examples = cast(list, self.examples)
 
     def train(self) -> None:
-        changed = not self.is_train
-        self.is_train = True
+        changed = not self.is_train()
+        self.mode = ModeKeys.TRAIN
 
         if changed:
             self._eager_encode_maybe()
 
     def eval(self) -> None:
-        changed = self.is_train
-        self.is_train = False
+        changed = self.is_train()
+        self.mode = ModeKeys.EVAL
 
         if changed:
             self._eager_encode_maybe()
@@ -127,7 +129,7 @@ class Dataset(torch.utils.data.Dataset, BaseDataset, metaclass=_DatasetEagerMeta
     ) -> DataLoader:
         sampler = get_sampler(
             cast(Sequence, self.examples),
-            self.is_train,
+            self.is_train(),
             batch_size,
             drop_last=drop_last,
             sort_key=lambda index: sort_key(self[index]),
