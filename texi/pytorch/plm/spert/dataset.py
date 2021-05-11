@@ -234,12 +234,13 @@ class SpERTDataset(Dataset):
         tokens = example["tokens"]
 
         positive_entities = example["entities"]
+        positive_relations = example["relations"]
         negative_entities = self.negative_sampler.sample_negative_entities(example)
 
-        positive_relations = example["relations"]
-        negative_relations = self.negative_sampler.sample_negative_relations(example)
-
         if self.is_train:
+            negative_relations = self.negative_sampler.sample_negative_relations(
+                example
+            )
             entities = positive_entities + negative_entities
             relations = positive_relations + negative_relations
 
@@ -247,7 +248,7 @@ class SpERTDataset(Dataset):
 
         return (
             self.encode_example(tokens, positive_entities, positive_relations),
-            self.encode_example(tokens, negative_entities, negative_relations),
+            self.encode_example(tokens, positive_entities + negative_entities, []),
         )
 
     def _collate_internal(self, batch):

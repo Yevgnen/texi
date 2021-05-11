@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from texi.apps.ner import span_utils
 from texi.apps.ner.data import NERDataReport
 from texi.apps.ner.eval import (
     classification_report,
@@ -45,4 +46,5 @@ __all__ = [
     "expand_tokens",
     "SpERTVisualizer",
     "spacy_visual_ner",
+    "span_utils",
 ]
