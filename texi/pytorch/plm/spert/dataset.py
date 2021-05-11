@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING, Any, Optional, Union, cast
 import torch
 from carton.collections import collate
 from carton.data import describe_series
-from ignite.utils import convert_tensor
 
 from texi.preprocessing import LabelEncoder
 from texi.pytorch.dataset import Dataset
@@ -52,12 +51,9 @@ class SpERTDataset(Dataset):
         relation_label_encoder: LabelEncoder,
         tokenizer: Union[BertTokenizer, BertTokenizerFast] = None,
         train: bool = False,
-        eager: bool = True,
         device: Optional[torch.device] = None,
     ) -> None:
-        super().__init__(
-            examples, tokenizer=tokenizer, train=train, eager=eager, device=device
-        )
+        super().__init__(examples, tokenizer=tokenizer, train=train, device=device)
 
         self.negative_sampler = negative_sampler
         self.entity_label_encoder = entity_label_encoder
@@ -297,10 +293,7 @@ class SpERTDataset(Dataset):
     def collate_train(self, batch: Sequence[Mapping]) -> dict[str, torch.Tensor]:
         assert self.is_train, "`collate_train` must be called in train mode"
 
-        if self.eager:
-            return super().collate_eager(batch)
-
-        return super().collate(batch)
+        return self._collate_internal(collate(batch))
 
     def collate_eval(
         self, batch: Sequence[Mapping]
@@ -309,32 +302,9 @@ class SpERTDataset(Dataset):
     ]:
         assert not self.is_train, "`collate_train` must NOT be called in train mode"
 
-        if self.eager:
-            positives, negatives = zip(*batch)
-
-            return (
-                super().collate_eager(positives),
-                super().collate_eager(negatives),
-            )
-
-        encoded = self.encode_batch(batch)
-        positives, negatives = zip(*encoded)
+        positives, negatives = zip(*batch)
 
         return (
             self._collate_internal(collate(positives)),
             self._collate_internal(collate(negatives)),
         )
-
-    def collate_fn(
-        self, batch: Sequence[Mapping]
-    ) -> Union[
-        dict[str, torch.Tensor], tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]
-    ]:
-        fn = self.collate_train if self.is_train else self.collate_eval
-
-        if self.device is not None:
-            converted = convert_tensor(batch, device=self.device, non_blocking=True)
-
-            return fn(converted)
-
-        return fn(batch)
