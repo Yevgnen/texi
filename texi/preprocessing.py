@@ -104,8 +104,7 @@ class LabelEncoder(object):
         self, labels: Optional[Iterable[str]] = None, default: Optional[str] = None
     ) -> None:
         self.default = default
-        if labels:
-            self.init(labels)
+        self.init(labels)
 
     def __len__(self):
         return len(self.index2label)
@@ -136,7 +135,7 @@ class LabelEncoder(object):
             self.label2index[self.default] = 0
             self.index2label[0] = self.default
 
-    def init(self, labels: Iterable[str]) -> None:
+    def init(self, labels: Optional[Iterable[str]]) -> None:
         self.reset()
 
         if not labels:
