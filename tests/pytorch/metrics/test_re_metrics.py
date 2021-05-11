@@ -10,8 +10,10 @@ from texi.pytorch.metrics.re_metrics import ReMetrics
 
 class TestReMetrics(unittest.TestCase):
     def setUp(self):
-        relation_label_encoder = LabelEncoder(["born in", "loves", "NO_RELATION"])
-        negative_relation_index = relation_label_encoder.encode_label("NO_RELATION")
+        relation_label_encoder = LabelEncoder(["born in", "loves", "NEGATIVE_RELATION"])
+        negative_relation_index = relation_label_encoder.encode_label(
+            "NEGATIVE_RELATION"
+        )
         relation_filter_threshold = 0.4
 
         device = torch.device("cpu")

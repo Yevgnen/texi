@@ -10,8 +10,8 @@ from texi.pytorch.metrics.ner_metrics import NerMetrics
 
 class TestNerMetrics(unittest.TestCase):
     def setUp(self):
-        label_encoder = LabelEncoder(["per", "loc", "NON_ENTITY"])
-        negative_index = label_encoder.encode_label("NON_ENTITY")
+        label_encoder = LabelEncoder(["per", "loc", "NEGATIVE_ENTITY"])
+        negative_index = label_encoder.encode_label("NEGATIVE_ENTITY")
         device = torch.device("cpu")
         metric = NerMetrics(label_encoder, negative_index, device=device)
 

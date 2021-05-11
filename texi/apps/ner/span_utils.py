@@ -12,7 +12,7 @@ def sample_negative_entities(
     example: Mapping,
     max_length: int,
     size: Optional[int] = None,
-    negative_entity_type: str = "NON_ENTITY",
+    negative_entity_type: str = "NEGATIVE_ENTITY",
 ) -> list[dict[str, Any]]:
     text = example["tokens"]
     positives = example["entities"]
@@ -40,7 +40,7 @@ def sample_negative_entities(
 def sample_negative_relations(
     example: Mapping,
     size: Optional[int] = None,
-    negative_relation_type: str = "NO_RELATION",
+    negative_relation_type: str = "NEGATIVE_RELATION",
 ) -> list[dict[str, Any]]:
     entities = example["entities"]
     if not entities:

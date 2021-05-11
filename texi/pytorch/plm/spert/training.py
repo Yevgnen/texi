@@ -46,9 +46,11 @@ class SpERTParams(Params):
         self.embedding_dim = kwargs.get("embedding_dim", 25)
         self.dropout = kwargs.get("dropout", 0.1)
         self.global_context_pooling = kwargs.get("global_context_pooling", "cls")
-        self.negative_entity_type = kwargs.get("negative_entity_type", "NON_ENTITY")
+        self.negative_entity_type = kwargs.get(
+            "negative_entity_type", "NEGATIVE_ENTITY"
+        )
         self.negative_relation_type = kwargs.get(
-            "negative_relation_type", "NO_RELATION"
+            "negative_relation_type", "NEGATIVE_RELATION"
         )
         self.num_negative_entities = kwargs.get("num_negative_entities", 100)
         self.num_negative_relations = kwargs.get("num_negative_relations", 100)

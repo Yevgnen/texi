@@ -14,8 +14,8 @@ class SpERTSampler(object):
         num_negative_entities: int,
         num_negative_relations: int,
         max_entity_length: int,
-        negative_entity_type: str = "NOT_ENTITY",
-        negative_relation_type: str = "NO_RELATION",
+        negative_entity_type: str = "NEGATIVE_ENTITY",
+        negative_relation_type: str = "NEGATIVE_RELATION",
         train: bool = True,
     ) -> None:
         self.num_negative_entities = num_negative_entities
