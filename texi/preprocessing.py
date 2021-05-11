@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import itertools
 import json
+import os
 import re
 import string
 import unicodedata
@@ -103,7 +104,8 @@ class LabelEncoder(object):
         self, labels: Optional[Iterable[str]] = None, default: Optional[str] = None
     ) -> None:
         self.default = default
-        self.init(labels)
+        if labels:
+            self.init(labels)
 
     def __len__(self):
         return len(self.index2label)
@@ -224,7 +226,7 @@ class LabelEncoder(object):
 
         return labels
 
-    def save(self, filename: str) -> None:
+    def save(self, filename: Union[str, os.PathLike]) -> None:
         with open(filename, mode="w") as f:
             data = {
                 "labels": self.labels,
@@ -233,11 +235,11 @@ class LabelEncoder(object):
             json.dump(data, f, ensure_ascii=False, indent=4)
 
     @classmethod
-    def from_iterable(cls, labels: Iterable[Iterable[str]]) -> T:
+    def from_iterable(cls: Type[T], labels: Iterable[Iterable[str]]) -> T:
         return cls(itertools.chain.from_iterable(labels))
 
     @classmethod
-    def load(cls: Type[T], filename) -> T:
+    def load(cls: Type[T], filename: Union[str, os.PathLike]) -> T:
         with open(filename) as f:
             data = json.load(f)
 

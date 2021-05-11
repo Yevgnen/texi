@@ -7,7 +7,7 @@ import math
 import multiprocessing
 import os
 from collections.abc import Callable, Generator, Iterable
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 
 def _get_chunk_size(filename, num_workers=multiprocessing.cpu_count()):
@@ -35,7 +35,7 @@ def _iter_line_wrapper(filename, fn, start, end):
 
 
 def chunkify(
-    filename: str, chunk_size: int = 1024 * 1024
+    filename: Union[str, os.PathLike], chunk_size: int = 1024 * 1024
 ) -> Generator[tuple[int, int], None, None]:
     start = 0
     size = os.path.getsize(filename)
@@ -52,7 +52,10 @@ def chunkify(
 
 
 def readlines(
-    filename: str, start: Optional[int] = None, end: Optional[int] = None, **kwargs
+    filename: Union[str, os.PathLike],
+    start: Optional[int] = None,
+    end: Optional[int] = None,
+    **kwargs
 ) -> Generator[str, None, None]:
     with open(filename, **kwargs) as f:
         if start:
@@ -66,7 +69,7 @@ def readlines(
 
 
 def map_text(
-    filename: str,
+    filename: Union[str, os.PathLike],
     fn: Callable[[str, int, int], Any],
     num_workers: int = multiprocessing.cpu_count(),
     chunk_size: Optional[int] = None,
@@ -81,7 +84,7 @@ def map_text(
 
 
 def map_lines(
-    filename: str,
+    filename: Union[str, os.PathLike],
     fn: Callable[[str], Any],
     num_workers: int = multiprocessing.cpu_count(),
     chunk_size: Optional[int] = None,

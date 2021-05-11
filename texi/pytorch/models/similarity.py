@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, cast
 
 import torch
 import torch.nn as nn
@@ -35,7 +35,12 @@ class SiameseLSTM(nn.Module):
         self.dropout = dropout
         self.rnn_dropout = dropout if num_layers > 1 else 0
         if embedding is None:
-            embedding = nn.Embedding(vocab_size, embedded_size, padding_idx=padding_idx)
+            if vocab_size is None:
+                raise ValueError("`vocab_size` must be given if `embedding` is None")
+
+            embedding = nn.Embedding(
+                cast(int, vocab_size), embedded_size, padding_idx=padding_idx
+            )
         self.embedding = embedding
         self.vocab_size = vocab_size
 
@@ -113,7 +118,12 @@ class ESIM(nn.Module):
         self.dropout = dropout
         self.rnn_dropout = dropout if num_layers > 1 else 0
         if embedding is None:
-            embedding = nn.Embedding(vocab_size, embedded_size, padding_idx=padding_idx)
+            if vocab_size is None:
+                raise ValueError("`vocab_size` must be given if `embedding` is None")
+
+            embedding = nn.Embedding(
+                cast(int, vocab_size), embedded_size, padding_idx=padding_idx
+            )
         self.embedding = embedding
         self.vocab_size = vocab_size
 
@@ -325,8 +335,8 @@ class BertSimilarity(nn.Module):
             )[0]
             hiddens += [max_pooled]
 
-        hiddens = torch.cat(hiddens, dim=-1)
-        hiddens = self.dropout(hiddens)
-        logits = self.output(hiddens)
+        hidden = torch.cat(hiddens, dim=-1)
+        hidden = self.dropout(hidden)
+        logit = self.output(hidden)
 
-        return logits
+        return logit

@@ -12,6 +12,7 @@ from ignite.utils import convert_tensor
 from torch.utils.data import DataLoader
 
 from texi.datasets import Dataset as BaseDataset
+from texi.preprocessing import LabelEncoder
 from texi.pytorch.utils import get_sampler
 
 Texts = Union[Iterable[str], str]
@@ -41,7 +42,7 @@ class Dataset(torch.utils.data.Dataset, BaseDataset, metaclass=_DatasetEagerMeta
         if tokenizer is None:
             raise ValueError("`tokenizer` must not be None")
         self.tokenizer = tokenizer
-        self.label_encoder = None
+        self.label_encoder = None  # type: Optional[LabelEncoder]
 
         self.is_train = train
 

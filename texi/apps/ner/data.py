@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import collections
 import itertools
+import os
 import re
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import Any, Union
 
 import ahocorasick
 
@@ -169,9 +170,9 @@ class NERDataReport(object):
 
     @property
     def entity_imbalance(self) -> float:
-        dists = dict(collections.Counter([key for key, _ in self.entities]))
-        total = sum(dists.values())
-        dists = {key: value / total for key, value in dists.items()}
+        counts = dict(collections.Counter([key for key, _ in self.entities]))
+        total = sum(counts.values())
+        dists = {key: value / total for key, value in counts.items()}
         imbalance = max(dists.values()) / min(dists.values())
 
         return imbalance
@@ -184,9 +185,11 @@ class NERDataReport(object):
         return sizes
 
     @property
-    def entity_frequence(self) -> dict[str, int]:
+    def entity_frequence(self) -> dict[str, float]:
         entities = self._group_entities(self.entities, unique=False)
-        counters = {key: collections.Counter(value) for key, value in entities}
+        counters = {
+            key: collections.Counter(value) for key, value in entities
+        }  # type: dict[str, collections.Counter[str]]
         freqs = {
             key: sum(value.values()) / len(value) for key, value in counters.items()
         }
@@ -245,7 +248,7 @@ class NERDataReport(object):
 
         return {indicator: getattr(self, indicator) for indicator in indicators}
 
-    def to_html(self, filename: str) -> None:
+    def to_html(self, filename: Union[str, os.PathLike]) -> None:
         # pylint: disable=import-outside-toplevel
         import pandas as pd
         import plotly.figure_factory as ff
@@ -314,7 +317,7 @@ class NERDataReport(object):
             body += [df_top.to_html()]
 
         title = "NER Report"
-        body = "".join(body)
+        body = "".join(body)  # type: ignore
         html = f"""<html>
         <head>
             <title>{title}</title>

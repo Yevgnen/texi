@@ -5,8 +5,10 @@ from __future__ import annotations
 import argparse
 import functools
 import json
-from collections.abc import Mapping, Sequence
+import os
+from collections.abc import Mapping, MutableMapping, Sequence
 from pathlib import Path
+from typing import Union, cast
 
 import ignite.distributed as idist
 import torch.nn as nn
@@ -27,7 +29,7 @@ from texi.pytorch.training.training import create_evaluator, run
 from texi.pytorch.utils import load_checkpoint
 
 
-def add_dummy_labels(x: Mapping) -> dict:
+def add_dummy_labels(x: MutableMapping) -> dict:
     x["entities"] = []
     x["relations"] = []
 
@@ -40,7 +42,9 @@ def merge_tokens_with_predictions(dataset: Dataset, predictions: Sequence[Mappin
         example["relations"] = prediction[1]
 
 
-def save_predictions(predictions: Sequence[Mapping], output: Path) -> None:
+def save_predictions(
+    predictions: Sequence[Mapping], output: Union[str, bytes, os.PathLike]
+) -> None:
     with open(output, mode="w") as f:
         json.dump(predictions, f, ensure_ascii=False)
 
@@ -109,11 +113,11 @@ def predict(
     tokenizer = BertTokenizerFast.from_pretrained(plm_path(params["pretrained_model"]))
     entity_label_encoder = LabelEncoder.load(save_path / "entity_labels.json")
     relation_label_encoder = LabelEncoder.load(save_path / "relation_labels.json")
-    negative_entity_index = entity_label_encoder.encode_label(
-        params["negative_entity_type"]
+    negative_entity_index = cast(
+        int, entity_label_encoder.encode_label(params["negative_entity_type"])
     )
-    negative_relation_index = relation_label_encoder.encode_label(
-        params["negative_relation_type"]
+    negative_relation_index = cast(
+        int, relation_label_encoder.encode_label(params["negative_relation_type"])
     )
 
     # Get data dataflows.

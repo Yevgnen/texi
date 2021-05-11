@@ -108,4 +108,4 @@ class NerMetrics(Metric):
         if self.prefix:
             outputs = {f"{self.prefix}.{k}": v for k, v in outputs.items()}
 
-        return outputs
+        return outputs  # type: ignore

@@ -7,7 +7,7 @@ import copy
 import datetime
 import os
 from collections.abc import ItemsView, KeysView, ValuesView
-from typing import Optional, TypeVar
+from typing import Optional, Type, TypeVar
 
 from carton.params import Params as ParamDict
 from carton.random import random_state
@@ -126,15 +126,15 @@ class Params(object):
         ParamDict(**self.to_dict()).to_toml(filename)
 
     @classmethod
-    def from_yaml(cls, filename: str) -> T:
+    def from_yaml(cls: Type[T], filename: str) -> T:
         return cls(**ParamDict.from_yaml(filename))
 
     @classmethod
-    def from_json(cls, filename: str) -> T:
+    def from_json(cls: Type[T], filename: str) -> T:
         return cls(**ParamDict.from_json(filename))
 
     @classmethod
-    def from_toml(cls, filename: str) -> T:
+    def from_toml(cls: Type[T], filename: str) -> T:
         return cls(**ParamDict.from_toml(filename))
 
 

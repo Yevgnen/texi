@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import abc
 import itertools
 import json
 import os
@@ -9,10 +10,12 @@ from collections.abc import Callable, Iterable
 from typing import Any, Optional, Type, TypeVar, Union, cast
 
 
-class DatasetTransformMixin(object):
-    _mixin_attributes = []
-    _mixin_transform: str = None
-    _mixin_inverse_transform: str = None
+class DatasetTransformMixin(Iterable, metaclass=abc.ABCMeta):
+    _mixin_attributes: list[str] = []
+    _mixin_transform: Optional[str] = None
+    _mixin_inverse_transform: Optional[str] = None
+    __iter__: Callable
+    __getitem__: Callable
 
     def _check_transform(self):
         if any(hasattr(self, x) for x in self._mixin_attributes):
@@ -30,7 +33,7 @@ class DatasetTransformMixin(object):
             delattr(self, attr)
 
 
-class SplitableMixin(DatasetTransformMixin):
+class SplitableMixin(DatasetTransformMixin, metaclass=abc.ABCMeta):
     _mixin_attributes = ["_split_lengths"]
     _mixin_transform = "split"
     _mixin_inverse_transform = "merge"
@@ -60,7 +63,7 @@ class SplitableMixin(DatasetTransformMixin):
         self._remove_attributes()
 
 
-class MaskableMixin(DatasetTransformMixin):
+class MaskableMixin(DatasetTransformMixin, metaclass=abc.ABCMeta):
     _mixin_attributes = [
         "_masked_positives",
         "_masked_negatives",
@@ -102,7 +105,7 @@ class Dataset(MaskableMixin, SplitableMixin):
     def __init__(self, examples: Union[Iterable, Callable]) -> None:
         if callable(examples):
             self.load_examples = examples  # type: Optional[Callable]
-            self.examples = None
+            self.examples = None  # type: ignore
         else:
             self.examples = list(examples)
             self.load_examples = None
@@ -133,7 +136,7 @@ class Dataset(MaskableMixin, SplitableMixin):
         if self.examples is None:
             raise RuntimeError("Dataset is not loaded, call `.load()` first")
 
-    def load(self) -> T:
+    def load(self: T) -> T:
         if callable(self.load_examples) and self.examples is None:
             self.examples = list(self.load_examples())
 
@@ -154,7 +157,7 @@ class Dataset(MaskableMixin, SplitableMixin):
     @classmethod
     def from_json_iter(
         cls: Type[T],
-        filename: str,
+        filename: Union[str, os.PathLike],
         format_function: Optional[Callable] = lambda x: x,
         array: bool = False,
     ) -> T:
@@ -174,7 +177,7 @@ class Dataset(MaskableMixin, SplitableMixin):
         return cls(fn)
 
     @classmethod
-    def from_json(cls: Type[T], filename: str) -> T:
+    def from_json(cls: Type[T], filename: Union[str, os.PathLike]) -> T:
         return cls(list(cls.from_json_iter(filename)))
 
 
@@ -186,8 +189,8 @@ class Datasets(object):
         train: Optional[Union[Dataset, Iterable, Callable]] = None,
         val: Optional[Union[Dataset, Iterable, Callable]] = None,
         test: Optional[Union[Dataset, Iterable, Callable]] = None,
-        dirname: Optional[str] = None,
-        filename: Optional[str] = None,
+        dirname: Optional[Union[str, os.PathLike]] = None,
+        filename: Optional[Union[str, os.PathLike]] = None,
     ) -> None:
         def _wrap(d):
             if not isinstance(d, Dataset):
@@ -235,7 +238,7 @@ class Datasets(object):
         for mode in self.modes:
             yield mode, getattr(self, mode)
 
-    def map(self, fn: Callable) -> dict:
+    def map(self, fn: Callable):
         self._map_dataset_methods("map", fn)
 
     def split(self, fn: Callable):
@@ -245,7 +248,7 @@ class Datasets(object):
         self._map_dataset_methods("mask", fn)
 
     @classmethod
-    def from_dir(cls: Type[T], dirname: str) -> T:
+    def from_dir(cls: Type[T], dirname: Union[str, os.PathLike]) -> T:
         raise NotImplementedError()
 
 
@@ -259,11 +262,13 @@ class JSONDatasets(Datasets):
     }
 
     @classmethod
-    def format(cls, x: Any) -> Any:
+    def format(cls: Type[T], x: Any) -> Any:
         return x
 
     @classmethod
-    def from_dir(cls: Type[T], dirname: str, array: bool = False) -> T:
+    def from_dir(
+        cls: Type[T], dirname: Union[str, os.PathLike], array: bool = False
+    ) -> T:
         # pylint: disable=arguments-differ
 
         data = {

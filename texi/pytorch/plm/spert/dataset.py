@@ -333,6 +333,8 @@ class SpERTDataset(Dataset):
         fn = self.collate_train if self.is_train else self.collate_eval
 
         if self.device is not None:
-            batch = convert_tensor(batch, device=self.device, non_blocking=True)
+            converted = convert_tensor(batch, device=self.device, non_blocking=True)
+
+            return fn(converted)
 
         return fn(batch)

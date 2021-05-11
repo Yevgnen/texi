@@ -25,7 +25,6 @@ from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data import DataLoader
 
 from texi.pytorch.dataset.dataset import Dataset
-from texi.pytorch.optim import optim
 from texi.pytorch.training.handlers import handle_dataset_mode, setup_extra_handlers
 from texi.pytorch.training.params import Params
 
@@ -42,21 +41,6 @@ def setup_env(params: Params):
     carton_setup_logger(level=logging.INFO, filename=params["log_file"])
 
     params.to_yaml(os.path.join(params.save_path, "params.yaml"))
-
-
-def configure_optimizers(
-    net: nn.Module,
-    params: Mapping,
-) -> tuple[Optimizer, _LRScheduler]:
-    optimizer_params = {k: v for k, v in params.items() if k != "lr_scheduler"}
-    optimizer = optim.optim(net.parameters(), **optimizer_params)
-
-    lr_scheduler = None
-    lr_scheduler_params = params.get("lr_scheduler")
-    if lr_scheduler_params:
-        lr_scheduler = optim.lr_scheduler(optimizer, **lr_scheduler_params)
-
-    return optimizer, lr_scheduler
 
 
 def describe_dataflows(dataflows, logger_: Optional[logging.Logger] = None) -> None:
@@ -256,7 +240,8 @@ def create_engines(
     metrics: Optional[Metrics] = None,
     with_handlers: bool = True,
 ) -> Union[
-    tuple[Engine, dict[str, Engine]], tuple[Engine, dict[str, Engine], BaseLogger]
+    tuple[Engine, dict[str, Engine]],
+    tuple[Engine, dict[str, Engine], dict[str, BaseLogger]],
 ]:
     # pylint: disable=too-many-arguments
     logger.info("Creating engines with params:")

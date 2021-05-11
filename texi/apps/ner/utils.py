@@ -195,7 +195,9 @@ def to_pybrat_example(example: Mapping, delimiter: str = "") -> dict:
     return example
 
 
-def load_pybrat_examples(dirname: str, *args, **kwargs) -> list[dict]:
+def load_pybrat_examples(
+    dirname: Union[str, os.PathLike], *args, **kwargs
+) -> list[dict]:
     # pylint: disable=import-outside-toplevel
     from pybrat.parser import BratParser
 
@@ -212,8 +214,8 @@ def load_pybrat_examples(dirname: str, *args, **kwargs) -> list[dict]:
 
 
 def convert_pybrat_examples(
-    input_dir: str,
-    output_dir: str,
+    input_dir: Union[str, os.PathLike],
+    output_dir: Union[str, os.PathLike],
     test_size: float = 0.2,
     val_size: float = 0.1,
     shuffle: bool = True,
@@ -250,7 +252,9 @@ def convert_pybrat_examples(
     }
     for mode, dataset in datasets.items():
         if dataset is not None:
-            with open(os.path.join(output_dir, f"{prefix}_{mode}.json"), mode="w") as f:
+            with open(
+                os.path.join(str(output_dir), f"{prefix!s}_{mode}.json"), mode="w"
+            ) as f:
                 json.dump(dataset, f, ensure_ascii=False)
 
 
@@ -288,7 +292,7 @@ def filter_example_tokens(
     example: Mapping, filters: Iterable[Union[str, re.Pattern, Callable[[str], bool]]]
 ) -> dict:
     if not hasattr(filters, "__iter__") or isinstance(filters, str):
-        filters = [filters]
+        filters = [filters]  # type: ignore
 
     for f in filters:
         if not isinstance(f, (str, re.Pattern)) and not callable(f):
@@ -499,7 +503,7 @@ def merge_examples(examples: Sequence[Mapping]) -> dict[str, list]:
     }
 
 
-def texify_example(example: dict, delimiter: str) -> dict:
+def texify_example(example: Mapping, delimiter: str) -> dict:
     entities = example["entities"]
     if not entities:
         return {

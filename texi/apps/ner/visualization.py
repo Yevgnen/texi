@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Iterable, Mapping, Sequence
-from typing import Optional
+from typing import Optional, Union
 
 from carton.palette import Colors
 from carton.random import random_colors
@@ -15,7 +15,7 @@ from texi.metrics import prf1
 
 def spacy_visual_ner(
     examples: Sequence[Mapping],
-    filename: Optional[str] = None,
+    filename: Optional[Union[str, os.PathLike]] = None,
     colors: Optional[Mapping[str, str]] = None,
     token_sep: str = " ",
 ) -> None:
@@ -39,17 +39,19 @@ def spacy_visual_ner(
     # Give each type a color.
     if not colors:
         types = set(x["type"] for example in examples for x in example["entities"])
-        colors = random_colors(Colors.PRESETS, num=len(types))
-        colors = dict(zip(types, colors))
-
-    display_fn = displacy.render if filename else displacy.serve
-    rendered = display_fn(
-        spacy_data, style="ent", manual=True, options={"colors": colors}, page=True
-    )
+        colors = dict(zip(types, random_colors(Colors.PRESETS, num=len(types))))
 
     if filename:
+        html = displacy.render(
+            spacy_data, style="ent", manual=True, options={"colors": colors}, page=True
+        )
         with open(filename, mode="w") as f:
-            f.writelines(rendered)
+            f.writelines(html)
+        return
+
+    displacy.serve(
+        spacy_data, style="ent", manual=True, options={"colors": colors}, page=True
+    )
 
 
 class SpERTVisualizer(object):
@@ -153,7 +155,9 @@ class SpERTVisualizer(object):
         examples = sorted(map(_format, examples), key=lambda x: -x["f1"])
         template.stream(examples=examples).dump(filename)
 
-    def export_entities(self, examples: Iterable[Mapping], filename: str) -> None:
+    def export_entities(
+        self, examples: Iterable[Mapping], filename: Union[str, os.PathLike]
+    ) -> None:
         """
         Input format:
 
@@ -176,7 +180,9 @@ class SpERTVisualizer(object):
             self.entity_template,
         )
 
-    def export_relations(self, examples: Iterable[Mapping], filename: str) -> None:
+    def export_relations(
+        self, examples: Iterable[Mapping], filename: Union[str, os.PathLike]
+    ) -> None:
         """
         Input format:
 

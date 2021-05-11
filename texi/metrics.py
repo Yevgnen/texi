@@ -4,12 +4,19 @@ from __future__ import annotations
 
 import collections
 from collections.abc import Sequence
-from typing import Hashable, TypeVar, Union
+from typing import TYPE_CHECKING, Hashable, TypeVar, Union
+
+if TYPE_CHECKING:
+    import torch
 
 T = TypeVar("T", bound=Hashable)
 
 
-def prf1(tp: int, fp: int, fn: int) -> dict[str, float]:
+def prf1(
+    tp: Union[int, torch.Tensor],
+    fp: Union[int, torch.Tensor],
+    fn: Union[int, torch.Tensor],
+) -> dict[str, float]:
     tpfp = tp + fp
     precision = tp / tpfp if tpfp > 0 else 0
 
@@ -29,7 +36,10 @@ def prf1(tp: int, fp: int, fn: int) -> dict[str, float]:
 def tpfpfn(
     y: Sequence[T], y_pred: Sequence[T], return_index: bool = True
 ) -> Union[dict[str, list[int]], dict[str, list[T]]]:
-    tps, fps, fns = [], [], []
+    tps = []  # type: list[Union[int, T]]
+    fps = []  # type: list[Union[int, T]]
+    fns = []  # type: list[Union[int, T]]
+
     union = set(y) | set(y_pred)
     for i, (yi, yi_pred) in enumerate(zip(y, y_pred)):
         if yi_pred in union:
@@ -41,7 +51,7 @@ def tpfpfn(
             if return_index:
                 fps += [i]
             else:
-                fps += [y_pred]
+                fps += [yi_pred]
 
         if yi not in union:
             if return_index:
@@ -49,7 +59,7 @@ def tpfpfn(
             else:
                 fns += [yi]
 
-    return {"tp": tps, "fp": fps, "fn": fns}
+    return {"tp": tps, "fp": fps, "fn": fns}  # type: ignore
 
 
 def multilabel_metrics(y, y_pred, kwargs=None):

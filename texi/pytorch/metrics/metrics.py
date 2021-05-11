@@ -58,7 +58,7 @@ def sequence_labeling_metrics(output_transform, labels, train=True):
         return output_y_pred, output_y
 
     metrics = {
-        "sequence_labeling_metrics": SequenceLabelingMetrics(output_transform, labels),
+        "sequence_labeling_metrics": SequenceLabelingMetrics(labels, output_transform),
     }
 
     return metrics

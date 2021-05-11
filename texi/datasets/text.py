@@ -3,6 +3,7 @@
 import glob
 import json
 import os
+from typing import Type, TypeVar, Union
 
 from texi.datasets.dataset import Datasets, JSONDatasets
 
@@ -32,8 +33,10 @@ class Wiki2019Zh(Datasets):
     # Reference:
     # https://github.com/brightmart/nlp_chinese_corpus#1%E7%BB%B4%E5%9F%BA%E7%99%BE%E7%A7%91json%E7%89%88wiki2019zh
 
+    T = TypeVar("T", bound="Wiki2019Zh")
+
     @classmethod
-    def from_dir(cls, dirname: str):
+    def from_dir(cls: Type[T], dirname: Union[str, os.PathLike]) -> T:
         examples = []
         for filename in glob.iglob(os.path.join(dirname, "**/*"), recursive=True):
             if os.path.isdir(filename):

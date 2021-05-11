@@ -5,7 +5,9 @@ from __future__ import annotations
 import abc
 import collections
 import itertools
+import os
 from collections.abc import Iterable, Mapping
+from typing import Union
 
 
 class SequeceLabelingTagger(metaclass=abc.ABCMeta):
@@ -35,8 +37,10 @@ class SequeceLabelingTagger(metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @staticmethod
-    def from_text(filename: str, sep: str = "\t") -> list[dict]:
-        examples, example = [], []
+    def from_text(filename: Union[str, os.PathLike], sep: str = "\t") -> list[dict]:
+        examples: list[dict] = []
+        example: list[list[str]] = []
+
         with open(filename) as f:
             for line in f:
                 line = line.rstrip()
@@ -54,7 +58,10 @@ class SequeceLabelingTagger(metaclass=abc.ABCMeta):
 
     @classmethod
     def to_text(
-        cls, filename: str, examples: Iterable[Mapping], sep: str = "\t"
+        cls,
+        filename: Union[str, os.PathLike],
+        examples: Iterable[Mapping],
+        sep: str = "\t",
     ) -> None:
         with open(filename, mode="w") as f:
             for example in examples:

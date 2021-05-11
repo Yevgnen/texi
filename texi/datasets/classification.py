@@ -4,18 +4,21 @@ import glob
 import json
 import os
 import zipfile
+from typing import Union
 
 import pandas as pd
 
-from texi.datasets.dataset import Dataset, Datasets, JSONDatasets
+from texi.datasets.dataset import Dataset, Datasets, JSONDatasets, Type, TypeVar
 
 
 class CHIP2019(Datasets):
     # References:
     # http://www.cips-chip.org.cn:8088/evaluation
 
+    T = TypeVar("T", bound="CHIP2019")
+
     @classmethod
-    def from_dir(cls, dirname: str):
+    def from_dir(cls: Type[T], dirname: Union[str, os.PathLike]) -> T:
         prefix = "CHIP2019"
         df_train = pd.read_csv(os.path.join(dirname, "train.csv"))
         df_train["id"] = [f"{prefix}_train_{i}" for i in range(len(df_train))]
@@ -37,8 +40,10 @@ class NCOV2019(Datasets):
     # References:
     # https://tianchi.aliyun.com/competition/entrance/231776/introduction
 
+    T = TypeVar("T", bound="NCOV2019")
+
     @classmethod
-    def from_dir(cls, dirname: str):
+    def from_dir(cls: Type[T], dirname: Union[str, os.PathLike]) -> T:
         def _load_data(basename, mode):
             df = pd.read_csv(os.path.join(dirname, f"{basename}.csv"))
             df["id"] = df["id"].map(lambda x: f"{prefix}_{mode}_{x}")
@@ -61,8 +66,10 @@ class LUGETextPairDataset(Datasets):
     # References:
     # https://aistudio.baidu.com/aistudio/competition/detail/45
 
+    T = TypeVar("T", bound="LUGETextPairDataset")
+
     @classmethod
-    def from_dir(cls, dirname: str):
+    def from_dir(cls: Type[T], dirname: Union[str, os.PathLike]) -> T:
         def _load_data(basename, mode):
             columns = ["sentence1", "sentence2"]
             if mode != "test":
@@ -112,8 +119,10 @@ class AFQMC(Datasets):
     # References:
     # https://dc.cloud.alipay.com/index#/topic/intro?id=3
 
+    T = TypeVar("T", bound="AFQMC")
+
     @classmethod
-    def from_dir(cls, dirname: str):
+    def from_dir(cls: Type[T], dirname: Union[str, os.PathLike]) -> T:
         def _load_data(basename, mode):
             df = pd.read_csv(
                 os.path.join(dirname, f"{basename}.csv"),
@@ -131,8 +140,10 @@ class AFQMC(Datasets):
 
 
 class CCKS2018(Datasets):
+    T = TypeVar("T", bound="CCKS2018")
+
     @classmethod
-    def from_dir(cls, dirname: str):
+    def from_dir(cls: Type[T], dirname: Union[str, os.PathLike]) -> T:
         def _load_data(basename, mode):
             columns = ["sentence1", "sentence2"]
             if mode != "train":
@@ -167,8 +178,10 @@ class ChineseSNLI(Datasets):
     # References:
     # https://github.com/pluto-junzeng/CNSD
 
+    T = TypeVar("T", bound="ChineseSNLI")
+
     @classmethod
-    def from_dir(cls, dirname: str):
+    def from_dir(cls: Type[T], dirname: Union[str, os.PathLike]) -> T:
         def _load_data(basename, mode):
             filename = os.path.join(dirname, f"cnsd_snli_v1.0.{basename}.jsonl")
             with open(filename, mode="r") as f:
@@ -193,8 +206,10 @@ class ChineseSTSB(Datasets):
     # References:
     # https://github.com/pluto-junzeng/CNSD
 
+    T = TypeVar("T", bound="ChineseSTSB")
+
     @classmethod
-    def from_dir(cls, dirname: str):
+    def from_dir(cls: Type[T], dirname: Union[str, os.PathLike]) -> T:
         def _load_data(basename):
             filename = os.path.join(dirname, f"cnsd-sts-{basename}.txt")
             columns = ["id", "sentence1", "sentence2", "label"]
@@ -230,8 +245,10 @@ class THUCNews(Datasets):
     # References:
     # https://thuctc.thunlp.org
 
+    T = TypeVar("T", bound="THUCNews")
+
     @classmethod
-    def from_dir(cls, dirname: str):
+    def from_dir(cls: Type[T], dirname: Union[str, os.PathLike]) -> T:
         def _iter_examples():
             for filename in glob.iglob(
                 os.path.join(dirname, "**/*.txt"), recursive=True
@@ -254,6 +271,8 @@ class Sohu2021(object):
     # References:
     # https://www.biendata.xyz/competition/sohu_2021/
 
+    T = TypeVar("T", bound="Sohu2021")
+
     def __init__(
         self,
         short_short_a,
@@ -271,7 +290,7 @@ class Sohu2021(object):
         self.long_long_b = long_long_b
 
     @classmethod
-    def from_dir(cls, dirname: str):
+    def from_dir(cls: Type[T], dirname: Union[str, os.PathLike]) -> T:
         def _load_data(subdir):
             def _load(basename, mode):
                 flag = "A" if "A" in subdir else "B"
@@ -316,8 +335,10 @@ class ToutiaoNews(Datasets):
     # References:
     # https://github.com/fateleak/toutiao-text-classfication-dataset
 
+    T = TypeVar("T", bound="ToutiaoNews")
+
     @classmethod
-    def from_dir(cls, dirname: str):
+    def from_dir(cls: Type[T], dirname: Union[str, os.PathLike]) -> T:
         examples = []
         with open(os.path.join(dirname, "toutiao_cat_data.txt")) as f:
             for line in f:
@@ -337,8 +358,10 @@ class ToutiaoNews(Datasets):
 
 
 class Dianping(Datasets):
+    T = TypeVar("T", bound="Dianping")
+
     @classmethod
-    def from_dir(cls, dirname: str):
+    def from_dir(cls: Type[T], dirname: Union[str, os.PathLike]) -> T:
         def _load_data(filename):
             df = pd.read_csv(
                 os.path.join(dirname, filename), header=0, names=["label", "text"]

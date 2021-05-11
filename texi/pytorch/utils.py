@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import inspect
+import os
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from typing import Union
 
@@ -92,9 +93,11 @@ def get_default_arguments(f: Callable) -> dict:
     }
 
 
-def load_checkpoint(to_load: Union[Mapping, nn.Module], checkpoint: str) -> None:
+def load_checkpoint(
+    to_load: Union[Mapping, nn.Module], checkpoint: Union[str, os.PathLike]
+) -> None:
     if isinstance(to_load, nn.Module):
         to_load = {"model": to_load}
 
-    checkpoint = torch.load(checkpoint, map_location="cpu")
-    Checkpoint.load_objects(to_load=to_load, checkpoint=checkpoint)
+    ckpt = torch.load(checkpoint, map_location="cpu")
+    Checkpoint.load_objects(to_load=to_load, checkpoint=ckpt)

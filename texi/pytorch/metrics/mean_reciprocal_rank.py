@@ -22,7 +22,7 @@ class MeanReciprocalRank(Metric):
 
     @reinit__is_reduced
     def reset(self) -> None:
-        self._ranks = []
+        self._ranks = []  # type: list[torch.Tensor]
 
     @reinit__is_reduced
     def update(self, output: Sequence) -> None:

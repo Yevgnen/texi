@@ -2,20 +2,21 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import Container
-from typing import Optional
+from typing import Optional, Union
 
 import numpy as np
 
 
 def load_vectors(
-    filename: str,
+    filename: Union[str, os.PathLike],
     skip_headers: int = 0,
     word_only: bool = False,
     vocab: Optional[Container[str]] = None,
     keep_case: bool = False,
     sep: str = " ",
-) -> dict[str, np.ndarray]:
+) -> Union[list[str], dict[str, np.ndarray]]:
     with open(filename) as f:
         for i in range(skip_headers):
             f.readline()

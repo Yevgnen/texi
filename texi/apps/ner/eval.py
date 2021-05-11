@@ -8,16 +8,17 @@ import re
 import subprocess
 import tempfile
 from collections.abc import Iterable
+from typing import Optional, Union
 
 
-def conlleval_file(filename: str) -> dict:
+def conlleval_file(filename: Union[str, os.PathLike]) -> dict:
     script = os.path.join(os.path.dirname(__file__), "conlleval.pl")
     with open(filename) as f:
         outputs = subprocess.run(
             [script, "-d", "\t"], text=True, stdin=f, capture_output=True, check=True
         ).stdout
         # Parse outputs
-        results = {"tags": {}}
+        results = {"tags": {}}  # type: dict
 
         lines = []
         for line in outputs.split("\n"):
@@ -55,7 +56,10 @@ def conlleval_file(filename: str) -> dict:
         return results
 
 
-def conlleval(data: Iterable[Iterable[str]], filename: str = None) -> dict:
+def conlleval(
+    data: Iterable[Iterable[Iterable[str]]],
+    filename: Optional[Union[str, os.PathLike]] = None,
+) -> dict:
     with (
         (filename and open(filename, mode="w"))
         or tempfile.NamedTemporaryFile(mode="w", delete=False)

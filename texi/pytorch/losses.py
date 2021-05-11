@@ -11,12 +11,14 @@ def manhattan_similarity(v1: torch.Tensor, v2: torch.Tensor) -> torch.Tensor:
 
 
 class ManhattanSimilarity(nn.Module):
-    def forward(self, v1: torch.Tensor, v2: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self, v1: torch.Tensor, v2: torch.Tensor
+    ) -> torch.Tensor:  # pylint: disable=no-self-use
         return manhattan_similarity(v1, v2)
 
 
 class HingeLoss(nn.Module):
-    def __init__(self, margin: Union[int, torch.Tensor] = 1.0):
+    def __init__(self, margin: Union[float, torch.Tensor] = 1.0):
         super().__init__()
         self.margin = margin
 

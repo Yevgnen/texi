@@ -18,6 +18,7 @@ from ignite.contrib.engines.common import (
 from ignite.contrib.handlers import ProgressBar
 from ignite.contrib.handlers.base_logger import BaseLogger
 from ignite.engine import Engine, Events
+from ignite.engine.events import CallableEventWithFilter
 from ignite.handlers import EarlyStopping
 from ignite.handlers.checkpoint import Checkpoint
 from torch.optim import Optimizer
@@ -31,7 +32,7 @@ from texi.pytorch.training.params import Params
 logger = logging.getLogger(__name__)
 
 
-def get_event(steps: Union[int, str]) -> Events:
+def get_event(steps: Union[int, str]) -> CallableEventWithFilter:
     if isinstance(steps, int):
         return Events.ITERATION_COMPLETED(every=steps)
 
@@ -119,7 +120,7 @@ def setup_lr_scheduler(
         if params.schedule_steps == "epoch" or params.schedule_steps > 0:
             trainer.add_event_handler(
                 get_event(params.schedule_steps),
-                lambda engine: cast(_LRScheduler, lr_scheduler).step(),
+                lambda _: cast(_LRScheduler, lr_scheduler).step(),
             )
         else:
             raise ValueError(
@@ -248,7 +249,7 @@ def setup_evaluate_handlers(
         trainer.add_event_handler(Events.COMPLETED, evaluate_handler)
 
         @trainer.on(Events.EXCEPTION_RAISED)
-        def evaluate_test_on_exceptions(_engine, _e):
+        def evaluate_test_on_exceptions(*_):
             evaluate_handler(test_evaluator)
 
         handlers["test_evaluate_handler"] = evaluate_handler
@@ -313,9 +314,7 @@ def setup_logger_handlers(
             project=params.project,
             reinit=True,
         )
-        wandb_logger.attach(
-            trainer, lambda *args, **kwargs: wandb_logger.close, Events.COMPLETED
-        )
+        wandb_logger.attach(trainer, lambda *_: wandb_logger.close, Events.COMPLETED)
         if params.debug:
             wandb_logger.watch(model, log="all", log_steps=params.log_steps)
         handlers["wandb_logger"] = wandb_logger

@@ -130,10 +130,8 @@ class CRFForPreTraining(nn.Module):
 
         return -self.crf(emissions, labels, mask, reduction=reduction)
 
-    def decode(
-        self, emissions: torch.Tensor, mask: Optional[torch.ByteTensor] = None
-    ) -> BatchId:
-        return self.crf.decode(emissions, mask.bool())
+    def decode(self, emissions: torch.Tensor, mask: torch.ByteTensor) -> BatchId:
+        return self.crf.decode(emissions, mask)
 
 
 class CRFDecoder(object):
@@ -157,7 +155,7 @@ class CRFDecoder(object):
 
         return [x[:length] for x, length in zip(labels, x["length"])]
 
-    def decode(self, batch: Batch) -> tuple[BatchId]:
+    def decode(self, batch: Batch) -> tuple[BatchId, BatchId]:
         x, y = batch
 
         tokens = self.decode_tokens(x)
@@ -181,11 +179,11 @@ class SequenceDecoderForPreTraining(object):
 
     def decode_tokens(
         self, x: BatchInput, token_transform: Callable[[list[str]], str]
-    ) -> BatchId:
+    ) -> list[list[str]]:
         tokens = []
         for input_ids, offsets in zip(x["input_ids"], x["offset_mapping"]):
             # Decode token ids.
-            sample_tokens, token_ids = [], []
+            sample_tokens, token_ids = [], []  # type: ignore
             # Loop over all subwords.
             for i, offset in enumerate(offsets):
                 # Ignore special tokens.
@@ -207,7 +205,7 @@ class SequenceDecoderForPreTraining(object):
 
         return tokens
 
-    def decode_labels(self, x: BatchInput, y: torch.Tensor) -> BatchId:
+    def decode_labels(self, x: BatchInput, y: torch.Tensor) -> list[list[str]]:
         labels = []
         for label_mask, label_ids in zip(x["label_mask"], y):
             # Decode label ids.
@@ -215,9 +213,10 @@ class SequenceDecoderForPreTraining(object):
                 label_ids = label_ids.argmax(dim=-1)
             label_ids = label_ids[label_mask > 0].tolist()
             labels += [label_ids]
-        labels = self.label_encoder.decode(labels)
 
-        return labels
+        decoded = [self.label_encoder.decode(x) for x in labels]
+
+        return decoded
 
     def decode(
         self,
@@ -247,7 +246,7 @@ class CRFDecoderForPreTraining(SequenceDecoderForPreTraining):
         super().__init__(tokenizer, label_encoder)
         self.crf = crf
 
-    def decode_labels(self, x: BatchInput, y: torch.Tensor) -> BatchId:
+    def decode_labels(self, x: BatchInput, y: torch.Tensor) -> list[list[str]]:
         if y.dim() == 2:
             return super().decode_labels(x, y)
 
@@ -278,7 +277,7 @@ class SequenceLabeler(object):
         device: torch.device = torch.device("cpu"),
         non_blocking: bool = False,
         batch_size: int = 32,
-    ) -> list[list[dict]]:
+    ) -> list[dict]:
         dummy_label = self.label_encoder.labels[0]
 
         examples = [

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import collections
 import itertools
+import os
 import sys
 from collections.abc import Iterable, Sequence
 from typing import Optional, Union
@@ -107,10 +108,11 @@ class Vocabulary(object):
             return
 
         if not isinstance(docs[0], str):
-            docs = itertools.chain(*docs)
-
-        for word in docs:
-            self.add(word)
+            for word in itertools.chain(*docs):
+                self.add(word)
+        else:
+            for word in docs:  # type: ignore
+                self.add(word)
 
     def compactify(self) -> None:
         freqs = {w: f for w, f in self.freqs.items() if w not in self.specials}
@@ -143,7 +145,7 @@ class Vocabulary(object):
         if compactify:
             self.compactify()
 
-    def save(self, filename: str) -> None:
+    def save(self, filename: Union[str, os.PathLike]) -> None:
         with open(filename, mode="w") as f:
             f.writelines(
                 "\n".join(
@@ -155,7 +157,7 @@ class Vocabulary(object):
                 )
             )
 
-    def load(self, filename: str) -> None:
+    def load(self, filename: Union[str, os.PathLike]) -> None:
         self.reset()
 
         with open(filename) as f:
@@ -175,18 +177,18 @@ class Vocabulary(object):
             return index
 
         if self.default is not None:
-            return self.word2index.get(self.default)
+            return self.word2index[self.default]
 
         raise KeyError(f"Word not found while `default` is not set: {word}")
 
-    def get_word(self, index: int) -> str:
-        return self.index2word[index]
+    def get_word(self, index: Union[int, np.integer]) -> str:
+        return self.index2word[int(index)]
 
     def transform(self, words: Union[str, Iterable[str]]) -> Union[int, list[int]]:
         if isinstance(words, str):
             return self.get_index(words)
 
-        return [self.transform(word) for word in words]
+        return [self.transform(word) for word in words]  # type: ignore
 
     def inverse_transform(
         self, ids: Union[int, np.integer, Iterable[Union[int, np.integer]]]
@@ -194,4 +196,4 @@ class Vocabulary(object):
         if isinstance(ids, (int, np.integer)):
             return self.get_word(ids)
 
-        return [self.inverse_transform(x) for x in ids]
+        return [self.inverse_transform(x) for x in ids]  # type: ignore
