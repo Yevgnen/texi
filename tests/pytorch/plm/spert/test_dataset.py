@@ -19,18 +19,18 @@ class TestSpERTDataset(unittest.TestCase):
                 {"type": "per", "start": 0, "end": 1},
                 {"type": "prep", "start": 3, "end": 4},
                 {"type": "loc", "start": 4, "end": 5},
-                {"type": "NOT_ENTITY", "start": 0, "end": 3},
+                {"type": "NEGATIVE_ENTITY", "start": 0, "end": 3},
             ],
             "relations": [
                 {"type": "born in", "head": 0, "tail": 2},
-                {"type": "NO_RELATION", "head": 1, "tail": 2},
-                {"type": "NO_RELATION", "head": 2, "tail": 0},
+                {"type": "NEGATIVE_RELATION", "head": 1, "tail": 2},
+                {"type": "NEGATIVE_RELATION", "head": 2, "tail": 0},
             ],
         }
 
     def test_encode_example(self):
-        entity_label_encoder = LabelEncoder(["per", "prep", "loc", "NOT_ENTITY"])
-        relation_label_encoder = LabelEncoder(["born in", "NO_RELATION"])
+        entity_label_encoder = LabelEncoder(["per", "prep", "loc", "NEGATIVE_ENTITY"])
+        relation_label_encoder = LabelEncoder(["born in", "NEGATIVE_RELATION"])
 
         dataset = SpERTDataset(
             [self.example],

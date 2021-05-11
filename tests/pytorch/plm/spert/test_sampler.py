@@ -19,8 +19,8 @@ class TestSpERTSampler(unittest.TestCase):
         self.num_negative_entities = 10
         self.num_negative_relations = 10
         self.max_entity_length = 7
-        self.negative_entity_type = "NOT_ENTITY"
-        self.negative_relation_type = "NO_RELATION"
+        self.negative_entity_type = "NEGATIVE_ENTITY"
+        self.negative_relation_type = "NEGATIVE_RELATION"
 
         self.sampler = SpERTSampler(
             self.num_negative_entities,
