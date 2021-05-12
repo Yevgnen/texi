@@ -103,7 +103,13 @@ class NerMetrics(Metric):
             if i != self.negative_entity_index
         }
 
-        outputs = {"all": metrics, **typed_metrics}
+        macros = {
+            key: sum(typed_metrics[type_][key] for type_ in typed_metrics)
+            / len(typed_metrics)
+            for key in ["precision", "recall", "f1"]
+        }
+
+        outputs = {"micro": metrics, "macro": macros, **typed_metrics}
         outputs = flatten_dict(outputs, ".")
         if self.prefix:
             outputs = {f"{self.prefix}.{k}": v for k, v in outputs.items()}

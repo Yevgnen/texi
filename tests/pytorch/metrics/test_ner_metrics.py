@@ -114,9 +114,9 @@ class TestNerMetrics(unittest.TestCase):
         precision = 1 / (1 + 2)
         recall = 1 / (1 + 2)
         f1 = 2 * precision * recall / (precision + recall)
-        self.assertAlmostEqual(metrics["all.precision"], precision)
-        self.assertAlmostEqual(metrics["all.recall"], recall)
-        self.assertAlmostEqual(metrics["all.f1"], f1)
+        self.assertAlmostEqual(metrics["micro.precision"], precision)
+        self.assertAlmostEqual(metrics["micro.recall"], recall)
+        self.assertAlmostEqual(metrics["micro.f1"], f1)
 
         entities = ["per", "loc"]
         precisions = [0, 1 / (1 + 1), 0]

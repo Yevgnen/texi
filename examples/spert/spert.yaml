@@ -27,7 +27,7 @@ non_blocking: true
 # Evaluation
 eval_train: false
 eval_steps: "epoch"
-eval_metric: "RE.all.f1"
+eval_metric: "RE.micro.f1"
 save_best_models: 1
 
 # Early Stopping
