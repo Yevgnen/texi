@@ -21,6 +21,12 @@ class TestDatasetTransformMixin(unittest.TestCase):
                 self._check_inverse_transform()
                 self._remove_attributes()
 
+            def __iter__(self):
+                pass
+
+            def __getitem__(self):
+                pass
+
         self.mixin = DummyMixin()
 
     def test_transform(self):
