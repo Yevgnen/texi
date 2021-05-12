@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import itertools
 import random
-from typing import Any, Optional
+from typing import Optional
 
-from texi.apps.ner.utils import NerExample
+from texi.apps.ner.utils import Entity, NerExample, Relation
 
 
 def sample_negative_entities(
@@ -14,7 +14,7 @@ def sample_negative_entities(
     max_length: int,
     size: Optional[int] = None,
     negative_entity_type: str = "NEGATIVE_ENTITY",
-) -> list[dict[str, Any]]:
+) -> list[Entity]:
     text = example["tokens"]
     positives = example["entities"]
     positive_tuples = {(x["start"], x["end"]) for x in positives}
@@ -25,7 +25,7 @@ def sample_negative_entities(
             if negative_tuple in positive_tuples:
                 continue
 
-            negative = {
+            negative: Entity = {
                 "type": negative_entity_type,
                 "start": i,
                 "end": i + length,
@@ -42,7 +42,7 @@ def sample_negative_relations(
     example: NerExample,
     size: Optional[int] = None,
     negative_relation_type: str = "NEGATIVE_RELATION",
-) -> list[dict[str, Any]]:
+) -> list[Relation]:
     entities = example["entities"]
     if not entities:
         return []
@@ -52,7 +52,7 @@ def sample_negative_relations(
     negatives = []
     for i, j in itertools.product(range(len(entities)), repeat=2):
         if i != j and (i, j) not in positive_tuples:
-            negative = {
+            negative: Relation = {
                 "head": i,
                 "tail": j,
                 "type": negative_relation_type,
@@ -80,7 +80,7 @@ class SpanNerNegativeSampler(object):
         self.negative_entity_type = negative_entity_type
         self.negative_relation_type = negative_relation_type
 
-    def sample_negative_entities(self, example: NerExample) -> list[dict[str, Any]]:
+    def sample_negative_entities(self, example: NerExample) -> list[Entity]:
         return sample_negative_entities(
             example,
             self.max_entity_length,
@@ -88,7 +88,7 @@ class SpanNerNegativeSampler(object):
             negative_entity_type=self.negative_entity_type,
         )
 
-    def sample_negative_relations(self, example: NerExample) -> list[dict[str, Any]]:
+    def sample_negative_relations(self, example: NerExample) -> list[Relation]:
         return sample_negative_relations(
             example,
             size=self.num_negative_relations,
