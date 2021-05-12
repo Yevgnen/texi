@@ -262,7 +262,7 @@ class Datasets(object):
             "train": ModeKeys.TRAIN,
             "val": ModeKeys.EVAL,
             "test": ModeKeys.PREDICT,
-        }
+        }[mode]
 
     @classmethod
     def from_dir(cls: Type[T], dirname: Union[str, os.PathLike]) -> T:
