@@ -7,12 +7,18 @@ import collections
 import itertools
 import os
 from collections.abc import Iterable, Mapping
-from typing import Union
+from typing import TypedDict, Union
+
+
+class Tagged(TypedDict):
+    tokens: list[str]
+    labels: list[str]
 
 
 class SequeceLabelingTagger(metaclass=abc.ABCMeta):
-    def __init__(self, type_field: str = "type") -> None:
+    def __init__(self, type_field: str = "type", span_field: str = "span") -> None:
         self.type_field = type_field
+        self.span_field = span_field
 
     def _iter_spans(self, spans):
         for chunk in spans:
@@ -29,16 +35,16 @@ class SequeceLabelingTagger(metaclass=abc.ABCMeta):
             yield type_, start, end
 
     @abc.abstractmethod
-    def encode(self, inputs: Mapping) -> dict:
+    def encode(self, inputs: Mapping) -> Tagged:
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def decode(self, inputs: Mapping) -> dict:
+    def decode(self, inputs: Tagged) -> dict:
         raise NotImplementedError()
 
     @staticmethod
-    def from_text(filename: Union[str, os.PathLike], sep: str = "\t") -> list[dict]:
-        examples: list[dict] = []
+    def from_text(filename: Union[str, os.PathLike], sep: str = "\t") -> list[Tagged]:
+        examples: list[Tagged] = []
         example: list[list[str]] = []
 
         with open(filename) as f:
@@ -60,7 +66,7 @@ class SequeceLabelingTagger(metaclass=abc.ABCMeta):
     def to_text(
         cls,
         filename: Union[str, os.PathLike],
-        examples: Iterable[Mapping],
+        examples: Iterable[Tagged],
         sep: str = "\t",
     ) -> None:
         with open(filename, mode="w") as f:
@@ -75,8 +81,8 @@ class SequeceLabelingTagger(metaclass=abc.ABCMeta):
 
 
 class IOB1(SequeceLabelingTagger):
-    def encode(self, inputs: Mapping) -> dict:
-        tokens, spans = inputs["tokens"], inputs["labels"]
+    def encode(self, inputs: Mapping) -> Tagged:
+        tokens, spans = inputs["tokens"], inputs[self.span_field]
 
         labels = ["O"] * len(tokens)
         for label, start, end in self._iter_spans(spans):
@@ -87,7 +93,7 @@ class IOB1(SequeceLabelingTagger):
 
         return {"tokens": tokens, "labels": labels}
 
-    def decode(self, inputs: Mapping) -> dict:
+    def decode(self, inputs: Tagged) -> dict:
         tokens, labels = inputs["tokens"], inputs["labels"]
 
         spans = []
@@ -95,7 +101,7 @@ class IOB1(SequeceLabelingTagger):
         current_label = None
         for i, label in enumerate(labels):
             if label == "O":
-                prefix, label = label, None
+                prefix, label = label, None  # type: ignore
             else:
                 prefix, label = label.split("-")
 
@@ -131,12 +137,12 @@ class IOB1(SequeceLabelingTagger):
                 }
             ]
 
-        return {"tokens": tokens, "labels": spans}
+        return {"tokens": tokens, self.span_field: spans}
 
 
 class IOB2(SequeceLabelingTagger):
-    def encode(self, inputs: Mapping) -> dict:
-        tokens, spans = inputs["tokens"], inputs["labels"]
+    def encode(self, inputs: Mapping) -> Tagged:
+        tokens, spans = inputs["tokens"], inputs[self.span_field]
 
         labels = ["O"] * len(tokens)
         for label, start, end in self._iter_spans(spans):
@@ -145,7 +151,7 @@ class IOB2(SequeceLabelingTagger):
 
         return {"tokens": tokens, "labels": labels}
 
-    def decode(self, inputs: Mapping) -> dict:
+    def decode(self, inputs: Tagged) -> dict:
         tokens, labels = inputs["tokens"], inputs["labels"]
 
         spans = []
@@ -153,7 +159,7 @@ class IOB2(SequeceLabelingTagger):
         current_label = None
         for i, label in enumerate(labels):
             if label == "O":
-                prefix, label = label, None
+                prefix, label = label, None  # type: ignore
             else:
                 prefix, label = label.split("-")
 
@@ -184,12 +190,12 @@ class IOB2(SequeceLabelingTagger):
                 }
             ]
 
-        return {"tokens": tokens, "labels": spans}
+        return {"tokens": tokens, self.span_field: spans}
 
 
 class IOBES(SequeceLabelingTagger):
-    def encode(self, inputs: Mapping) -> dict:
-        tokens, spans = inputs["tokens"], inputs["labels"]
+    def encode(self, inputs: Mapping) -> Tagged:
+        tokens, spans = inputs["tokens"], inputs[self.span_field]
 
         labels = ["O"] * len(tokens)
         for label, start, end in self._iter_spans(spans):
@@ -202,7 +208,7 @@ class IOBES(SequeceLabelingTagger):
 
         return {"tokens": tokens, "labels": labels}
 
-    def decode(self, inputs: Mapping) -> dict:
+    def decode(self, inputs: Tagged) -> dict:
         tokens, labels = inputs["tokens"], inputs["labels"]
 
         spans = []
@@ -210,7 +216,7 @@ class IOBES(SequeceLabelingTagger):
         current_label = None
         for i, label in enumerate(labels):
             if label == "O":
-                prefix, label = label, None
+                prefix, label = label, None  # type: ignore
             else:
                 prefix, label = label.split("-")
 
@@ -243,4 +249,4 @@ class IOBES(SequeceLabelingTagger):
                 start = i
                 current_label = label
 
-        return {"tokens": tokens, "labels": spans}
+        return {"tokens": tokens, self.span_field: spans}

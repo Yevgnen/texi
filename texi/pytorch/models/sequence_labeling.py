@@ -15,7 +15,7 @@ from texi.preprocessing import LabelEncoder
 from texi.pytorch.masking import length_to_mask
 from texi.pytorch.plm.utils import plm_path
 from texi.pytorch.rnn import LSTM
-from texi.tagger.sequence_labeling import SequeceLabelingTagger
+from texi.tagger.sequence_labeling import SequeceLabelingTagger, Tagged
 from texi.utils import ModeKeys
 
 if TYPE_CHECKING:
@@ -293,7 +293,7 @@ class SequenceLabeler(object):
         )
         data_loader = dataset.get_dataloader(sampler_kwargs={"batch_size": batch_size})
 
-        outputs = []
+        outputs = []  # type: list[Tagged]
         self.net.eval()
         with torch.no_grad():
             for batch in data_loader:
@@ -305,6 +305,6 @@ class SequenceLabeler(object):
                     {"tokens": tokens, "labels": labels}
                     for tokens, labels in zip(*dataset.decode_seq((x, y_pred)))
                 ]
-        outputs = [*map(self.tagger.decode, outputs)]
+        decoded = [*map(self.tagger.decode, outputs)]
 
-        return outputs
+        return decoded
