@@ -2,10 +2,10 @@
 
 import unittest
 
-from texi.pytorch.plm.spert import SpERTSampler
+from texi.apps.ner.span_utils import SpanNerNegativeSampler
 
 
-class TestSpERTSampler(unittest.TestCase):
+class TestSpanNerNegativeSampler(unittest.TestCase):
     def setUp(self):
         self.example = {
             "tokens": ["Bill", "was", "born", "in", "USA", "."],
@@ -22,7 +22,7 @@ class TestSpERTSampler(unittest.TestCase):
         self.negative_entity_type = "NEGATIVE_ENTITY"
         self.negative_relation_type = "NEGATIVE_RELATION"
 
-        self.sampler = SpERTSampler(
+        self.sampler = SpanNerNegativeSampler(
             self.num_negative_entities,
             self.num_negative_relations,
             self.max_entity_length,
@@ -35,7 +35,7 @@ class TestSpERTSampler(unittest.TestCase):
             "tokens": ["I", "hate", "you"],
             "entities": [],
         }
-        sampler = SpERTSampler(
+        sampler = SpanNerNegativeSampler(
             10,
             self.num_negative_relations,
             self.max_entity_length,
@@ -61,7 +61,7 @@ class TestSpERTSampler(unittest.TestCase):
             "tokens": ["I", "hate", "you"],
             "entities": [],
         }
-        sampler = SpERTSampler(
+        sampler = SpanNerNegativeSampler(
             self.num_negative_entities,
             10,
             self.max_entity_length,

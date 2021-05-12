@@ -60,14 +60,6 @@ class SpERTDataset(Dataset):
         self.entity_label_encoder = entity_label_encoder
         self.relation_label_encoder = relation_label_encoder
 
-    def train(self) -> None:
-        super().train()
-        self.negative_sampler.train()
-
-    def eval(self) -> None:
-        super().eval()
-        self.negative_sampler.eval()
-
     def describe(self) -> dict[str, Any]:
         examples = cast(list, self.examples)
 

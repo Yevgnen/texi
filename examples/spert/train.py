@@ -52,7 +52,6 @@ def get_dataset(
         max_entity_length=params["max_entity_length"],
         negative_entity_type=params["negative_entity_type"],
         negative_relation_type=params["negative_relation_type"],
-        mode=mode,
     )
     dataset = SpERTDataset(
         examples,
