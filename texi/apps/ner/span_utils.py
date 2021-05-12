@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import itertools
 import random
-from typing import Optional
+from typing import Callable, Optional
 
 from texi.apps.ner.utils import Entity, NerExample, Relation
 
@@ -14,23 +14,29 @@ def sample_negative_entities(
     max_length: int,
     size: Optional[int] = None,
     negative_entity_type: str = "NEGATIVE_ENTITY",
+    predicate: Optional[Callable[[int, int], bool]] = None,
 ) -> list[Entity]:
     text = example["tokens"]
     positives = example["entities"]
-    positive_tuples = {(x["start"], x["end"]) for x in positives}
+
+    if callable(predicate):
+        _predicate = predicate
+    else:
+        positive_tuples = {(x["start"], x["end"]) for x in positives}
+
+        def _predicate(start, end):
+            return (start, end) not in positive_tuples
+
     negatives = []
     for length in range(1, max_length + 1):
         for i in range(0, len(text) - length + 1):
-            negative_tuple = (i, i + length)
-            if negative_tuple in positive_tuples:
-                continue
-
-            negative: Entity = {
-                "type": negative_entity_type,
-                "start": i,
-                "end": i + length,
-            }
-            negatives += [negative]
+            if _predicate(i, i + length):
+                negative: Entit = {
+                    "type": negative_entity_type,
+                    "start": i,
+                    "end": i + length,
+                }
+                negatives += [negative]
 
     if size is not None:
         negatives = random.sample(negatives, min(len(negatives), size))
@@ -42,16 +48,23 @@ def sample_negative_relations(
     example: NerExample,
     size: Optional[int] = None,
     negative_relation_type: str = "NEGATIVE_RELATION",
+    predicate: Optional[Callable[[int, int], bool]] = None,
 ) -> list[Relation]:
     entities = example["entities"]
     if not entities:
         return []
 
-    positive_tuples = {(r["head"], r["tail"]) for r in example["relations"]}
+    if callable(predicate):
+        _predicate = predicate
+    else:
+        positive_tuples = {(r["head"], r["tail"]) for r in example["relations"]}
+
+        def _predicate(head, tail):
+            return head != tail and (head, tail) not in positive_tuples
 
     negatives = []
     for i, j in itertools.product(range(len(entities)), repeat=2):
-        if i != j and (i, j) not in positive_tuples:
+        if _predicate(i, j):
             negative: Relation = {
                 "head": i,
                 "tail": j,
