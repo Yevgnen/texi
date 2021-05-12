@@ -8,6 +8,8 @@ from typing import Callable, Optional
 
 from texi.apps.ner.utils import Entity, NerExample, Relation
 
+from texi.preprocessing import LabelEncoder
+
 
 def sample_negative_entities(
     example: NerExample,
@@ -86,12 +88,14 @@ class SpanNerNegativeSampler(object):
         max_entity_length: int,
         negative_entity_type: str = "NEGATIVE_ENTITY",
         negative_relation_type: str = "NEGATIVE_RELATION",
+        relation_argument_types: Optional[Mapping] = None,
     ) -> None:
         self.num_negative_entities = num_negative_entities
         self.num_negative_relations = num_negative_relations
         self.max_entity_length = max_entity_length
         self.negative_entity_type = negative_entity_type
         self.negative_relation_type = negative_relation_type
+        self.relation_argument_types = relation_argument_types
 
     def sample_negative_entities(self, example: NerExample) -> list[Entity]:
         return sample_negative_entities(
@@ -102,8 +106,38 @@ class SpanNerNegativeSampler(object):
         )
 
     def sample_negative_relations(self, example: NerExample) -> list[Relation]:
+        if self.relation_argument_types:
+
+            def predicate(head, tail):
+                return any(
+                    r["head"] == example["entities"][head]["type"]
+                    and r["tail"] == example["entities"][tail]["type"]
+                    for r in self.relation_argument_types.values()
+                )
+
+        else:
+            predicate = None  # type: ignore
+
         return sample_negative_relations(
             example,
             size=self.num_negative_relations,
             negative_relation_type=self.negative_relation_type,
+            predicate=predicate,
         )
+
+
+class RelationFilter(object):
+    def __init__(
+        self,
+        relation_argument_types: Mapping,
+        entity_label_encoder: LabelEncoder,
+        relation_label_encoder: LabelEncoder,
+    ) -> None:
+        self.types = relation_argument_types
+        self.type_ids = {
+            relation_label_encoder.encode_label(r): {
+                "head": entity_label_encoder.encode_label(args["head"]),
+                "tail": entity_label_encoder.encode_label(args["tail"]),
+            }
+            for r, args in relation_argument_types.items()
+        }

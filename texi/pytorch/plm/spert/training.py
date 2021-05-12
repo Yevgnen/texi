@@ -60,6 +60,7 @@ class SpERTParams(Params):
         self.token_delimiter = kwargs.get("token_delimiter", " ")
         self.split_delimiter = kwargs.get("split_delimiter")
         self.max_length = kwargs.get("max_length", -1)
+        self.relation_argument_types = kwargs.get("relation_argument_types")
 
 
 def train_step(_: Engine, model: SpERT, batch: Mapping, criteria: nn.Module) -> dict:

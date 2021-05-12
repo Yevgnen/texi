@@ -5,7 +5,8 @@ from __future__ import annotations
 import argparse
 import functools
 import os
-from typing import Union
+from collections.abc import Mapping
+from typing import Optional, Union
 
 import ignite.distributed as idist
 from torch.optim.lr_scheduler import LambdaLR
@@ -13,6 +14,7 @@ from torch.utils.data.dataloader import DataLoader
 from transformers import AdamW, BertTokenizer, BertTokenizerFast
 
 from texi.apps.ner import SpERTVisualizer, encode_labels, split_example
+from texi.apps.ner.span_utils import RelationFilter
 from texi.datasets import JSONDatasets
 from texi.datasets.dataset import Dataset, Datasets
 from texi.preprocessing import LabelEncoder
@@ -43,6 +45,7 @@ def get_dataset(
     relation_label_encoder: LabelEncoder,
     params: SpERTParams,
     mode: ModeKeys,
+    relation_argument_types: Optional[Mapping] = None,
 ) -> SpERTDataset:
     negative_sampler = SpERTSampler(
         num_negative_entities=params["num_negative_entities"],
@@ -50,6 +53,7 @@ def get_dataset(
         max_entity_length=params["max_entity_length"],
         negative_entity_type=params["negative_entity_type"],
         negative_relation_type=params["negative_relation_type"],
+        relation_argument_types=relation_argument_types,
     )
     dataset = SpERTDataset(
         examples,
@@ -70,6 +74,7 @@ def get_dataflows(
     entity_label_encoder: LabelEncoder,
     relation_label_encoder: LabelEncoder,
     params: SpERTParams,
+    relation_argument_types: Optional[Mapping] = None,
 ) -> dict[str, DataLoader]:
     # `pin_memory = False` is required since `auto_dataloader` set
     # `pin_memory` to True by default, but we have moved tensors to GPU
@@ -83,6 +88,7 @@ def get_dataflows(
                 relation_label_encoder,
                 params,
                 ModeKeys.TRAIN if mode == "train" else ModeKeys.EVAL,
+                relation_argument_types=relation_argument_types,
             )
             for mode, dataset in datasets.items()
             if dataset is not None
@@ -103,6 +109,7 @@ def initialize(
     num_relation_types: int,
     negative_entity_index: int,
     num_train_examples: int,
+    relation_argument_types: Optional[Mapping] = None,
 ) -> tuple[SpERT, SpERTLoss, AdamW, LambdaLR]:
     model = SpERT(
         params["pretrained_model"],
@@ -112,6 +119,7 @@ def initialize(
         negative_entity_index=negative_entity_index,
         dropout=params["dropout"],
         global_context_pooling=params["global_context_pooling"],
+        relation_argument_types=relation_argument_types,
     )
 
     num_training_steps = (
@@ -156,9 +164,22 @@ def training(local_rank: int, params: SpERTParams) -> None:
     entity_label_encoder.save(os.path.join(params.save_path, "entity_labels.json"))
     relation_label_encoder.save(os.path.join(params.save_path, "relation_labels.json"))
 
+    relation_filter = None
+    if params["relation_argument_types"]:
+        relation_filter = RelationFilter(
+            params["relation_argument_types"],
+            entity_label_encoder,
+            relation_label_encoder,
+        )
+
     # Get data dataflows.
     dataflows = get_dataflows(
-        datasets, tokenizer, entity_label_encoder, relation_label_encoder, params
+        datasets,
+        tokenizer,
+        entity_label_encoder,
+        relation_label_encoder,
+        params,
+        relation_filter.types if relation_filter else None,
     )
     describe_dataflows(dataflows)
 
@@ -169,6 +190,7 @@ def training(local_rank: int, params: SpERTParams) -> None:
         len(relation_label_encoder),
         negative_entity_index,
         len(datasets.train),
+        relation_filter.type_ids if relation_filter else None,
     )
 
     # Prepare trainer.

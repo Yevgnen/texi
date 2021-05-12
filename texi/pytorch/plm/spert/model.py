@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import itertools
-from typing import Union, cast
+from collections.abc import Mapping
+from typing import Optional, Union, cast
 
 import torch
 import torch.nn as nn
@@ -28,6 +29,7 @@ class SpERT(nn.Module):
         max_relation_pairs: int = 1000,
         dropout: float = 0.2,
         global_context_pooling: str = "cls",
+        relation_argument_types: Optional[Mapping] = None,
     ):
         super().__init__()
         if isinstance(bert, str):
@@ -48,6 +50,7 @@ class SpERT(nn.Module):
         self.max_relation_pairs = max_relation_pairs
         self.dropout = nn.Dropout(p=dropout)
         self.global_context_pooling = get_pooling(global_context_pooling)
+        self.relation_argument_types = relation_argument_types
 
     def _mask_hidden_states(self, last_hidden_state, mask):
         # pylint: disable=no-self-use
@@ -194,14 +197,26 @@ class SpERT(nn.Module):
         # NOTE: Filtered entities should have label -1.
 
         def _create_candidates(labels, spans):
-            indices = (labels >= 0).nonzero(as_tuple=True)[0].tolist()
+            label_mask = labels >= 0
+            indices = label_mask.nonzero(as_tuple=True)[0].tolist()
             spans = spans[indices].tolist()
             pairs = itertools.product(zip(indices, spans), repeat=2)
+            labels = labels.tolist()
 
             outputs = []
             for (head, (head_start, head_end)), (tail, (tail_start, tail_end)) in pairs:
                 # Ignore relations of overlapped entities.
-                if head != tail and (head_start >= tail_end or tail_start >= head_end):
+                if (
+                    head != tail
+                    and (head_start >= tail_end or tail_start >= head_end)
+                    and (
+                        not self.relation_argument_types
+                        or any(
+                            r["head"] == labels[head] and r["tail"] == labels[tail]
+                            for r in self.relation_argument_types.values()
+                        )
+                    )
+                ):
                     context = [min(head_end, tail_end), max(head_start, tail_start)]
                     pair = [head, tail]
 
