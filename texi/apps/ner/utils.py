@@ -15,7 +15,7 @@ from carton.collections import dict_to_tuple
 from texi.preprocessing import LabelEncoder
 
 
-class Example(TypedDict, total=False):
+class NerExample(TypedDict, total=False):
     id: Optional[str]
     tokens: list[str]
     entities: list[Entity]
@@ -107,7 +107,7 @@ def collapse_entities(
 
 
 def encode_labels(
-    examples: Iterable[Example],
+    examples: Iterable[NerExample],
     negative_entity_type: Optional[str] = None,
     negative_relation_type: Optional[str] = None,
 ) -> tuple[LabelEncoder, LabelEncoder]:
@@ -124,7 +124,7 @@ def encode_labels(
     return entity_label_encoder, relation_label_encoder
 
 
-def from_pybrat_example(example: Mapping) -> Example:
+def from_pybrat_example(example: Mapping) -> NerExample:
     # NOTE:
     # 1. ID fields are kept.
     # 2. Entities are sort before conversion.
@@ -166,7 +166,7 @@ def from_pybrat_example(example: Mapping) -> Example:
     }
 
 
-def to_pybrat_example(example: Example, delimiter: str = "") -> dict:
+def to_pybrat_example(example: NerExample, delimiter: str = "") -> dict:
     def _new_id_builder(prefix):
         i = 1
 
@@ -220,7 +220,7 @@ def to_pybrat_example(example: Example, delimiter: str = "") -> dict:
 
 def load_pybrat_examples(
     dirname: Union[str, os.PathLike], *args, **kwargs
-) -> list[Example]:
+) -> list[NerExample]:
     # pylint: disable=import-outside-toplevel
     from pybrat.parser import BratParser
 
@@ -280,7 +280,7 @@ def convert_pybrat_examples(
                 json.dump(dataset, f, ensure_ascii=False)
 
 
-def check_example(example: Example) -> bool:
+def check_example(example: NerExample) -> bool:
     if len(example["tokens"]) < 1:
         raise ValueError("`example` has no tokens")
 
@@ -311,8 +311,9 @@ def check_example(example: Example) -> bool:
 
 
 def filter_example_tokens(
-    example: Example, filters: Iterable[Union[str, re.Pattern, Callable[[str], bool]]]
-) -> Example:
+    example: NerExample,
+    filters: Iterable[Union[str, re.Pattern, Callable[[str], bool]]],
+) -> NerExample:
     if not hasattr(filters, "__iter__") or isinstance(filters, str):
         filters = [filters]  # type: ignore
 
@@ -392,8 +393,10 @@ def filter_example_tokens(
 
 
 def split_example(
-    example: Example, delimiters: Union[str, Iterable[str]], ignore_errors: bool = False
-) -> list[Example]:
+    example: NerExample,
+    delimiters: Union[str, Iterable[str]],
+    ignore_errors: bool = False,
+) -> list[NerExample]:
     if isinstance(delimiters, str):
         delimiters = {delimiters}
     else:
@@ -406,7 +409,7 @@ def split_example(
     entities = list(example["entities"])
     relations = sorted(example["relations"], key=lambda x: (x["head"], x["tail"]))
 
-    splits: list[Example] = []
+    splits: list[NerExample] = []
     current_tokens: list[str] = []
     current_entities: list[Entity] = []
     current_relations: list[Relation] = []
@@ -468,7 +471,7 @@ def split_example(
                     break
 
             # Create new split.
-            split: Example = {
+            split: NerExample = {
                 "tokens": current_tokens,
                 "entities": current_entities,
                 "relations": current_relations,
@@ -486,7 +489,7 @@ def split_example(
     return splits
 
 
-def merge_examples(examples: Sequence[Example]) -> Example:
+def merge_examples(examples: Sequence[NerExample]) -> NerExample:
     if len(examples) < 1:
         raise ValueError("At least one example must be given to merge")
 
@@ -529,7 +532,7 @@ def merge_examples(examples: Sequence[Example]) -> Example:
     }
 
 
-def texify_example(example: Example, delimiter: str) -> dict:
+def texify_example(example: NerExample, delimiter: str) -> dict:
     entities = example["entities"]
     if not entities:
         return {

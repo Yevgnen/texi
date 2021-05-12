@@ -9,12 +9,12 @@ from typing import Optional, Union
 from carton.palette import Colors
 from carton.random import random_colors
 
-from texi.apps.ner.utils import Example, texify_example
+from texi.apps.ner.utils import NerExample, texify_example
 from texi.metrics import prf1
 
 
 def spacy_visual_ner(
-    examples: Sequence[Example],
+    examples: Sequence[NerExample],
     filename: Optional[Union[str, os.PathLike]] = None,
     colors: Optional[Mapping[str, str]] = None,
     token_sep: str = " ",

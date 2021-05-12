@@ -12,7 +12,7 @@ from texi.apps.ner.eval import (
 )
 from texi.apps.ner.utils import (
     Entity,
-    Example,
+    NerExample,
     Relation,
     check_example,
     collapse_entities,
@@ -52,7 +52,7 @@ __all__ = [
     "SpERTVisualizer",
     "spacy_visual_ner",
     "span_utils",
-    "Example",
+    "NerExample",
     "Entity",
     "Relation",
 ]

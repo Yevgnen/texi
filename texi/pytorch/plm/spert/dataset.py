@@ -10,7 +10,7 @@ import torch
 from carton.collections import collate
 from carton.data import describe_series
 
-from texi.apps.ner.utils import Entity, Example, Relation
+from texi.apps.ner.utils import Entity, NerExample, Relation
 from texi.preprocessing import LabelEncoder
 from texi.pytorch.dataset import Dataset
 from texi.pytorch.masking import create_span_mask
@@ -47,7 +47,7 @@ def stack_2d(
 class SpERTDataset(Dataset):
     def __init__(
         self,
-        examples: Iterable[dict],
+        examples: Iterable[NerExample],
         negative_sampler: SpERTSampler,
         entity_label_encoder: LabelEncoder,
         relation_label_encoder: LabelEncoder,
@@ -219,7 +219,7 @@ class SpERTDataset(Dataset):
         }
 
     def encode(
-        self, example: Example
+        self, example: NerExample
     ) -> Union[dict[str, Any], tuple[dict[str, Any], dict[str, Any]]]:
         tokens = example["tokens"]
 
@@ -284,13 +284,13 @@ class SpERTDataset(Dataset):
             "relation_sample_mask": relation_sample_mask,
         }
 
-    def collate_train(self, batch: Sequence[Example]) -> dict[str, torch.Tensor]:
+    def collate_train(self, batch: Sequence[NerExample]) -> dict[str, torch.Tensor]:
         assert self.is_train(), "`collate_train` must be called in train mode"
 
         return self._collate_internal(collate(batch))
 
     def collate_eval(
-        self, batch: Sequence[Example]
+        self, batch: Sequence[NerExample]
     ) -> Union[
         dict[str, torch.Tensor], tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]
     ]:
