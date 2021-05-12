@@ -27,6 +27,12 @@ def get_pretrained_optimizer_and_scheduler(
     optimizer_kwargs: Optional[dict] = None,
     scheduler_kwargs: Optional[dict] = None,
 ) -> tuple[optim.Optimizer, optim.lr_scheduler.LambdaLR]:
+    if lr <= 0:
+        raise ValueError("`lr` must be positive.")
+
+    if warmup_steps <= 0:
+        raise ValueError("`warmup_steps` must be positive")
+
     if not optimizer_kwargs:
         optimizer_kwargs = {}
 
