@@ -9,12 +9,12 @@ from typing import Optional, Union
 from carton.palette import Colors
 from carton.random import random_colors
 
-from texi.apps.ner.utils import texify_example
+from texi.apps.ner.utils import NerExample, texify_example
 from texi.metrics import prf1
 
 
 def spacy_visual_ner(
-    examples: Sequence[Mapping],
+    examples: Sequence[NerExample],
     filename: Optional[Union[str, os.PathLike]] = None,
     colors: Optional[Mapping[str, str]] = None,
     token_sep: str = " ",
@@ -23,7 +23,7 @@ def spacy_visual_ner(
     from spacy import displacy
 
     # Generate spacy inputs.
-    examples = [texify_example(x, token_sep) for x in examples]
+    examples = [texify_example(x, token_sep) for x in examples]  # type: ignore
     spacy_data = [
         {
             "text": example["tokens"],

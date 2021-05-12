@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import annotations
+
 from texi.apps.ner import span_utils
 from texi.apps.ner.data import NERDataReport
 from texi.apps.ner.eval import (
@@ -9,6 +11,9 @@ from texi.apps.ner.eval import (
     conlleval_file,
 )
 from texi.apps.ner.utils import (
+    Entity,
+    NerExample,
+    Relation,
     check_example,
     collapse_entities,
     convert_pybrat_examples,
@@ -47,4 +52,7 @@ __all__ = [
     "SpERTVisualizer",
     "spacy_visual_ner",
     "span_utils",
+    "NerExample",
+    "Entity",
+    "Relation",
 ]

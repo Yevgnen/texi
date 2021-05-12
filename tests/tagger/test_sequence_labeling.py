@@ -21,7 +21,7 @@ def _get_input():
             "Philadelphia",
             "train.",
         ],
-        "labels": [
+        "entities": [
             {"type": "PER", "start": 0, "end": 1},
             {
                 "type": "ORG",
@@ -38,7 +38,7 @@ def _get_input():
 
 class TestIOB1(unittest.TestCase):
     def setUp(self):
-        self.tagger = IOB1()
+        self.tagger = IOB1(span_field="entities")
 
     def test_encode(self):
         inputs = _get_input()
@@ -89,7 +89,7 @@ class TestIOB1(unittest.TestCase):
 
 class TestIOB2(unittest.TestCase):
     def setUp(self):
-        self.tagger = IOB2()
+        self.tagger = IOB2(span_field="entities")
 
     def test_encode(self):
         inputs = _get_input()
@@ -139,7 +139,7 @@ class TestIOB2(unittest.TestCase):
 
 class TestIOBES(unittest.TestCase):
     def setUp(self):
-        self.tagger = IOBES()
+        self.tagger = IOBES(span_field="entities")
 
     def test_encode(self):
         inputs = _get_input()
