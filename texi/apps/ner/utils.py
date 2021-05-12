@@ -8,11 +8,29 @@ import json
 import os
 import re
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from typing import Optional, Union
+from typing import Optional, TypedDict, Union
 
 from carton.collections import dict_to_tuple
 
 from texi.preprocessing import LabelEncoder
+
+
+class Example(TypedDict):
+    tokens: list[str]
+    entities: list[Entity]
+    relations: list[Relation]
+
+
+class Entity(TypedDict):
+    type: str
+    start: int
+    end: int
+
+
+class Relation(TypedDict):
+    type: str
+    head: int
+    tail: int
 
 
 def entity_to_tuple(entity: Mapping) -> tuple:
