@@ -10,9 +10,7 @@ from typing import Union
 import ignite.distributed as idist
 from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data.dataloader import DataLoader
-from transformers import BertTokenizerFast
-from transformers.models.bert.tokenization_bert import BertTokenizer
-from transformers.utils.dummy_pt_objects import AdamW
+from transformers import AdamW, BertTokenizer, BertTokenizerFast
 
 from texi.apps.ner import SpERTVisualizer, encode_labels, split_example
 from texi.datasets import JSONDatasets
