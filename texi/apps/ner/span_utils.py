@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import itertools
 import random
-from collections.abc import Mapping
 from typing import Any, Optional
+
+from texi.apps.ner.utils import Example
 
 
 def sample_negative_entities(
-    example: Mapping,
+    example: Example,
     max_length: int,
     size: Optional[int] = None,
     negative_entity_type: str = "NEGATIVE_ENTITY",
@@ -38,7 +39,7 @@ def sample_negative_entities(
 
 
 def sample_negative_relations(
-    example: Mapping,
+    example: Example,
     size: Optional[int] = None,
     negative_relation_type: str = "NEGATIVE_RELATION",
 ) -> list[dict[str, Any]]:
@@ -79,7 +80,7 @@ class SpanNerNegativeSampler(object):
         self.negative_entity_type = negative_entity_type
         self.negative_relation_type = negative_relation_type
 
-    def sample_negative_entities(self, example: Mapping) -> list[dict[str, Any]]:
+    def sample_negative_entities(self, example: Example) -> list[dict[str, Any]]:
         return sample_negative_entities(
             example,
             self.max_entity_length,
@@ -87,7 +88,7 @@ class SpanNerNegativeSampler(object):
             negative_entity_type=self.negative_entity_type,
         )
 
-    def sample_negative_relations(self, example: Mapping) -> list[dict[str, Any]]:
+    def sample_negative_relations(self, example: Example) -> list[dict[str, Any]]:
         return sample_negative_relations(
             example,
             size=self.num_negative_relations,

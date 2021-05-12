@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import itertools
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 import torch
 from carton.collections import collate
 from carton.data import describe_series
 
+from texi.apps.ner.utils import Entity, Example, Relation
 from texi.preprocessing import LabelEncoder
 from texi.pytorch.dataset import Dataset
 from texi.pytorch.masking import create_span_mask
@@ -174,8 +175,8 @@ class SpERTDataset(Dataset):
     def encode_example(
         self,
         tokens: Sequence[str],
-        entities: Sequence[Mapping[str, Any]],
-        relations: Sequence[Mapping[str, Any]],
+        entities: Sequence[Entity],
+        relations: Sequence[Relation],
     ) -> dict[str, Any]:
         # Encode tokens.
         tokens = [self.tokenizer.cls_token] + list(tokens) + [self.tokenizer.sep_token]
@@ -218,7 +219,7 @@ class SpERTDataset(Dataset):
         }
 
     def encode(
-        self, example: Mapping
+        self, example: Example
     ) -> Union[dict[str, Any], tuple[dict[str, Any], dict[str, Any]]]:
         tokens = example["tokens"]
 
@@ -283,13 +284,13 @@ class SpERTDataset(Dataset):
             "relation_sample_mask": relation_sample_mask,
         }
 
-    def collate_train(self, batch: Sequence[Mapping]) -> dict[str, torch.Tensor]:
+    def collate_train(self, batch: Sequence[Example]) -> dict[str, torch.Tensor]:
         assert self.is_train(), "`collate_train` must be called in train mode"
 
         return self._collate_internal(collate(batch))
 
     def collate_eval(
-        self, batch: Sequence[Mapping]
+        self, batch: Sequence[Example]
     ) -> Union[
         dict[str, torch.Tensor], tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]
     ]:

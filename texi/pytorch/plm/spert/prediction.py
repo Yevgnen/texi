@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 
-from typing import Any, Dict, List, Tuple, Union, cast
+from typing import List, Tuple, Union, cast
 
 import torch
 
+from texi.apps.ner.utils import Entity, Relation
 from texi.preprocessing import LabelEncoder
 
-Entities = List[List[Dict[str, Any]]]
-Relations = List[List[Dict[str, Any]]]
+Entities = List[List[Entity]]
+Relations = List[List[Relation]]
 Scores = List[List[float]]
 EntityWithScores = Tuple[Entities, Scores]
 RelationWithScores = Tuple[Relations, Scores]
@@ -43,7 +44,7 @@ def predict_entities(
         sample_entities, sample_scores = [], []
         for j, label in enumerate(labels):
             if label >= 0:
-                entity = {
+                entity: Entity = {
                     "type": entity_label_encoder.decode_label(label),
                     "start": entity_spans[i][j][0],
                     "end": entity_spans[i][j][1],
@@ -87,11 +88,11 @@ def predict_relations(
     if relation_pair.size(1) < 1:
         if return_scores:
             return (
-                [[] for _ in range(len(relation_pair))],
-                [[] for _ in range(len(relation_pair))],
+                [[] for _ in range(len(relation_pair))],  # type: ignore
+                [[] for _ in range(len(relation_pair))],  # type: ignore
             )
 
-        return [[] for _ in range(len(relation_pair))]
+        return [[] for _ in range(len(relation_pair))]  # type: ignore
 
     filter_mask = relation_proba < relation_filter_threshold
     sample_mask = relation_sample_mask.unsqueeze(dim=-1).bool()
@@ -104,7 +105,7 @@ def predict_relations(
         for j, labels in enumerate(sample_labels):
             for k, label in enumerate(labels):
                 if label >= 0:
-                    relation = {
+                    relation: Relation = {
                         "type": relation_label_encoder.decode_label(k),
                         "head": pairs[i][j][0],
                         "tail": pairs[i][j][1],
