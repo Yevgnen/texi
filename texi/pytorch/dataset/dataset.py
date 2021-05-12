@@ -16,16 +16,15 @@ from texi.preprocessing import LabelEncoder
 from texi.pytorch.utils import get_sampler
 from texi.utils import ModeKeys
 
-Texts = Union[Iterable[str], str]
+T_co = TypeVar("T_co", covariant=True)
 
 
-class Dataset(BaseDataset, TorchDataset):
-
+class Dataset(BaseDataset[T_co], TorchDataset[T_co]):
     T = TypeVar("T", bound="Dataset")
 
     def __init__(
         self,
-        examples: Union[Iterable, Callable],
+        examples: Union[Iterable[T_co], Callable[[], Iterable[T_co]]],
         tokenizer: Optional[Any] = None,
         mode: ModeKeys = ModeKeys.TRAIN,
         device: Optional[torch.device] = None,
@@ -40,13 +39,13 @@ class Dataset(BaseDataset, TorchDataset):
         self.mode = mode
         self.device = device
 
-    def tokenize(self, text: Texts) -> torch.Tensor:
+    def tokenize(self, text: Union[Iterable[str], str]) -> torch.Tensor:
         if callable(self.tokenizer):
             return self.tokenizer(text)
 
         return self.tokenizer.encode(text)
 
-    def encode(self, example: Any) -> Any:  # pylint: disable=no-self-use
+    def encode(self, example) -> Any:  # pylint: disable=no-self-use
         return example
 
     def encode_batch(self, batch: Sequence) -> list:

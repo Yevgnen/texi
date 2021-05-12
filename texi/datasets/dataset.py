@@ -7,9 +7,11 @@ import itertools
 import json
 import os
 from collections.abc import Callable, Iterable
-from typing import Any, Optional, Type, TypeVar, Union, cast
+from typing import Any, Generic, Optional, Sequence, Type, TypeVar, Union, cast
 
 from texi.utils import ModeKeys, PhaseMixin
+
+T_co = TypeVar("T_co", covariant=True)
 
 
 class DatasetTransformMixin(Iterable, metaclass=abc.ABCMeta):
@@ -101,11 +103,13 @@ class MaskableMixin(DatasetTransformMixin):
         self._remove_attributes()
 
 
-class Dataset(PhaseMixin, MaskableMixin, SplitableMixin):
+class Dataset(PhaseMixin, MaskableMixin, SplitableMixin, Generic[T_co]):
     T = TypeVar("T", bound="Dataset")
 
     def __init__(
-        self, examples: Union[Iterable, Callable], mode: ModeKeys = ModeKeys.TRAIN
+        self,
+        examples: Union[Iterable[T_co], Callable[[], Iterable[T_co]]],
+        mode: ModeKeys = ModeKeys.TRAIN,
     ) -> None:
         if callable(examples):
             self.load_examples = examples  # type: Optional[Callable]
@@ -116,7 +120,7 @@ class Dataset(PhaseMixin, MaskableMixin, SplitableMixin):
 
         self.mode = mode
 
-    def __getitem__(self, key):
+    def __getitem__(self, key) -> T_co:
         self._check_loaded()
 
         return self.examples[key]
@@ -148,12 +152,12 @@ class Dataset(PhaseMixin, MaskableMixin, SplitableMixin):
 
         return self
 
-    def map(self, fn: Callable) -> None:
+    def map(self, fn: Callable[..., Union[T_co, Sequence[T_co]]]) -> None:
         self._check_loaded()
 
         examples = [fn(x) for x in cast(list, self.examples)]
         if examples and isinstance(examples[0], list):
-            examples = list(itertools.chain.from_iterable(examples))
+            examples = list(itertools.chain.from_iterable(examples))  # type: ignore
 
         self.examples = examples
 
@@ -190,14 +194,14 @@ class Dataset(PhaseMixin, MaskableMixin, SplitableMixin):
         return cls(list(cls.from_json_iter(filename)), mode=mode)
 
 
-class Datasets(object):
+class Datasets(Generic[T_co]):
     T = TypeVar("T", bound="Datasets")
 
     def __init__(
         self,
-        train: Optional[Union[Dataset, Iterable, Callable]] = None,
-        val: Optional[Union[Dataset, Iterable, Callable]] = None,
-        test: Optional[Union[Dataset, Iterable, Callable]] = None,
+        train: Optional[Union[Dataset[T_co], Iterable, Callable]] = None,
+        val: Optional[Union[Dataset[T_co], Iterable, Callable]] = None,
+        test: Optional[Union[Dataset[T_co], Iterable, Callable]] = None,
         dirname: Optional[Union[str, os.PathLike]] = None,
         filename: Optional[Union[str, os.PathLike]] = None,
     ) -> None:
@@ -215,7 +219,7 @@ class Datasets(object):
 
         self.modes = {"train", "val", "test"}
 
-    def __getitem__(self, key):
+    def __getitem__(self, key) -> Dataset[T_co]:
         assert key in self.modes
 
         return getattr(self, key)
@@ -235,7 +239,7 @@ class Datasets(object):
 
         return outputs
 
-    def load(self) -> "Datasets":
+    def load(self: T) -> T:
         for mode in self.modes:
             dataset = getattr(self, mode)
             if dataset is not None:
@@ -243,17 +247,17 @@ class Datasets(object):
 
         return self
 
-    def items(self) -> Iterable[tuple[str, Dataset]]:
+    def items(self) -> Iterable[tuple[str, Dataset[T_co]]]:
         for mode in self.modes:
             yield mode, getattr(self, mode)
 
-    def map(self, fn: Callable):
+    def map(self, fn: Callable[[T_co], Any]) -> None:
         self._map_dataset_methods("map", fn)
 
-    def split(self, fn: Callable):
+    def split(self, fn: Callable[[T_co], Any]) -> None:
         self._map_dataset_methods("split", fn)
 
-    def mask(self, fn: Callable):
+    def mask(self, fn: Callable[[T_co], Any]) -> None:
         self._map_dataset_methods("mask", fn)
 
     @staticmethod
@@ -296,6 +300,6 @@ class JSONDatasets(Datasets):
                 mode=cls._map_modekeys(key),
             )
             for key, value in cls.files.items()
-        }
+        }  # type: dict[str, Dataset[dict]]
 
         return cls(train=data["train"], val=data["val"], test=data["test"])
