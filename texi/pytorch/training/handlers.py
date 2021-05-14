@@ -25,9 +25,10 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data.dataloader import DataLoader
 
-from texi.pytorch.dataset.dataset import Dataset
+from texi.pytorch.dataset.dataset import Dataset, EagerEncodeMixin
 from texi.pytorch.logger import setup_tb_logging
 from texi.pytorch.training.params import Params
+from texi.utils import ModeKeys
 
 logger = logging.getLogger(__name__)
 
@@ -48,14 +49,22 @@ def get_event(steps: Union[int, str]) -> CallableEventWithFilter:
     )
 
 
-def handle_dataset_mode(engine: Engine, eager: bool) -> None:
-    if isinstance(engine.state.dataloader.dataset, Dataset):
-        engine.state.dataloader.dataset.train()
-        engine.logger.info("Dataset [train] switched to train mode.")
+def handle_dataset_mode(engine: Engine, ds: str, mode: str, eager_encode: bool) -> None:
+    dataset = engine.state.dataloader.dataset
 
-        if eager:
-            engine.logger.info("Dataset [train] is eager to encode.")
-            engine.state.dataloader.dataset.eager_encode()
+    if isinstance(dataset, Dataset):
+        if isinstance(mode, ModeKeys):
+            mode = mode.value
+
+        getattr(dataset, mode)()
+        engine.logger.info("Dataset [%s] switched to [%s] mode.", ds, mode)
+
+        if eager_encode:
+            if isinstance(dataset, EagerEncodeMixin):
+                engine.logger.info("Dataset [%s] is eager to encode.", ds)
+                dataset.eager_encode()
+            else:
+                logger.warning("Dataset [%s] does not support eager encoding.", ds)
 
 
 def build_evaluate_handler(
@@ -82,10 +91,6 @@ def build_evaluate_handler(
                 )
                 checkpoint = torch.load(checkpoint, map_location="cpu")
                 Checkpoint.load_objects(to_load={"model": model}, checkpoint=checkpoint)
-
-        if isinstance(dataflow.dataset, Dataset):
-            dataflow.dataset.eval()
-            evaluator.logger.info("Dataset [%s] switched to eval mode.", mode)
 
         evaluator.run(dataflow)
 

@@ -27,6 +27,7 @@ from torch.utils.data import DataLoader
 from texi.pytorch.dataset.dataset import Dataset
 from texi.pytorch.training.handlers import handle_dataset_mode, setup_extra_handlers
 from texi.pytorch.training.params import Params
+from texi.utils import ModeKeys
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +129,11 @@ def create_trainer(
             )
 
         trainer.add_event_handler(
-            Events.EPOCH_STARTED, handle_dataset_mode, params.eager_load
+            Events.EPOCH_STARTED,
+            handle_dataset_mode,
+            "train",
+            ModeKeys.TRAIN,
+            params.eager_encode,
         )
 
         to_save = {
@@ -208,6 +213,14 @@ def create_evaluator(
             evaluator,
             event_name=Events.ITERATION_COMPLETED(every=params.pbar_steps),
             closing_event_name=Events.EPOCH_COMPLETED,
+        )
+
+        evaluator.add_event_handler(
+            Events.EPOCH_STARTED,
+            handle_dataset_mode,
+            tag,
+            ModeKeys.EVAL,
+            params.eager_encode,
         )
 
     return evaluator

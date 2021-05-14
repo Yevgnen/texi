@@ -31,11 +31,13 @@ class EagerEncodeMixin(DatasetTransformMixin):
     is_train: Callable
 
     def eager_encode(self) -> None:
-        self._check_transform()
+        if hasattr(self, "_original_examples"):
+            examples = self._original_examples  # type: ignore
+        else:
+            examples = self.examples  # type: ignore
+            self._original_examples = self.examples  # type: ignore
 
-        self._original_examples = self.examples  # type: ignore
-
-        encoded = self.encode_batch(self.examples)  # type: ignore
+        encoded = self.encode_batch(examples)  # type: ignore
         if self.device is not None:
             encoded = convert_tensor(encoded, device=self.device, non_blocking=True)
 
@@ -43,18 +45,21 @@ class EagerEncodeMixin(DatasetTransformMixin):
 
     def eager_decode(self) -> None:
         self._check_inverse_transform()
-        self.examples = self._original_exampless  # type: ignore
+        self.examples = self._original_examples  # type: ignore
 
         self._remove_attributes()
 
     def collate_fn(self, batch: Sequence) -> Any:
+        if not hasattr(self, "_original_examples"):
+            return super().collate_fn(batch)
+
         fn = self.collate_train if self.is_train() else self.collate_eval
         collated = fn(batch)
 
         return collated
 
 
-class Dataset(EagerEncodeMixin, BaseDataset[T_co], TorchDataset[T_co]):
+class Dataset(BaseDataset[T_co], TorchDataset[T_co]):
     T = TypeVar("T", bound="Dataset")
 
     def __init__(
