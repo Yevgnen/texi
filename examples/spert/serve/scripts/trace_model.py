@@ -79,19 +79,32 @@ def main(params, checkpoint, output):
     batch = dataset.collate_fn(examples)
     input_ = batch[1]
 
-    traced_model = torch.jit.trace_module(
-        model,
-        {
-            "infer": [
-                input_["input_ids"],
-                input_["attention_mask"],
-                input_["token_type_ids"],
-                input_["entity_mask"],
-            ],
-        },
-        strict=False,
+    # traced_model = torch.jit.trace_module(
+    #     model,
+    #     {
+    #         "infer": [
+    #             input_["input_ids"],
+    #             input_["attention_mask"],
+    #             input_["token_type_ids"],
+    #             input_["entity_mask"],
+    #         ],
+    #     },
+    #     strict=False,
+    # )
+    # torch.jit.save(traced_model, output)
+
+    scripted_model = torch.jit.script(
+        SpERT(
+            params["pretrained_model"],
+            params["embedding_dim"],
+            len(entity_label_encoder),
+            len(relation_label_encoder),
+            negative_entity_index=negative_entity_index,
+            dropout=params["dropout"],
+            global_context_pooling=params["global_context_pooling"],
+        )
     )
-    torch.jit.save(traced_model, output)
+    torch.jit.save(scripted_model, output)
 
 
 if __name__ == "__main__":

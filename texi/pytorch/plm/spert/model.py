@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import itertools
-from typing import Union, cast
+from typing import Union, cast, Dict
 
 import torch
 import torch.nn as nn
@@ -14,6 +14,17 @@ from texi.pytorch.plm.pooling import get_pooling
 from texi.pytorch.plm.spert.dataset import stack_1d, stack_2d
 from texi.pytorch.plm.utils import plm_path
 from texi.pytorch.utils import split_apply
+
+
+def _get_dummpy_inputs():
+    batch_size = 32
+    max_length = 512
+    vocab_size = 10000
+    input_ids = torch.randint(0, vocab_size, size=(batch_size, max_length))
+    attention_mask = torch.randint(0, 2, size=(batch_size, max_length))
+    token_type_ids = torch.ones(max_length).long()
+
+    return input_ids, attention_mask, token_type_ids
 
 
 class SpERT(nn.Module):
@@ -32,7 +43,7 @@ class SpERT(nn.Module):
         super().__init__()
         if isinstance(bert, str):
             bert = BertModel.from_pretrained(plm_path(bert), add_pooling_layer=False)
-        self.bert = bert
+        self.bert = torch.jit.trace(bert, _get_dummpy_inputs(), strict=False)
 
         self.size_embedding = nn.Embedding(max_entity_length, embedding_dim)
         self.span_classifier = nn.Linear(
@@ -122,11 +133,11 @@ class SpERT(nn.Module):
     ):
         # last_hidden_state: [B, L, H]
         bert_output = self.bert(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            token_type_ids=token_type_ids,
+            input_ids,
+            attention_mask,
+            token_type_ids,
         )
-        last_hidden_state = bert_output.last_hidden_state
+        last_hidden_state = bert_output["last_hidden_state"]
 
         # context: [B, H]
         context = self.global_context_pooling(bert_output, attention_mask)
@@ -142,14 +153,15 @@ class SpERT(nn.Module):
 
         return last_hidden_state, entity_logit, entity, entity_size
 
+    @torch.jit.ignore
     def forward(
         self,
-        input_ids: torch.LongTensor,  # [B, L]
-        attention_mask: torch.LongTensor,  # [B, L]
-        token_type_ids: torch.LongTensor,  # [B, L]
-        entity_mask: torch.LongTensor,  # [B, E, L]
-        relations: torch.LongTensor,  # [B, R, 2]
-        relation_context_mask: torch.LongTensor,  # [B, R, L]
+        input_ids: torch.Tensor,  # [B, L]
+        attention_mask: torch.Tensor,  # [B, L]
+        token_type_ids: torch.Tensor,  # [B, L]
+        entity_mask: torch.Tensor,  # [B, E, L]
+        relations: torch.Tensor,  # [B, R, 2]
+        relation_context_mask: torch.Tensor,  # [B, R, L]
     ) -> dict[str, torch.Tensor]:
         # last_hidden_state: [B, L, H]
         # entity_logit: [B, E, NE]
@@ -189,58 +201,62 @@ class SpERT(nn.Module):
 
         return entity_label, entity_span
 
+    def _create_candidates(self, labels, spans, max_length):
+        t = labels
+        indices = (labels >= 0).nonzero(as_tuple=True)[0].tolist()
+        spans = spans[indices].tolist()
+        pairs = itertools.product(zip(indices, spans), repeat=2)
+
+        outputs = []
+        for (head, (head_start, head_end)), (tail, (tail_start, tail_end)) in pairs:
+            # Ignore relations of overlapped entities.
+            if head != tail and (head_start >= tail_end or tail_start >= head_end):
+                context = [min(head_end, tail_end), max(head_start, tail_start)]
+                pair = [head, tail]
+
+                outputs += [(context, pair, 1)]
+
+        if not outputs:
+            mask = t.new_zeros((0, max_length))
+            pair = t.new_zeros((0, 2))
+            sample_mask = t.new_zeros((0,))
+        else:
+            outputs = [t.new_tensor(x) for x in zip(*outputs)]
+            context, pair, sample_mask = outputs
+            mask = create_span_mask(
+                context[:, 0], context[:, 1], max_length, device=t.device
+            )
+
+        return mask, pair, sample_mask
+
     def _filter_relations(self, entity_label, entity_span, max_length):
         # pylint: disable=no-self-use
         # NOTE: Filtered entities should have label -1.
 
-        def _create_candidates(labels, spans):
-            indices = (labels >= 0).nonzero(as_tuple=True)[0].tolist()
-            spans = spans[indices].tolist()
-            pairs = itertools.product(zip(indices, spans), repeat=2)
+        masks, pairs, sample_masks = [], [], []
+        for sample_label, sample_span in zip(entity_label, entity_span):
+            _mask, _pair, _sample_mask = self._create_candidates(
+                sample_label, sample_span
+            )
+            masks += [_mask]
+            pairs += [_pair]
+            sample_masks += [_sample_mask]
 
-            outputs = []
-            for (head, (head_start, head_end)), (tail, (tail_start, tail_end)) in pairs:
-                # Ignore relations of overlapped entities.
-                if head != tail and (head_start >= tail_end or tail_start >= head_end):
-                    context = [min(head_end, tail_end), max(head_start, tail_start)]
-                    pair = [head, tail]
-
-                    outputs += [(context, pair, 1)]
-
-            if not outputs:
-                mask = entity_label.new_zeros((0, max_length))
-                pair = entity_label.new_zeros((0, 2))
-                sample_mask = entity_label.new_zeros((0,))
-            else:
-                outputs = [entity_label.new_tensor(x) for x in zip(*outputs)]
-                context, pair, sample_mask = outputs
-                mask = create_span_mask(
-                    context[:, 0], context[:, 1], max_length, device=entity_label.device
-                )
-
-            return mask, pair, sample_mask
-
-        masks, pairs, sample_masks = zip(
-            *[
-                _create_candidates(sample_label, sample_span)
-                for sample_label, sample_span in zip(entity_label, entity_span)
-            ]
-        )
-
-        max_relations = max(len(x) for x in pairs)
+        max_relations = max([len(x) for x in pairs])
         mask = stack_2d(masks, max_relations, max_length)
         relation = stack_2d(pairs, max_relations, 2)
         sample_mask = stack_1d(sample_masks, max_relations)
 
         return relation, mask, sample_mask
 
+    @torch.jit.export
     def infer(
         self,
-        input_ids: torch.LongTensor,  # [B, L]
-        attention_mask: torch.LongTensor,  # [B, L]
-        token_type_ids: torch.LongTensor,  # [B, L]
-        entity_mask: torch.LongTensor,  # [B, E, L]
-    ) -> dict[str, torch.Tensor]:
+        input_ids: torch.Tensor,  # [B, L]
+        attention_mask: torch.Tensor,  # [B, L]
+        token_type_ids: torch.Tensor,  # [B, L]
+        entity_mask: torch.Tensor,  # [B, E, L]
+    ) -> Dict[str, torch.Tensor]:
         # last_hidden_state: [B, L, H]
         # entity_logit: [B, E, NE]
         # entity: [B, E, H]
