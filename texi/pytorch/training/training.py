@@ -127,7 +127,9 @@ def create_trainer(
                 closing_event_name=Events.EPOCH_COMPLETED,
             )
 
-        trainer.add_event_handler(Events.EPOCH_STARTED, handle_dataset_mode)
+        trainer.add_event_handler(
+            Events.EPOCH_STARTED, handle_dataset_mode, params.eager_load
+        )
 
         to_save = {
             "trainer": trainer,

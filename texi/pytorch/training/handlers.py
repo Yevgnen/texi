@@ -48,10 +48,14 @@ def get_event(steps: Union[int, str]) -> CallableEventWithFilter:
     )
 
 
-def handle_dataset_mode(engine: Engine) -> None:
+def handle_dataset_mode(engine: Engine, eager: bool) -> None:
     if isinstance(engine.state.dataloader.dataset, Dataset):
         engine.state.dataloader.dataset.train()
         engine.logger.info("Dataset [train] switched to train mode.")
+
+        if eager:
+            engine.logger.info("Dataset [train] is eager to encode.")
+            engine.state.dataloader.dataset.eager_encode()
 
 
 def build_evaluate_handler(

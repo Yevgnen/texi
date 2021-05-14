@@ -12,6 +12,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data import Dataset as TorchDataset
 
 from texi.datasets import Dataset as BaseDataset
+from texi.datasets.dataset import DatasetTransformMixin
 from texi.preprocessing import LabelEncoder
 from texi.pytorch.utils import get_sampler
 from texi.utils import ModeKeys
@@ -19,7 +20,41 @@ from texi.utils import ModeKeys
 T_co = TypeVar("T_co", covariant=True)
 
 
-class Dataset(BaseDataset[T_co], TorchDataset[T_co]):
+class EagerEncodeMixin(DatasetTransformMixin):
+    _mixin_attributes = ["_original_examples"]
+    _mixin_transform = "eager_encode"
+    _mixin_inverse_transform = "eager_decode"
+    device: torch.device
+    encode_batch: Callable
+    collate_train: Callable
+    collate_eval: Callable
+    is_train: Callable
+
+    def eager_encode(self) -> None:
+        self._check_transform()
+
+        self._original_examples = self.examples  # type: ignore
+
+        encoded = self.encode_batch(self.examples)  # type: ignore
+        if self.device is not None:
+            encoded = convert_tensor(encoded, device=self.device, non_blocking=True)
+
+        self.examples = encoded
+
+    def eager_decode(self) -> None:
+        self._check_inverse_transform()
+        self.examples = self._original_exampless  # type: ignore
+
+        self._remove_attributes()
+
+    def collate_fn(self, batch: Sequence) -> Any:
+        fn = self.collate_train if self.is_train() else self.collate_eval
+        collated = fn(batch)
+
+        return collated
+
+
+class Dataset(EagerEncodeMixin, BaseDataset[T_co], TorchDataset[T_co]):
     T = TypeVar("T", bound="Dataset")
 
     def __init__(

@@ -59,6 +59,7 @@ class Params(object):
         self.pin_memory = kwargs.get("pin_memory", True)
         self.non_blocking = kwargs.get("non_blocking", True)
         self.num_workers = kwargs.get("num_workers", 0)
+        self.eager_load = kwargs.get("eager_load", True)
 
         # Checkpoint
         self.save_steps = kwargs.get("save_steps", 1000)
