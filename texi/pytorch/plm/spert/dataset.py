@@ -13,6 +13,7 @@ from carton.data import describe_series
 from texi.apps.ner.utils import Entity, NerExample, Relation
 from texi.preprocessing import LabelEncoder
 from texi.pytorch.dataset import Dataset
+from texi.pytorch.dataset.dataset import EagerEncodeMixin
 from texi.pytorch.masking import create_span_mask
 from texi.pytorch.plm.spert.sampler import SpERTSampler
 from texi.utils import ModeKeys
@@ -44,7 +45,7 @@ def stack_2d(
     )
 
 
-class SpERTDataset(Dataset):
+class SpERTDataset(EagerEncodeMixin, Dataset):
     def __init__(
         self,
         examples: Iterable[NerExample],
