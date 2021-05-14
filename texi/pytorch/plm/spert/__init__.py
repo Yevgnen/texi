@@ -9,6 +9,7 @@ from texi.pytorch.plm.spert.prediction import (
     predict_relations,
 )
 from texi.pytorch.plm.spert.sampler import SpERTSampler
+from texi.pytorch.plm.spert.serving import SpERTHandler
 from texi.pytorch.plm.spert.training import SpERTEnv, SpERTEvalSampler, SpERTParams
 
 __all__ = [
@@ -16,6 +17,7 @@ __all__ = [
     "SpERTDataset",
     "SpERTLoss",
     "SpERTSampler",
+    "SpERTHandler",
     "SpERTParams",
     "SpERTEnv",
     "SpERTEvalSampler",
