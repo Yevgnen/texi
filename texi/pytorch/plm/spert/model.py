@@ -199,7 +199,7 @@ class SpERT(nn.Module):
         relation = torch.cartesian_prod(argument, argument).to(device)
 
         # Create relation pair candiates by Cartesian Product.
-        # pair_label: [R, R]
+        # pair_label: [B, R^2, 2]
         pair_label = entity_label[index[:, None], relation.flatten()[None, :]].view(
             batch_size, -1, 2
         )
@@ -234,17 +234,9 @@ class SpERT(nn.Module):
         # Context start is defined as `min(head_end, tail_end)` and
         # context end is defined as `max(head_start, tail_start)`.
         # context_start, context_end: [B, R]
-        entity_start, entity_end = entity_span[..., 0], entity_span[..., 1]
-        context_start = (
-            entity_end[index[:, None, None], relation.unsqueeze(dim=0)]
-            .min(dim=-1)[0]
-            .flatten()
-        )
-        context_end = (
-            entity_start[index[:, None, None], relation.unsqueeze(dim=0)]
-            .max(dim=-1)[0]
-            .flatten()
-        )
+        pair_span = entity_span[index[:, None, None], relation]
+        context_start = pair_span[..., 0].min(dim=-1)[0].flatten()
+        context_end = pair_span[..., 1].max(dim=-1)[0].flatten()
         context = create_span_mask(
             context_start, context_end, max_length, device=entity_label.device
         ).view(batch_size, -1, max_length)
