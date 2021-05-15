@@ -35,9 +35,9 @@ def create_span_mask(
 
     start, end = _convert_tensor(starts, "starts"), _convert_tensor(ends, "ends")
 
-    mask = torch.arange(length, dtype=dtype, device=device).unsqueeze(dim=-1)
-    mask = (start <= mask) & (mask < end)
-    mask = mask.transpose(0, 1).type_as(start)
+    mask = torch.arange(length, dtype=dtype, device=device)
+    mask = (start[:, None] <= mask) & (mask < end[:, None])
+    mask = mask.type_as(start)
 
     return mask
 
