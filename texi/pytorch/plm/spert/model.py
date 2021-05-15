@@ -195,59 +195,63 @@ class SpERT(nn.Module):
         device = entity_label.device
 
         index = torch.arange(batch_size, device=device)
-        candidate = torch.arange(max_entity_size, device=device)
-        candidate_index = torch.cartesian_prod(candidate, candidate).to(device)
+        argument = torch.arange(max_entity_size, device=device)
+        relation = torch.cartesian_prod(argument, argument).to(device)
 
         # Create relation pair candiates by Cartesian Product.
-        # pair: [R, R]
-        pair = entity_label[index[:, None], candidate_index.flatten()[None, :]].view(
+        # pair_label: [R, R]
+        pair_label = entity_label[index[:, None], relation.flatten()[None, :]].view(
             batch_size, -1, 2
         )
 
         # Filter invalid candidates:
         # 1. (i, i): by `diag_mask`.
-        # 2. (i, j) with label_i < 0 *and* label_j < 0. We can not filter with
-        # `or` condition because we still have to pad and stack
-        # relations of each example in current batch.
+        # 2. (i, j) with label_i < 0 *and* label_j < 0: by
+        # `pair_mask`. We can not filter with *or* condition because we
+        # still have to pad and stack relations of each example in
+        # current batch.
 
-        # pair: [B, R, 2]
+        # NOTE: This way could possibly involve a bit computation
+        # overhead since candidate pairs for each example is unordered
+        # for compared to a for loop.
         diag_mask = torch.eye(max_entity_size, device=device).flatten().bool()
-        keep_mask = (pair >= 0).all(dim=-1).any(dim=0)
+        keep_mask = (pair_label >= 0).all(dim=-1).any(dim=0)
         pair_mask = ~diag_mask & keep_mask
-        pair = pair[:, pair_mask, :]
-        sample_mask = (pair >= 0).all(dim=-1).long()
 
         # TODO: Need a way to remove this corner case. Without this
         # test, the `min()` and `max()` call below will failed.
         if not pair_mask.any():
-            pair = entity_label.new_zeros((batch_size, 0, 2))
+            relation = entity_label.new_zeros((batch_size, 0, 2))
             context = entity_label.new_zeros((batch_size, 0, max_length))
             sample_mask = entity_label.new_zeros((batch_size, 0))
 
-            return pair, context, sample_mask
+            return relation, context, sample_mask
+
+        # relation: [B, R, 2]
+        relation = relation[None, pair_mask].repeat(batch_size, 1, 1)
 
         # Create relation context mask.
         # Context start is defined as `min(head_end, tail_end)` and
         # context end is defined as `max(head_start, tail_start)`.
         # context_start, context_end: [B, R]
-        candidate_index = candidate_index[pair_mask]
         entity_start, entity_end = entity_span[..., 0], entity_span[..., 1]
         context_start = (
-            entity_end[index[:, None, None], candidate_index.unsqueeze(dim=0)]
+            entity_end[index[:, None, None], relation.unsqueeze(dim=0)]
             .min(dim=-1)[0]
             .flatten()
         )
         context_end = (
-            entity_start[index[:, None, None], candidate_index.unsqueeze(dim=0)]
+            entity_start[index[:, None, None], relation.unsqueeze(dim=0)]
             .max(dim=-1)[0]
             .flatten()
         )
-
         context = create_span_mask(
             context_start, context_end, max_length, device=entity_label.device
         ).view(batch_size, -1, max_length)
 
-        return pair, context, sample_mask
+        sample_mask = (pair_label[:, pair_mask, :] >= 0).all(dim=-1).long()
+
+        return relation, context, sample_mask
 
     def infer(
         self,
