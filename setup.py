@@ -39,10 +39,12 @@ setup(
         "numpy",
         "pandas",
         "plotly",
+        "pycarton",
         "pytorch-crf",
         "pytorch-nlp",
         "torch",
         "tqdm",
+        "transformers",
     ],
     entry_points={
         "console_scripts": ["texi-params=texi.pytorch.training.params:main"],
