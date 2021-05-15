@@ -275,11 +275,11 @@ class SpERT(nn.Module):
             )
         else:
             relation_logit = self._classify_relations(
-                last_hidden_state,
                 relation,
                 relation_context_mask,
                 entity,
                 entity_size,
+                last_hidden_state,
             )
 
         return {
