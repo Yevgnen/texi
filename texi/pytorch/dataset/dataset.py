@@ -7,6 +7,7 @@ from typing import Any, Iterable, Optional, TypeVar, Union, cast
 
 import ignite.distributed as idist
 import torch
+import tqdm
 from ignite.utils import convert_tensor
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset as TorchDataset
@@ -37,7 +38,10 @@ class EagerEncodeMixin(DatasetTransformMixin):
             examples = self.examples  # type: ignore
             self._original_examples = self.examples  # type: ignore
 
-        encoded = self.encode_batch(examples)  # type: ignore
+        encoded = self.encode_batch(
+            tqdm.tqdm(examples, desc="Encode batch:", ncols=0, leave=False)
+        )  # type: ignore
+
         if self.device is not None:
             encoded = convert_tensor(encoded, device=self.device, non_blocking=True)
 
@@ -89,7 +93,7 @@ class Dataset(BaseDataset[T_co], TorchDataset[T_co]):
         return example
 
     def encode_batch(self, batch: Sequence) -> list:
-        return [*map(self.encode, batch)]
+        return list(map(self.encode, batch))
 
     def collate_train(self, batch: Sequence) -> Any:
         raise NotImplementedError()

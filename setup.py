@@ -42,6 +42,7 @@ setup(
         "pytorch-crf",
         "pytorch-nlp",
         "torch",
+        "tqdm",
     ],
     entry_points={
         "console_scripts": ["texi-params=texi.pytorch.training.params:main"],
