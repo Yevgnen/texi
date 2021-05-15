@@ -9,7 +9,6 @@ data_dir: "./data"
 backend: null
 nproc_per_node: null
 seed: null
-save_path: "output/"
 max_epochs: 20
 lr: 0.00005
 lr_warmup: 0.1
