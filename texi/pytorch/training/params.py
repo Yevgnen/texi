@@ -81,7 +81,7 @@ class Params(object):
         self.patience = kwargs.get("patience")
 
         # Logging
-        self.pbar_steps = kwargs.get("pbar_steps", 10)
+        self.pbar_steps = kwargs.get("pbar_steps", 1)
         self.log_steps = kwargs.get("log_steps", -1)
         self.log_level = kwargs.get("log_level", "INFO")
         self.tensorboard = kwargs.get("tensorboard", False)
