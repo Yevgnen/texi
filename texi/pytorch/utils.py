@@ -34,10 +34,17 @@ def device(
 def split_tensors(
     tensors: Iterable[torch.Tensor], chunk_size: int, dim: int = 0
 ) -> list[tuple[torch.Tensor, ...]]:
-    if len(set(x.size(dim=dim) for x in tensors)) != 1:
-        raise ValueError(
-            f"Size of dimension `dim` = {dim} must be same for all input tensors"
-        )
+    sizes = [t.size() for t in tensors]
+    if not sizes:
+        raise ValueError("At least one tensor must be given.")
+
+    for prev, this in zip(sizes, sizes[1:]):
+        if prev[dim] != this[dim]:
+            raise ValueError(
+                f"Size of dimension `dim` = {dim}"  # type: ignore
+                " must be same for all input tensors, "
+                f"got: {list(map(tuple, sizes))}."
+            )
 
     splits = list(zip(*(torch.split(x, chunk_size, dim=dim) for x in tensors)))
 
