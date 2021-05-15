@@ -83,6 +83,7 @@ class Params(object):
         # Logging
         self.pbar_steps = kwargs.get("pbar_steps", 10)
         self.log_steps = kwargs.get("log_steps", -1)
+        self.log_level = kwargs.get("log_level", "INFO")
         self.tensorboard = kwargs.get("tensorboard", False)
         self.wandb = kwargs.get("wandb", False)
         self.debug = kwargs.get("debug", False)
