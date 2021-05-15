@@ -238,8 +238,8 @@ class SpERT(nn.Module):
         # context end is defined as `max(head_start, tail_start)`.
         # context_start, context_end: [B, R]
         pair_span = pair_span[index[:, None], sorted_mask_index]
-        context_start = pair_span[..., 0].min(dim=-1)[0].flatten()
-        context_end = pair_span[..., 1].max(dim=-1)[0].flatten()
+        context_start = pair_span[..., 1].min(dim=-1)[0].flatten()
+        context_end = pair_span[..., 0].max(dim=-1)[0].flatten()
         context = create_span_mask(
             context_start, context_end, max_length, device=entity_label.device
         ).view(batch_size, -1, max_length)
