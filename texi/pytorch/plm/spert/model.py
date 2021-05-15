@@ -194,56 +194,57 @@ class SpERT(nn.Module):
         batch_size, max_entity_size = entity_label.size()
         device = entity_label.device
 
+        # Create relation pair candiates by Cartesian Product.
         index = torch.arange(batch_size, device=device)
         argument = torch.arange(max_entity_size, device=device)
         relation = torch.cartesian_prod(argument, argument).to(device)
 
-        # Create relation pair candiates by Cartesian Product.
-        # pair_label: [B, R^2, 2]
+        # Filter relations with head == tail.
+        diagnal_mask = relation[..., 0] != relation[..., 1]
+
+        # Filter relations with negative head/tail label.
         pair_label = entity_label[index[:, None], relation.flatten()[None, :]].view(
             batch_size, -1, 2
         )
+        positive_entity_mask = (pair_label >= 0).all(dim=-1)
 
-        # Filter invalid candidates:
-        # 1. (i, i): by `diag_mask`.
-        # 2. (i, j) with label_i < 0 *and* label_j < 0: by
-        # `pair_mask`. We can not filter with *or* condition because we
-        # still have to pad and stack relations of each example in
-        # current batch.
+        # Filter relations with overlapped head/tail entities.
+        pair_span = entity_span[index[:, None, None], relation]
+        head, tail = pair_span[..., 0, :], pair_span[..., 1, :]
+        non_overlapped_mask = (head[..., 0] >= tail[..., 1]) | (
+            tail[..., 0] >= head[..., 1]
+        )
 
-        # NOTE: This way could possibly involve a bit computation
-        # overhead since candidate pairs for each example is unordered
-        # for compared to a for loop.
-        diag_mask = torch.eye(max_entity_size, device=device).flatten().bool()
-        keep_mask = (pair_label >= 0).all(dim=-1).any(dim=0)
-        pair_mask = ~diag_mask & keep_mask
+        # Test all mask and sort to make validated relatons first.
+        mask = diagnal_mask & positive_entity_mask & non_overlapped_mask
+        sorted_mask, sorted_mask_index = mask.sort(descending=True)
+        slice_mask = sorted_mask.any(dim=0)
 
         # TODO: Need a way to remove this corner case. Without this
         # test, the `min()` and `max()` call below will failed.
-        if not pair_mask.any():
+        if not slice_mask.any():
             relation = entity_label.new_zeros((batch_size, 0, 2))
             context = entity_label.new_zeros((batch_size, 0, max_length))
             sample_mask = entity_label.new_zeros((batch_size, 0))
 
             return relation, context, sample_mask
 
-        # relation: [B, R, 2]
-        relation = relation[None, pair_mask].repeat(batch_size, 1, 1)
+        sorted_mask = sorted_mask[:, slice_mask]
+        sorted_mask_index = sorted_mask_index[:, slice_mask]
+        relation = relation[sorted_mask_index]
 
         # Create relation context mask.
         # Context start is defined as `min(head_end, tail_end)` and
         # context end is defined as `max(head_start, tail_start)`.
         # context_start, context_end: [B, R]
-        pair_span = entity_span[index[:, None, None], relation]
+        pair_span = pair_span[index[:, None], sorted_mask_index]
         context_start = pair_span[..., 0].min(dim=-1)[0].flatten()
         context_end = pair_span[..., 1].max(dim=-1)[0].flatten()
         context = create_span_mask(
             context_start, context_end, max_length, device=entity_label.device
         ).view(batch_size, -1, max_length)
 
-        sample_mask = (pair_label[:, pair_mask, :] >= 0).all(dim=-1).long()
-
-        return relation, context, sample_mask
+        return relation, context, sorted_mask.long()
 
     def infer(
         self,
