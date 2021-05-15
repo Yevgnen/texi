@@ -94,7 +94,7 @@ class SpERTVisualizer(object):
         head, tail = relation["head"], relation["tail"]
         assert (
             head["end"] <= tail["start"] or tail["end"] <= head["start"]
-        ), "Overlapped relation is not supported."
+        ), f"Overlapped relation is not supported: {head} - {tail}."
 
         if head["start"] > tail["start"]:
             head, tail = tail, head
