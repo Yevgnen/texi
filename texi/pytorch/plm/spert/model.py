@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import itertools
 from typing import Union, cast
 
 import torch
@@ -11,7 +10,6 @@ from transformers import BertModel
 
 from texi.pytorch.masking import create_span_mask
 from texi.pytorch.plm.pooling import get_pooling
-from texi.pytorch.plm.spert.dataset import stack_1d, stack_2d
 from texi.pytorch.plm.utils import plm_path
 from texi.pytorch.utils import split_apply
 
@@ -193,46 +191,60 @@ class SpERT(nn.Module):
         # pylint: disable=no-self-use
         # NOTE: Filtered entities should have label -1.
 
-        def _create_candidates(labels, spans):
-            indices = (labels >= 0).nonzero(as_tuple=True)[0].tolist()
-            spans = spans[indices].tolist()
-            pairs = itertools.product(zip(indices, spans), repeat=2)
+        batch_size, max_entity_size = entity_label.size()
+        device = entity_label.device
 
-            outputs = []
-            for (head, (head_start, head_end)), (tail, (tail_start, tail_end)) in pairs:
-                # Ignore relations of overlapped entities.
-                if head != tail and (head_start >= tail_end or tail_start >= head_end):
-                    context = [min(head_end, tail_end), max(head_start, tail_start)]
-                    pair = [head, tail]
+        # Create relation pair candiates by Cartesian Product.
+        index = torch.arange(batch_size, device=device)
+        argument = torch.arange(max_entity_size, device=device)
+        relation = torch.cartesian_prod(argument, argument).to(device)
 
-                    outputs += [(context, pair, 1)]
+        # Filter relations with head == tail.
+        diagnal_mask = relation[..., 0] != relation[..., 1]
 
-            if not outputs:
-                mask = entity_label.new_zeros((0, max_length))
-                pair = entity_label.new_zeros((0, 2))
-                sample_mask = entity_label.new_zeros((0,))
-            else:
-                outputs = [entity_label.new_tensor(x) for x in zip(*outputs)]
-                context, pair, sample_mask = outputs
-                mask = create_span_mask(
-                    context[:, 0], context[:, 1], max_length, device=entity_label.device
-                )
+        # Filter relations with negative head/tail label.
+        pair_label = entity_label[index[:, None], relation.flatten()[None, :]].view(
+            batch_size, -1, 2
+        )
+        positive_entity_mask = (pair_label >= 0).all(dim=-1)
 
-            return mask, pair, sample_mask
-
-        masks, pairs, sample_masks = zip(
-            *[
-                _create_candidates(sample_label, sample_span)
-                for sample_label, sample_span in zip(entity_label, entity_span)
-            ]
+        # Filter relations with overlapped head/tail entities.
+        pair_span = entity_span[index[:, None, None], relation]
+        head, tail = pair_span[..., 0, :], pair_span[..., 1, :]
+        non_overlapped_mask = (head[..., 0] >= tail[..., 1]) | (
+            tail[..., 0] >= head[..., 1]
         )
 
-        max_relations = max(len(x) for x in pairs)
-        mask = stack_2d(masks, max_relations, max_length)
-        relation = stack_2d(pairs, max_relations, 2)
-        sample_mask = stack_1d(sample_masks, max_relations)
+        # Test all mask and sort to make validated relatons first.
+        mask = diagnal_mask & positive_entity_mask & non_overlapped_mask
+        sorted_mask, sorted_mask_index = mask.sort(descending=True)
+        slice_mask = sorted_mask.any(dim=0)
 
-        return relation, mask, sample_mask
+        # TODO: Need a way to remove this corner case. Without this
+        # test, the `min()` and `max()` call below will failed.
+        if not slice_mask.any():
+            relation = entity_label.new_zeros((batch_size, 0, 2))
+            context = entity_label.new_zeros((batch_size, 0, max_length))
+            sample_mask = entity_label.new_zeros((batch_size, 0))
+
+            return relation, context, sample_mask
+
+        sorted_mask = sorted_mask[:, slice_mask]
+        sorted_mask_index = sorted_mask_index[:, slice_mask]
+        relation = relation[sorted_mask_index]
+
+        # Create relation context mask.
+        # Context start is defined as `min(head_end, tail_end)` and
+        # context end is defined as `max(head_start, tail_start)`.
+        # context_start, context_end: [B, R]
+        pair_span = pair_span[index[:, None], sorted_mask_index]
+        context_start = pair_span[..., 1].min(dim=-1)[0].flatten()
+        context_end = pair_span[..., 0].max(dim=-1)[0].flatten()
+        context = create_span_mask(
+            context_start, context_end, max_length, device=entity_label.device
+        ).view(batch_size, -1, max_length)
+
+        return relation, context, sorted_mask.long()
 
     def infer(
         self,

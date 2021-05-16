@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from collections.abc import Iterable, Mapping, Sequence
 from typing import Optional, Union
@@ -11,6 +12,8 @@ from carton.random import random_colors
 
 from texi.apps.ner.utils import NerExample, texify_example
 from texi.metrics import prf1
+
+logger = logging.getLogger(__name__)
 
 
 def spacy_visual_ner(
@@ -92,9 +95,11 @@ class SpERTVisualizer(object):
 
     def _relation_to_html(self, relation, tokens):
         head, tail = relation["head"], relation["tail"]
-        assert (
-            head["end"] <= tail["start"] or tail["end"] <= head["start"]
-        ), "Overlapped relation is not supported."
+
+        if not (head["end"] <= tail["start"] or tail["end"] <= head["start"]):
+            logger.warning(
+                "Detected relation with overlapped entities: %s - %s.", head, tail
+            )
 
         if head["start"] > tail["start"]:
             head, tail = tail, head
