@@ -51,6 +51,7 @@ class Mrc4NerDataset(EagerEncodeMixin, Dataset):
     def encode(self, example: NerExample) -> list[dict]:
         def _encode_by_type(type_, entities):
             query_tokens = self.tokenized_queries[type_]
+            query_length = len(query_tokens)
             tokenizer_output = self.tokenizer(
                 query_tokens,
                 example["tokens"],
@@ -62,31 +63,40 @@ class Mrc4NerDataset(EagerEncodeMixin, Dataset):
             starts, ends = [0] * length, [0] * length
             entity_iter = iter(entities)
             entity = next(entity_iter, None)
-            query_length = len(query_tokens)
+
             i = 0
             index_mapping = {}
-
+            positives = set()
+            start = -1
             for j, (offset_start, _) in enumerate(tokenizer_output["offset_mapping"]):
                 if offset_start == 0:
-                    i += 1
                     if entity is not None:
                         if i - query_length - 2 == entity["start"]:
                             starts[i] = 1
-                            entity = next(entity_iter, None)
+                            start = i
                         elif i - query_length - 2 == entity["end"]:
+                            assert start > 0
                             ends[i] = 1
                             entity = next(entity_iter, None)
+                            positives.add((start, i))
+                            start = -1
+                    i += 1
                     index_mapping[i] = j
 
             start = torch.tensor(starts, dtype=torch.int64)
             end = torch.tensor(ends, dtype=torch.int64)
-            span_indices = [
-                [index_mapping[i], index_mapping[i + j]]
-                for i in index_mapping
-                for j in range(self.max_entity_size)
-                if i + j < length - 1
-            ]
+            span_indices, span_labels = [], []
+            for i in index_mapping:
+                for j in range(self.max_entity_size):
+                    if i + j < length:
+                        span = (index_mapping[i], index_mapping[i + j])
+                        label = 1 if span in positives else 0
+                        span_indices += [span]
+                        span_labels += [label]
+            assert sum(span_labels) == len(entities)
+
             span_index = torch.tensor(span_indices, dtype=torch.int64)
+            span_label = torch.tensor(span_labels, dtype=torch.int64)
 
             return {
                 "input_ids": torch.tensor(
@@ -101,6 +111,7 @@ class Mrc4NerDataset(EagerEncodeMixin, Dataset):
                 "start": start,
                 "end": end,
                 "span_index": span_index,
+                "span_label": span_label,
             }
 
         def _sort_key(x):
@@ -110,7 +121,7 @@ class Mrc4NerDataset(EagerEncodeMixin, Dataset):
         for key, entities in itertools.groupby(
             sorted(example["entities"], key=_sort_key), key=_sort_key
         ):
-            encoded += [_encode_by_type(key, entities)]
+            encoded += [_encode_by_type(key, list(entities))]
 
         return encoded
 
@@ -129,6 +140,7 @@ class Mrc4NerDataset(EagerEncodeMixin, Dataset):
         num_spans = torch.tensor([len(x) for x in collated["span_index"]])
         span_mask = length_to_mask(num_spans, batch_first=True)
         span_index = pad_stack_2d(collated["span_index"], max(num_spans), 2)
+        span_label = pad_stack_1d(collated["span_label"], max(num_spans))
 
         output = {
             "input_ids": input_ids,
@@ -138,6 +150,7 @@ class Mrc4NerDataset(EagerEncodeMixin, Dataset):
             "end": end,
             "span_index": span_index,
             "span_mask": span_mask,
+            "span_label": span_label,
         }
 
         return output
