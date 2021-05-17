@@ -41,7 +41,9 @@ class Params(object):
         save_path = os.getenv("SAVE_PATH")
         if not save_path:
             save_path = kwargs.get("save_path", "output/")
-        self.save_path = os.path.join(save_path, datetime.datetime.now().isoformat())
+        self.save_path = os.path.join(
+            save_path, self.project, datetime.datetime.now().isoformat()
+        )
         self.log_file = os.path.join(self.save_path, "output.log")
         self.max_epochs = kwargs.get("max_epochs")
         self.lr = kwargs.get("lr")
