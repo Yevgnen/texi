@@ -25,7 +25,7 @@ class EagerEncodeMixin(DatasetTransformMixin):
     _mixin_attributes = ["_original_examples"]
     _mixin_transform = "eager_encode"
     _mixin_inverse_transform = "eager_decode"
-    device: torch.device
+    device: Optional[torch.device]
     encode_batch: Callable
     collate_train: Callable
     collate_eval: Callable
