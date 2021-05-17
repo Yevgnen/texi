@@ -10,7 +10,6 @@ import torch
 from carton.collections import collate, flatten_dict
 
 from texi.apps.ner.utils import NerExample, describe_examples
-from texi.preprocessing import LabelEncoder
 from texi.pytorch.dataset import Dataset
 from texi.pytorch.dataset.dataset import EagerEncodeMixin
 from texi.pytorch.masking import length_to_mask
@@ -25,7 +24,6 @@ class Mrc4NerDataset(EagerEncodeMixin, Dataset):
     def __init__(
         self,
         examples: Iterable[NerExample],
-        entity_label_encoder: LabelEncoder,
         max_entity_size: int,
         queries: Union[Mapping[str, str]],
         tokenizer: BertTokenizerFast = None,
@@ -34,7 +32,6 @@ class Mrc4NerDataset(EagerEncodeMixin, Dataset):
     ) -> None:
         super().__init__(examples, tokenizer=tokenizer, mode=mode, device=device)
 
-        self.entity_label_encoder = entity_label_encoder
         self.max_entity_size = max_entity_size
         self.queries = queries
         self.tokenized_queries = {
