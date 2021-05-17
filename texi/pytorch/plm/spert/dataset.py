@@ -4,13 +4,12 @@ from __future__ import annotations
 
 import itertools
 from collections.abc import Iterable, Sequence
-from typing import TYPE_CHECKING, Any, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 import torch
-from carton.collections import collate
-from carton.data import describe_series
+from carton.collections import collate, flatten_dict
 
-from texi.apps.ner.utils import Entity, NerExample, Relation
+from texi.apps.ner.utils import Entity, NerExample, Relation, describe_examples
 from texi.preprocessing import LabelEncoder
 from texi.pytorch.dataset import Dataset
 from texi.pytorch.dataset.dataset import EagerEncodeMixin
@@ -63,25 +62,9 @@ class SpERTDataset(EagerEncodeMixin, Dataset):
         self.relation_label_encoder = relation_label_encoder
 
     def describe(self) -> dict[str, Any]:
-        examples = cast(list, self.examples)
-
         info = super().describe()
-        num_tokens, num_entities, num_relations = zip(
-            *[
-                (len(x["tokens"]), len(x["entities"]), len(x["relations"]))
-                for x in examples
-            ]
-        )
-        entity_sizes = [e["end"] - e["start"] for x in examples for e in x["entities"]]
-
-        def _update_info(prefix, s):
-            for key, value in describe_series(s).items():
-                info.update({f"{prefix}/{key}": value})
-
-        _update_info("num_tokens", num_tokens)
-        _update_info("num_entities", num_entities)
-        _update_info("entity_sizes", entity_sizes)
-        _update_info("num_relations", num_relations)
+        type_stats = flatten_dict(describe_examples(self.examples))
+        info.update(type_stats)
 
         return info
 
