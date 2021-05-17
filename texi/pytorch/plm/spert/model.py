@@ -217,7 +217,7 @@ class SpERT(nn.Module):
 
         # Test all mask and sort to make validated relatons first.
         mask = diagnal_mask & positive_entity_mask & non_overlapped_mask
-        sorted_mask, sorted_mask_index = mask.sort(descending=True)
+        sorted_mask, sorted_mask_index = mask.long().sort(descending=True)
         slice_mask = sorted_mask.any(dim=0)
 
         # TODO: Need a way to remove this corner case. Without this
@@ -244,7 +244,7 @@ class SpERT(nn.Module):
             context_start, context_end, max_length, device=entity_label.device
         ).view(batch_size, -1, max_length)
 
-        return relation, context, sorted_mask.long()
+        return relation, context, sorted_mask
 
     def infer(
         self,
