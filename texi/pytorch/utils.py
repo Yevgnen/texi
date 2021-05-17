@@ -9,6 +9,7 @@ from typing import Union
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from ignite.handlers.checkpoint import Checkpoint
 from torch.utils.data import BatchSampler, RandomSampler, SequentialSampler
 from torchnlp.samplers import BucketBatchSampler
@@ -69,6 +70,40 @@ def split_apply(
     tuple_outputs = tuple(torch.cat(x, dim=dim) for x in outputs)
 
     return tuple_outputs
+
+
+def check_tensors_dimension(tensors: Iterable[torch.Tensor], dim: int):
+    if any(not isinstance(x, torch.Tensor) or x.ndim != dim for x in tensors):
+        raise ValueError(f"`tensors` must be {dim}d tensors.")
+
+
+def pad_stack_1d(tensors: Sequence[torch.Tensor], length: int) -> torch.Tensor:
+    # NOTE: Works for 1d tensors with size 0.
+
+    check_tensors_dimension(tensors, 1)
+
+    return torch.stack([F.pad(x, [0, length - len(x)]) for x in tensors])
+
+
+def pad_stack_2d(
+    tensors: Sequence[torch.Tensor], max_rows: int, max_columns: int
+) -> torch.Tensor:
+    # NOTE: Works for 2d tensors with size 0.
+
+    check_tensors_dimension(tensors, 2)
+
+    # https://discuss.pytorch.org/t/padding-zero-size-tensors/118777
+    if max_rows == 0:
+        return tensors[0].new_zeros(len(tensors), max_rows, max_columns)
+
+    return torch.stack(
+        [
+            torch.nn.functional.pad(
+                x, [0, max_columns - x.size(1), 0, max_rows - x.size(0)]
+            )
+            for x in tensors
+        ]
+    )
 
 
 def get_sampler(

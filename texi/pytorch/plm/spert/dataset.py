@@ -15,33 +15,11 @@ from texi.pytorch.dataset import Dataset
 from texi.pytorch.dataset.dataset import EagerEncodeMixin
 from texi.pytorch.masking import create_span_mask
 from texi.pytorch.plm.spert.sampler import SpERTSampler
+from texi.pytorch.utils import pad_stack_1d, pad_stack_2d
 from texi.utils import ModeKeys
 
 if TYPE_CHECKING:
     from transformers import BertTokenizer, BertTokenizerFast
-
-
-def stack_1d(tensors: Iterable[torch.Tensor], length: int) -> torch.Tensor:
-    return torch.stack(
-        [torch.nn.functional.pad(x, [0, length - len(x)]) for x in tensors]
-    )
-
-
-def stack_2d(
-    tensors: Sequence[torch.Tensor], max_rows: int, max_columns: int
-) -> torch.Tensor:
-    # https://discuss.pytorch.org/t/padding-zero-size-tensors/118777
-    if max_rows == 0:
-        return tensors[0].new_zeros(len(tensors), max_rows, max_columns)
-
-    return torch.stack(
-        [
-            torch.nn.functional.pad(
-                x, [0, max_columns - x.size(1), 0, max_rows - x.size(0)]
-            )
-            for x in tensors
-        ]
-    )
 
 
 class SpERTDataset(EagerEncodeMixin, Dataset):
@@ -235,23 +213,25 @@ class SpERTDataset(EagerEncodeMixin, Dataset):
         for mask in batch["relation_context_mask"]:
             max_relations = max(max_relations, mask.size(0))
 
-        input_ids = stack_1d(batch["input_ids"], max_length)
-        attention_mask = stack_1d(batch["attention_mask"], max_length)
-        token_type_ids = stack_1d(batch["token_type_ids"], max_length)
+        input_ids = pad_stack_1d(batch["input_ids"], max_length)
+        attention_mask = pad_stack_1d(batch["attention_mask"], max_length)
+        token_type_ids = pad_stack_1d(batch["token_type_ids"], max_length)
 
-        entity_mask = stack_2d(batch["entity_mask"], max_entities, max_length)
-        entity_label = stack_1d(batch["entity_label"], max_entities)
-        entity_span = stack_2d(batch["entity_span"], max_entities, 2)
-        entity_sample_mask = stack_1d(batch["entity_sample_mask"], max_entities)
+        entity_mask = pad_stack_2d(batch["entity_mask"], max_entities, max_length)
+        entity_label = pad_stack_1d(batch["entity_label"], max_entities)
+        entity_span = pad_stack_2d(batch["entity_span"], max_entities, 2)
+        entity_sample_mask = pad_stack_1d(batch["entity_sample_mask"], max_entities)
 
-        relation_context_mask = stack_2d(
+        relation_context_mask = pad_stack_2d(
             batch["relation_context_mask"], max_relations, max_length
         )
-        relation_label = stack_2d(
+        relation_label = pad_stack_2d(
             batch["relation_label"], max_relations, len(self.relation_label_encoder)
         )
-        relation = stack_2d(batch["relation"], max_relations, 2)
-        relation_sample_mask = stack_1d(batch["relation_sample_mask"], max_relations)
+        relation = pad_stack_2d(batch["relation"], max_relations, 2)
+        relation_sample_mask = pad_stack_1d(
+            batch["relation_sample_mask"], max_relations
+        )
 
         return {
             "tokens": batch["tokens"],
