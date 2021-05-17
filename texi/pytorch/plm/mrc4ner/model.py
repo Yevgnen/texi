@@ -18,9 +18,9 @@ class Mrc4Ner(nn.Module):
             bert = BertModel.from_pretrained(plm_path(bert), add_pooling_layer=False)
         self.bert = bert
 
-        self.start_classifier = nn.Linear(self.bert.config.hidden_size, 2)
-        self.end_classifier = nn.Linear(self.bert.config.hidden_size, 2)
-        self.span_classifier = nn.Linear(2 * self.bert.config.hidden_size, 2)
+        self.start_classifier = nn.Linear(self.bert.config.hidden_size, 1)
+        self.end_classifier = nn.Linear(self.bert.config.hidden_size, 1)
+        self.span_classifier = nn.Linear(2 * self.bert.config.hidden_size, 1)
 
     def _match_spans(self, start_logit, end_logit, span_index, last_hidden_state):
         # start, end: [B, L, H]
