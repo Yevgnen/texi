@@ -22,18 +22,10 @@ class Mrc4Ner(nn.Module):
         self.end_classifier = nn.Linear(self.bert.config.hidden_size, 1)
         self.span_classifier = nn.Linear(2 * self.bert.config.hidden_size, 1)
 
-    def _match_spans(self, start_logit, end_logit, span_index, last_hidden_state):
-        # start, end: [B, L, H]
-        start = torch.softmax(start_logit, dim=-1).round()
-        end = torch.softmax(end_logit, dim=-1).round()
-
-        max_length = start_logit.size(dim=1)
-        index = torch.arange(max_length, device=start_logit.device)
-        start = last_hidden_state[index[:, None], span_index[:, 0][None, :]]
-        end = last_hidden_state[index[:, None], span_index[:, 1][None, :]]
-
-        # span_logit: [B, S, 2]
-        span_input = torch.cat([start, end], dim=-1)
+    def _match_spans(self, span_index, last_hidden_state):
+        batch_size = span_index.size(dim=0)
+        index = torch.arange(batch_size, device=span_index.device)[:, None, None]
+        span_input = last_hidden_state[index, span_index].flatten(2)
         span_logit = self.span_classifier(span_input)
 
         return span_logit
@@ -54,9 +46,10 @@ class Mrc4Ner(nn.Module):
 
         start_logit = self.start_classifier(last_hidden_state)
         end_logit = self.end_classifier(last_hidden_state)
+        span_logit = self._match_spans(span_index, last_hidden_state)
 
-        span_logit = self._match_spans(
-            start_logit, end_logit, span_index, last_hidden_state
-        )
+        start_logit = start_logit.squeeze(dim=-1)
+        end_logit = end_logit.squeeze(dim=-1)
+        span_logit = span_logit.squeeze(dim=-1)
 
         return start_logit, end_logit, span_logit
