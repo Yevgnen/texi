@@ -48,7 +48,6 @@ class Mrc4NerDataset(EagerEncodeMixin, Dataset):
     def encode(self, example: NerExample) -> list[dict]:
         def _encode_by_type(type_, entities):
             query_tokens = self.tokenized_queries[type_]
-            query_length = len(query_tokens)
             tokenizer_output = self.tokenizer(
                 query_tokens,
                 example["tokens"],
@@ -56,41 +55,31 @@ class Mrc4NerDataset(EagerEncodeMixin, Dataset):
                 return_offsets_mapping=True,
             )
 
-            length = len(tokenizer_output["input_ids"])
-            starts, ends = [0] * length, [0] * length
-            entity_iter = iter(entities)
-            entity = next(entity_iter, None)
-
             i = 0
             index_mapping = {}
-            positives = set()
-            start = -1
             for j, (offset_start, _) in enumerate(tokenizer_output["offset_mapping"]):
                 if offset_start == 0:
-                    if entity is not None:
-                        if i - query_length - 2 == entity["start"]:
-                            starts[i] = 1
-                            start = i
-                        elif i - query_length - 2 == entity["end"]:
-                            assert start > 0
-                            ends[i] = 1
-                            entity = next(entity_iter, None)
-                            positives.add((start, i))
-                            start = -1
-                    i += 1
                     index_mapping[i] = j
+                    i += 1
+
+            length = len(tokenizer_output["input_ids"])
+            starts, ends = [0] * length, [0] * length
+            positives = set()
+            for entity in entities:
+                positives.add((entity["start"], entity["end"]))
+                starts[index_mapping[entity["start"]]] = 1
+                ends[index_mapping[entity["end"]]] = 1
 
             start = torch.tensor(starts, dtype=torch.int64)
             end = torch.tensor(ends, dtype=torch.int64)
             span_indices, span_labels = [], []
             for i in index_mapping:
-                for j in range(self.max_entity_size):
-                    if i + j < length:
+                for j in range(1, self.max_entity_size + 1):
+                    if i + j < len(example["tokens"]):
                         span = (index_mapping[i], index_mapping[i + j])
-                        label = 1 if span in positives else 0
+                        label = int(span in positives)
                         span_indices += [span]
                         span_labels += [label]
-            assert sum(span_labels) == len(entities)
 
             span_index = torch.tensor(span_indices, dtype=torch.int64)
             span_label = torch.tensor(span_labels, dtype=torch.int64)
