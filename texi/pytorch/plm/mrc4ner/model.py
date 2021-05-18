@@ -36,7 +36,7 @@ class Mrc4Ner(nn.Module):
         attention_mask: torch.LongTensor,
         token_type_ids: torch.LongTensor,
         span_index: torch.LongTensor,
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> dict[str, torch.Tensor]:
         bert_output = self.bert(
             input_ids=input_ids,
             attention_mask=attention_mask,
@@ -52,4 +52,8 @@ class Mrc4Ner(nn.Module):
         end_logit = end_logit.squeeze(dim=-1)
         span_logit = span_logit.squeeze(dim=-1)
 
-        return start_logit, end_logit, span_logit
+        return {
+            "start_logit": start_logit,
+            "end_logit": end_logit,
+            "span_logit": span_logit,
+        }
