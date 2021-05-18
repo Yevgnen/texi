@@ -287,7 +287,7 @@ def check_example(example: NerExample) -> bool:
         raise ValueError("`example` has no tokens")
 
     num_tokens = len(example["tokens"])
-    for entity in example["entities"]:
+    for entity in example.get("entities", []):
         if entity["start"] >= entity["end"]:
             raise ValueError(f"Invalid entity span: {entity}")
 
@@ -299,8 +299,8 @@ def check_example(example: NerExample) -> bool:
         ):
             raise ValueError(f"Entity token out of bound: {entity}")
 
-    num_entities = len(example["entities"])
-    for relation in example["relations"]:
+    num_entities = len(example.get("entities", []))
+    for relation in example.get("relations", []):
         if relation["head"] >= num_entities or relation["tail"] >= num_entities:
             raise ValueError(f"Entity not found for relation: {relation}")
 
