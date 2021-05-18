@@ -58,3 +58,18 @@ class TransformerLayerDistillationLoss(nn.Module):
         loss = hidden_state_loss + attention_loss
 
         return loss
+
+
+class EmbeddingLayerDistillationLoss(nn.Module):
+    def __init__(self, loss: nn.Module = nn.MSELoss(reduction="mean")) -> None:
+        super().__init__()
+        self.loss = loss
+
+    def forward(
+        self,
+        teacher_embedding_output: tuple[torch.Tensor],
+        student_embedding_output: tuple[torch.Tensor],
+    ) -> torch.Tensor:
+        loss = self.loss(teacher_embedding_output, student_embedding_output)
+
+        return loss
