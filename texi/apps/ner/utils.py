@@ -312,44 +312,51 @@ def check_example(example: NerExample) -> bool:
     return True
 
 
-def describe_examples(examples: Iterable[NerExample]) -> dict:
+def describe_examples(examples: Iterable[NerExample], r: int = 4) -> dict:
     def _compute_frequency(counter):
         total = sum(counter.values())
 
-        return {key: value / total for key, value in counter.items()}
+        return {key: round(value / total, r) for key, value in counter.items()}
 
     examples = list(examples)
-    # type: ignore
-    entity_counter = collections.Counter(
-        entity["type"] for x in examples for entity in x["entities"]
-    )
-    relation_counter = collections.Counter(
-        relation["type"] for x in examples for relation in x["relations"]
-    )
 
-    num_tokens, num_entities, num_relations = zip(
-        *[(len(x["tokens"]), len(x["entities"]), len(x["relations"])) for x in examples]
-    )
-    entity_sizes = [e["end"] - e["start"] for x in examples for e in x["entities"]]
+    entity_type_counter = collections.Counter()  # type: collections.Counter[str]
+    relation_type_counter = collections.Counter()  # type: collections.Counter[str]
+
+    num_tokens, num_entities, num_relations = [], [], []
+    entity_sizes = []
+    for x in examples:
+        entities, relations = x.get("entities", []), x.get("relations", [])
+
+        num_tokens += [len(x["tokens"])]
+        num_entities += [len(entities)]
+        num_relations += [len(relations)]
+
+        for entity in entities:
+            entity_sizes += [entity["end"] - entity["start"]]
+            entity_type_counter[entity["type"]] += 1
+
+        for relation in relations:
+            relation_type_counter[relation["type"]] += 1
 
     return {
         "token": {
-            "count": describe_series(num_tokens),
+            "count": describe_series(num_tokens, r=r),
         },
         "entity": {
             "type": {
-                "count": dict(entity_counter),
-                "frequency": _compute_frequency(entity_counter),
+                "count": dict(entity_type_counter),
+                "frequency": _compute_frequency(entity_type_counter),
             },
-            "count": describe_series(num_entities),
-            "size": describe_series(entity_sizes),
+            "count": describe_series(num_entities, r=r),
+            "size": describe_series(entity_sizes, r=r),
         },
         "relation": {
             "type": {
-                "count": dict(relation_counter),
-                "frequency": _compute_frequency(relation_counter),
+                "count": dict(relation_type_counter),
+                "frequency": _compute_frequency(relation_type_counter),
             },
-            "count": describe_series(num_relations),
+            "count": describe_series(num_relations, r=r),
         },
     }
 
