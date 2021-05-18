@@ -6,7 +6,7 @@ from typing import Union
 
 import torch
 import torch.nn as nn
-from transformers.utils.dummy_pt_objects import BertModel
+from transformers import BertModel
 
 from texi.pytorch.plm.utils import plm_path
 
