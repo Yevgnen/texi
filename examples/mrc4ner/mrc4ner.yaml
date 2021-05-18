@@ -1,0 +1,53 @@
+---
+# Project
+project: "mrc4ner"
+
+# Datasets
+data_dir: "./hopi_fixed"
+
+# Training
+backend: null
+nproc_per_node: null
+seed: null
+max_epochs: 20
+lr: 0.00005
+lr_warmup: 0.1
+weight_decay: 0.01
+max_grad_norm: 1.0
+schedule_steps: 1
+
+# Dataloader
+train_batch_size: 8
+eval_batch_size: 4
+num_workers: 0
+pin_memory: true
+non_blocking: true
+
+# Evaluation
+eval_train: false
+eval_steps: "epoch"
+eval_metric: "NER.micro.f1"
+save_best_models: 1
+
+# Early Stopping
+early_stopping: false
+patience: 10
+
+# Logging
+log_steps: 100
+tensorboard: true
+wandb: true
+debug: false
+
+# Model
+pretrained_model: "hfl/chinese-bert-wwm"
+max_entity_length: 10
+span_filter_threshold: 0.4
+token_delimiter: ""
+split_delimiter: "。"
+max_length: 150
+queries:
+  '存在': '存在：表达患者是否具有某种临床表现。'
+  '部位': '部位：表达患者临床表现发生的具体位置。'
+  '性质': '性质：表达患者临床表现的具体性状与描述。'
+  '临床表现': '临床表现：患者发病的主观感受。'
