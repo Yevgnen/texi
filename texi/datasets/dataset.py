@@ -251,6 +251,13 @@ class Datasets(Generic[T_co]):
         for mode in self.modes:
             yield mode, getattr(self, mode)
 
+    def to_dict(self) -> dict[str, Optional[Dataset[T_co]]]:
+        return {
+            "train": self.train,
+            "val": self.val,
+            "test": self.test,
+        }
+
     def map(self, fn: Callable[[T_co], Any]) -> None:
         self._map_dataset_methods("map", fn)
 
