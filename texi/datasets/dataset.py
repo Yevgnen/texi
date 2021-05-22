@@ -6,8 +6,8 @@ import abc
 import itertools
 import json
 import os
-from collections.abc import Callable, Iterable, Sequence
-from typing import Any, Generic, Optional, Sequence, Type, TypeVar, Union, cast
+from collections.abc import Callable, Iterable, Mapping, Sequence
+from typing import Any, Generic, Optional, Type, TypeVar, Union, cast
 
 import torch
 import tqdm
@@ -210,6 +210,22 @@ class Dataset(PhaseMixin, MaskableMixin, SplitableMixin, Generic[T_co]):
     def describe(self) -> dict[str, Any]:
         return {"size": len(self)}
 
+    @staticmethod
+    def map_modekeys(mode):
+        return {
+            "train": ModeKeys.TRAIN,
+            "val": ModeKeys.EVAL,
+            "test": ModeKeys.PREDICT,
+        }[mode]
+
+    @staticmethod
+    def map_modes(mode):
+        return {
+            ModeKeys.TRAIN: "train",
+            ModeKeys.EVAL: "val",
+            ModeKeys.PREDICT: "test",
+        }[mode]
+
     @classmethod
     def from_json_iter(
         cls: Type[T],
@@ -233,21 +249,18 @@ class Dataset(PhaseMixin, MaskableMixin, SplitableMixin, Generic[T_co]):
 
         return cls(fn, mode=mode)
 
-    @classmethod
-    def from_json(
-        cls: Type[T], filename: Union[str, os.PathLike], mode: ModeKeys = ModeKeys.TRAIN
-    ) -> T:
-        return cls(list(cls.from_json_iter(filename)), mode=mode)
+
+T_Dataset = TypeVar("T_Dataset", bound="Dataset")
 
 
-class Datasets(Generic[T_co]):
+class Datasets(Generic[T_Dataset]):
     T = TypeVar("T", bound="Datasets")
 
     def __init__(
         self,
-        train: Optional[Union[Dataset[T_co], Iterable, Callable]] = None,
-        val: Optional[Union[Dataset[T_co], Iterable, Callable]] = None,
-        test: Optional[Union[Dataset[T_co], Iterable, Callable]] = None,
+        train: Optional[Union[T_Dataset, Iterable, Callable]] = None,
+        val: Optional[Union[T_Dataset, Iterable, Callable]] = None,
+        test: Optional[Union[T_Dataset, Iterable, Callable]] = None,
         dirname: Optional[Union[str, os.PathLike]] = None,
         filename: Optional[Union[str, os.PathLike]] = None,
     ) -> None:
@@ -265,7 +278,7 @@ class Datasets(Generic[T_co]):
 
         self.modes = {"train", "val", "test"}
 
-    def __getitem__(self, key) -> Dataset[T_co]:
+    def __getitem__(self, key) -> T_Dataset:
         assert key in self.modes
 
         return getattr(self, key)
@@ -274,7 +287,7 @@ class Datasets(Generic[T_co]):
         return (
             f"{self.__class__.__name__}(train={self.train}"
             f", val={self.val}, test={self.test}"
-            f", dirname={self.dirname}, filename={self.filename})"
+            f", dirname={self.dirname!r}, filename={self.filename!r})"
         )
 
     def _map_dataset_methods(self, method, *args, **kwargs):
@@ -285,7 +298,7 @@ class Datasets(Generic[T_co]):
 
         return outputs
 
-    def load(self: T) -> T:
+    def load(self: T) -> T[T_Dataset]:
         for mode in self.modes:
             dataset = getattr(self, mode)
             if dataset is not None:
@@ -293,33 +306,29 @@ class Datasets(Generic[T_co]):
 
         return self
 
-    def items(self) -> Iterable[tuple[str, Dataset[T_co]]]:
+    def items(self) -> Iterable[tuple[str, T_Dataset]]:
         for mode in self.modes:
             yield mode, getattr(self, mode)
 
-    def to_dict(self) -> dict[str, Optional[Dataset[T_co]]]:
+    def to_dict(self) -> dict[str, Optional[Dataset]]:
         return {
             "train": self.train,
             "val": self.val,
             "test": self.test,
         }
 
-    def map(self, fn: Callable[[T_co], Any]) -> None:
+    def map(self, fn: Callable) -> None:
         self._map_dataset_methods("map", fn)
 
-    def split(self, fn: Callable[[T_co], Any]) -> None:
+    def split(self, fn: Callable) -> None:
         self._map_dataset_methods("split", fn)
 
-    def mask(self, fn: Callable[[T_co], Any]) -> None:
+    def mask(self, fn: Callable) -> None:
         self._map_dataset_methods("mask", fn)
 
-    @staticmethod
-    def _map_modekeys(mode):
-        return {
-            "train": ModeKeys.TRAIN,
-            "val": ModeKeys.EVAL,
-            "test": ModeKeys.PREDICT,
-        }[mode]
+    @classmethod
+    def format(cls: Type[T], x: Any) -> Any:
+        return x
 
     @classmethod
     def from_dir(
@@ -327,6 +336,41 @@ class Datasets(Generic[T_co]):
         dirname: Union[str, os.PathLike],
     ) -> T:
         raise NotImplementedError()
+
+    @classmethod
+    def from_json(
+        cls: Type[T],
+        dirname: Union[str, os.PathLike],
+        *args,
+        array: bool = False,
+        class_: Type[Dataset] = Dataset,
+        files: Optional[Mapping[str, str]] = None,
+        **kwargs,
+    ) -> T:
+        # pylint: disable=arguments-differ
+
+        if files is None:
+            files = {
+                "train": "train.json",
+                "val": "val.json",
+                "test": "test.json",
+            }
+
+        data = {
+            key: class_.from_json_iter(
+                os.path.join(dirname, value),
+                cls.format,
+                *args,
+                array=array,
+                mode=Dataset.map_modekeys(key),
+                **kwargs,
+            )
+            for key, value in files.items()
+        }  # type: dict[str, Dataset[dict]]
+
+        return cls(
+            train=data["train"], val=data["val"], test=data["test"], dirname=dirname
+        )
 
 
 class JSONDatasets(Datasets):
@@ -339,10 +383,6 @@ class JSONDatasets(Datasets):
     }
 
     @classmethod
-    def format(cls: Type[T], x: Any) -> Any:
-        return x
-
-    @classmethod
     def from_dir(
         cls: Type[T],
         dirname: Union[str, os.PathLike],
@@ -350,14 +390,4 @@ class JSONDatasets(Datasets):
     ) -> T:
         # pylint: disable=arguments-differ
 
-        data = {
-            key: Dataset.from_json_iter(
-                os.path.join(dirname, value),
-                cls.format,
-                array=array,
-                mode=cls._map_modekeys(key),
-            )
-            for key, value in cls.files.items()
-        }  # type: dict[str, Dataset[dict]]
-
-        return cls(train=data["train"], val=data["val"], test=data["test"])
+        return cls.from_json(dirname, array=array, files=cls.files)

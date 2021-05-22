@@ -56,8 +56,10 @@ class Params(object):
         self.gradient_accumulation_steps = kwargs.get("gradient_accumulation_steps")
 
         # Dataloader
-        self.train_batch_size = kwargs.get("train_batch_size", 32)
-        self.eval_batch_size = kwargs.get("eval_batch_size", 32)
+        self.batch_size = kwargs.get("batch_size", 32)
+        self.train_batch_size = kwargs.get("train_batch_size", self.batch_size)
+        self.eval_batch_size = kwargs.get("eval_batch_size", self.batch_size)
+        self.predict_batch_size = kwargs.get("predict_batch_size", self.batch_size)
         self.device = device(kwargs.get("device", "cuda"))
         self.pin_memory = kwargs.get("pin_memory", True)
         self.non_blocking = kwargs.get("non_blocking", True)

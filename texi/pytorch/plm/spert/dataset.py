@@ -10,7 +10,7 @@ import torch
 from carton.collections import collate, flatten_dict
 
 from texi.apps.ner.utils import Entity, NerExample, Relation, describe_examples
-from texi.datasets import Dataset, EagerEncodeMixin
+from texi.datasets import Dataset
 from texi.preprocessing import LabelEncoder
 from texi.pytorch.dataset import Collator
 from texi.pytorch.masking import create_span_mask
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from transformers import BertTokenizer, BertTokenizerFast
 
 
-class SpERTDataset(EagerEncodeMixin, Dataset):
+class SpERTDataset(Dataset):
     def describe(self) -> dict[str, Any]:
         info = super().describe()
         type_stats = flatten_dict(describe_examples(self.examples))
