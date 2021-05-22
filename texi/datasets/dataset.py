@@ -9,6 +9,9 @@ import os
 from collections.abc import Callable, Iterable
 from typing import Any, Generic, Optional, Sequence, Type, TypeVar, Union, cast
 
+import torch
+from ignite.utils import convert_tensor
+
 from texi.utils import ModeKeys, PhaseMixin
 
 T_co = TypeVar("T_co", covariant=True)
@@ -110,6 +113,7 @@ class Dataset(PhaseMixin, MaskableMixin, SplitableMixin, Generic[T_co]):
         self,
         examples: Union[Iterable[T_co], Callable[[], Iterable[T_co]]],
         mode: ModeKeys = ModeKeys.TRAIN,
+        device: Optional[torch.device] = None,
     ) -> None:
         if callable(examples):
             self.load_examples = examples  # type: Optional[Callable]
@@ -119,6 +123,7 @@ class Dataset(PhaseMixin, MaskableMixin, SplitableMixin, Generic[T_co]):
             self.load_examples = None
 
         self.mode = mode
+        self.device = device
 
     def __getitem__(self, key) -> T_co:
         self._check_loaded()
@@ -163,6 +168,29 @@ class Dataset(PhaseMixin, MaskableMixin, SplitableMixin, Generic[T_co]):
 
     def describe(self) -> dict[str, Any]:
         return {"size": len(self)}
+
+    def encode(self, example) -> Any:  # pylint: disable=no-self-use
+        return example
+
+    def encode_batch(self, batch: Sequence) -> list:
+        return list(map(self.encode, batch))
+
+    def collate_train(self, batch: Sequence) -> Any:
+        raise NotImplementedError()
+
+    def collate_eval(self, batch: Sequence) -> Any:
+        return self.collate_train(batch)
+
+    def collate_fn(self, batch: Sequence) -> Any:
+        encoded = self.encode_batch(batch)
+
+        if self.device is not None:
+            encoded = convert_tensor(encoded, device=self.device, non_blocking=True)
+
+        fn = self.collate_train if self.is_train() else self.collate_eval
+        collated = fn(encoded)
+
+        return collated
 
     @classmethod
     def from_json_iter(

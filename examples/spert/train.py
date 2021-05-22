@@ -33,6 +33,7 @@ from texi.pytorch.training.training import (
     run,
     setup_env,
 )
+from texi.pytorch.utils import get_dataloaders
 from texi.utils import ModeKeys
 
 
@@ -74,7 +75,7 @@ def get_dataflows(
     # `pin_memory = False` is required since `auto_dataloader` set
     # `pin_memory` to True by default, but we have moved tensors to GPU
     # by passing `device` to Dataset.
-    dataflows = SpERTDataset.get_dataloaders(
+    dataflows = get_dataloaders(
         {
             mode: get_dataset(
                 dataset,
