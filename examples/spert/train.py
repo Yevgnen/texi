@@ -55,9 +55,9 @@ def get_dataset(
     dataset = SpERTDataset(
         examples,
         negative_sampler,
+        tokenizer,
         entity_label_encoder,
         relation_label_encoder,
-        tokenizer,
         mode=mode,
         device=idist.device(),
     )

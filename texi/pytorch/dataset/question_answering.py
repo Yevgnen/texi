@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 
-
 import torch
 from carton.collections import collate
 from torchnlp.encoders.text import stack_and_pad_tensors
 from torchnlp.utils import collate_tensors, identity
 
-from texi.pytorch.dataset import Dataset
+from texi.datasets import Dataset
 
 
 class QuestionAnsweringDataset(Dataset):

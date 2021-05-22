@@ -6,10 +6,11 @@ import abc
 import itertools
 import json
 import os
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from typing import Any, Generic, Optional, Sequence, Type, TypeVar, Union, cast
 
 import torch
+import tqdm
 from ignite.utils import convert_tensor
 
 from texi.utils import ModeKeys, PhaseMixin
@@ -106,6 +107,48 @@ class MaskableMixin(DatasetTransformMixin):
         self._remove_attributes()
 
 
+class EagerEncodeMixin(DatasetTransformMixin):
+    _mixin_attributes = ["_original_examples"]
+    _mixin_transform = "eager_encode"
+    _mixin_inverse_transform = "eager_decode"
+    device: Optional[torch.device]
+    encode_batch: Callable
+    collate_train: Callable
+    collate_eval: Callable
+    is_train: Callable
+
+    def eager_encode(self) -> None:
+        if hasattr(self, "_original_examples"):
+            examples = self._original_examples  # type: ignore
+        else:
+            examples = self.examples  # type: ignore
+            self._original_examples = self.examples  # type: ignore
+
+        encoded = self.encode_batch(
+            tqdm.tqdm(examples, desc="Encode batch:", ncols=0, leave=False)
+        )  # type: ignore
+
+        if self.device is not None:
+            encoded = convert_tensor(encoded, device=self.device, non_blocking=True)
+
+        self.examples = encoded
+
+    def eager_decode(self) -> None:
+        self._check_inverse_transform()
+        self.examples = self._original_examples  # type: ignore
+
+        self._remove_attributes()
+
+    def collate_fn(self, batch: Sequence) -> Any:
+        if not hasattr(self, "_original_examples"):
+            return super().collate_fn(batch)
+
+        fn = self.collate_train if self.is_train() else self.collate_eval
+        collated = fn(batch)
+
+        return collated
+
+
 class Dataset(PhaseMixin, MaskableMixin, SplitableMixin, Generic[T_co]):
     T = TypeVar("T", bound="Dataset")
 
@@ -199,6 +242,7 @@ class Dataset(PhaseMixin, MaskableMixin, SplitableMixin, Generic[T_co]):
         format_function: Optional[Callable] = lambda x: x,
         array: bool = False,
         mode: ModeKeys = ModeKeys.TRAIN,
+        device: Optional[torch.device] = None,
     ) -> T:
         def _iter_whole_file():
             with open(filename) as f:
@@ -213,13 +257,16 @@ class Dataset(PhaseMixin, MaskableMixin, SplitableMixin, Generic[T_co]):
 
         fn = _iter_whole_file if array else _iter_multiple_lines
 
-        return cls(fn, mode=mode)
+        return cls(fn, mode=mode, device=device)
 
     @classmethod
     def from_json(
-        cls: Type[T], filename: Union[str, os.PathLike], mode: ModeKeys = ModeKeys.TRAIN
+        cls: Type[T],
+        filename: Union[str, os.PathLike],
+        mode: ModeKeys = ModeKeys.TRAIN,
+        device: Optional[torch.device] = None,
     ) -> T:
-        return cls(list(cls.from_json_iter(filename)), mode=mode)
+        return cls(list(cls.from_json_iter(filename)), mode=mode, device=device)
 
 
 class Datasets(Generic[T_co]):
@@ -304,7 +351,11 @@ class Datasets(Generic[T_co]):
         }[mode]
 
     @classmethod
-    def from_dir(cls: Type[T], dirname: Union[str, os.PathLike]) -> T:
+    def from_dir(
+        cls: Type[T],
+        dirname: Union[str, os.PathLike],
+        device: Optional[torch.device] = None,
+    ) -> T:
         raise NotImplementedError()
 
 
@@ -323,7 +374,10 @@ class JSONDatasets(Datasets):
 
     @classmethod
     def from_dir(
-        cls: Type[T], dirname: Union[str, os.PathLike], array: bool = False
+        cls: Type[T],
+        dirname: Union[str, os.PathLike],
+        device: Optional[torch.device] = None,
+        array: bool = False,
     ) -> T:
         # pylint: disable=arguments-differ
 
@@ -333,6 +387,7 @@ class JSONDatasets(Datasets):
                 cls.format,
                 array=array,
                 mode=cls._map_modekeys(key),
+                device=device,
             )
             for key, value in cls.files.items()
         }  # type: dict[str, Dataset[dict]]

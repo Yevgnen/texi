@@ -4,7 +4,7 @@ import torch
 from torchnlp.encoders.text import stack_and_pad_tensors
 from torchnlp.utils import collate_tensors, identity
 
-from texi.pytorch.dataset import Dataset
+from texi.datasets import Dataset
 
 
 class TextDataset(Dataset):

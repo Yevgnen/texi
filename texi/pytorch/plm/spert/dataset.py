@@ -10,9 +10,8 @@ import torch
 from carton.collections import collate, flatten_dict
 
 from texi.apps.ner.utils import Entity, NerExample, Relation, describe_examples
+from texi.datasets import Dataset, EagerEncodeMixin
 from texi.preprocessing import LabelEncoder
-from texi.pytorch.dataset import Dataset
-from texi.pytorch.dataset.dataset import EagerEncodeMixin
 from texi.pytorch.masking import create_span_mask
 from texi.pytorch.plm.spert.sampler import SpERTSampler
 from texi.pytorch.utils import pad_stack_1d, pad_stack_2d
@@ -27,14 +26,15 @@ class SpERTDataset(EagerEncodeMixin, Dataset):
         self,
         examples: Iterable[NerExample],
         negative_sampler: SpERTSampler,
+        tokenizer: Union[BertTokenizer, BertTokenizerFast],
         entity_label_encoder: LabelEncoder,
         relation_label_encoder: LabelEncoder,
-        tokenizer: Union[BertTokenizer, BertTokenizerFast] = None,
         mode: ModeKeys = ModeKeys.TRAIN,
         device: Optional[torch.device] = None,
     ) -> None:
-        super().__init__(examples, tokenizer=tokenizer, mode=mode, device=device)
+        super().__init__(examples, mode=mode, device=device)
 
+        self.tokenizer = tokenizer
         self.negative_sampler = negative_sampler
         self.entity_label_encoder = entity_label_encoder
         self.relation_label_encoder = relation_label_encoder
