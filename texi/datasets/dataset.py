@@ -156,7 +156,6 @@ class Dataset(PhaseMixin, MaskableMixin, SplitableMixin, Generic[T_co]):
         self,
         examples: Union[Iterable[T_co], Callable[[], Iterable[T_co]]],
         mode: ModeKeys = ModeKeys.TRAIN,
-        device: Optional[torch.device] = None,
     ) -> None:
         if callable(examples):
             self.load_examples = examples  # type: Optional[Callable]
@@ -166,7 +165,6 @@ class Dataset(PhaseMixin, MaskableMixin, SplitableMixin, Generic[T_co]):
             self.load_examples = None
 
         self.mode = mode
-        self.device = device
 
     def __getitem__(self, key) -> T_co:
         self._check_loaded()
@@ -212,29 +210,6 @@ class Dataset(PhaseMixin, MaskableMixin, SplitableMixin, Generic[T_co]):
     def describe(self) -> dict[str, Any]:
         return {"size": len(self)}
 
-    def encode(self, example) -> Any:  # pylint: disable=no-self-use
-        return example
-
-    def encode_batch(self, batch: Sequence) -> list:
-        return list(map(self.encode, batch))
-
-    def collate_train(self, batch: Sequence) -> Any:
-        raise NotImplementedError()
-
-    def collate_eval(self, batch: Sequence) -> Any:
-        return self.collate_train(batch)
-
-    def collate_fn(self, batch: Sequence) -> Any:
-        encoded = self.encode_batch(batch)
-
-        if self.device is not None:
-            encoded = convert_tensor(encoded, device=self.device, non_blocking=True)
-
-        fn = self.collate_train if self.is_train() else self.collate_eval
-        collated = fn(encoded)
-
-        return collated
-
     @classmethod
     def from_json_iter(
         cls: Type[T],
@@ -242,7 +217,6 @@ class Dataset(PhaseMixin, MaskableMixin, SplitableMixin, Generic[T_co]):
         format_function: Optional[Callable] = lambda x: x,
         array: bool = False,
         mode: ModeKeys = ModeKeys.TRAIN,
-        device: Optional[torch.device] = None,
     ) -> T:
         def _iter_whole_file():
             with open(filename) as f:
@@ -257,16 +231,13 @@ class Dataset(PhaseMixin, MaskableMixin, SplitableMixin, Generic[T_co]):
 
         fn = _iter_whole_file if array else _iter_multiple_lines
 
-        return cls(fn, mode=mode, device=device)
+        return cls(fn, mode=mode)
 
     @classmethod
     def from_json(
-        cls: Type[T],
-        filename: Union[str, os.PathLike],
-        mode: ModeKeys = ModeKeys.TRAIN,
-        device: Optional[torch.device] = None,
+        cls: Type[T], filename: Union[str, os.PathLike], mode: ModeKeys = ModeKeys.TRAIN
     ) -> T:
-        return cls(list(cls.from_json_iter(filename)), mode=mode, device=device)
+        return cls(list(cls.from_json_iter(filename)), mode=mode)
 
 
 class Datasets(Generic[T_co]):
@@ -354,7 +325,6 @@ class Datasets(Generic[T_co]):
     def from_dir(
         cls: Type[T],
         dirname: Union[str, os.PathLike],
-        device: Optional[torch.device] = None,
     ) -> T:
         raise NotImplementedError()
 
@@ -376,7 +346,6 @@ class JSONDatasets(Datasets):
     def from_dir(
         cls: Type[T],
         dirname: Union[str, os.PathLike],
-        device: Optional[torch.device] = None,
         array: bool = False,
     ) -> T:
         # pylint: disable=arguments-differ
@@ -387,7 +356,6 @@ class JSONDatasets(Datasets):
                 cls.format,
                 array=array,
                 mode=cls._map_modekeys(key),
-                device=device,
             )
             for key, value in cls.files.items()
         }  # type: dict[str, Dataset[dict]]

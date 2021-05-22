@@ -5,7 +5,7 @@ from __future__ import annotations
 import inspect
 import os
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from typing import Optional, Union, cast
+from typing import TYPE_CHECKING, Optional, Union, cast
 
 import ignite.distributed as idist
 import torch
@@ -16,6 +16,9 @@ from torch.utils.data import BatchSampler, DataLoader, RandomSampler, Sequential
 from torchnlp.samplers import BucketBatchSampler
 
 from texi.datasets.dataset import Dataset, Datasets
+
+if TYPE_CHECKING:
+    from texi.pytorch.dataset import Collator
 
 
 def cuda(enable: bool) -> bool:
@@ -133,6 +136,7 @@ def get_sampler(
 def get_dataloader(
     dataset: Dataset,
     batch_size: int,
+    collate_fn: Optional[Union[Callable, Collator]] = None,
     drop_last: bool = False,
     sort_key: Callable = lambda x: x,
     **kwargs,
@@ -145,7 +149,6 @@ def get_dataloader(
         sort_key=lambda index: sort_key(dataset[index]),
     )
 
-    collate_fn = kwargs.pop("collate_fn", dataset.collate_fn)
     dataloader = idist.auto_dataloader(
         dataset, batch_sampler=sampler, collate_fn=collate_fn, **kwargs
     )  # type: DataLoader[Dataset]
