@@ -17,12 +17,14 @@ from texi.datasets.classification import (
     THUCNews,
     ToutiaoNews,
 )
+from texi.datasets.collator import Collator
 from texi.datasets.dataset import Dataset, Datasets, JSONDatasets
 from texi.datasets.question_answering import Baike2018QA, ZhidaoQA
 from texi.datasets.text import News2016Zh, WebText2019Zh, WeixinPublicCorpus, Wiki2019Zh
 from texi.datasets.translation import Translate2019Zh
 
 __all__ = [
+    "Collator",
     "Dataset",
     "Datasets",
     "JSONDatasets",
