@@ -36,6 +36,8 @@ class Params(_Params):
         super().__init__(**kwargs)
         self.model_name = kwargs["model_name"]
         self.num_labels = kwargs["num_labels"]
+        if self.num_labels < 2:
+            raise ValueError("`num_labels` must >= 2")
         self.pretrained_model = kwargs.get("pretrained_model", "hfl/chinese-bert-wwm")
         self.dropout = kwargs.get("dropout", 0.1)
         self.pooling = kwargs.get("pooling", "mean")
