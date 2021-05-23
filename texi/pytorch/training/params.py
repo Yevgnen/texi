@@ -33,6 +33,7 @@ class Params(object):
         self.test_data = kwargs.get("test_data")
         self.val_size = kwargs.get("val_size", 0.1)
         self.test_size = kwargs.get("test_size", 0.2)
+        self.max_length = kwargs.get("max_length")
 
         # Training
         self.backend = kwargs.get("backend")
