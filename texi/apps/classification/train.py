@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import logging
 from collections.abc import Mapping
 from typing import Union
 
@@ -12,9 +11,10 @@ import torch
 import torch.nn as nn
 from ignite.engine import Engine
 from ignite.metrics import Accuracy, Fbeta, Precision, Recall
-from torch.optim.lr_scheduler import LambdaLR
+from torch.optim import Optimizer
+from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data import DataLoader
-from transformers import AdamW, BertTokenizer, BertTokenizerFast
+from transformers import BertTokenizer, BertTokenizerFast
 
 from texi.datasets import JSONDatasets
 from texi.datasets.dataset import Dataset, Datasets
@@ -34,10 +34,11 @@ from texi.pytorch.utils import get_dataloader
 class Params(_Params):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.model_name = kwargs["model_name"]
+        self.num_labels = kwargs["num_labels"]
         self.pretrained_model = kwargs.get("pretrained_model", "hfl/chinese-bert-wwm")
         self.dropout = kwargs.get("dropout", 0.1)
         self.pooling = kwargs.get("pooling", "mean")
-        self.num_labels = kwargs.get("num_labels", 2)
 
 
 def get_dataflows(
@@ -63,16 +64,34 @@ def get_dataflows(
     return dataflows
 
 
+def get_model(params: Params) -> nn.Module:
+    name = params["model_name"].lower()
+    if name == "bert":
+        model = BertForSequenceClassification(
+            params["pretrained_model"],
+            dropout=params["dropout"],
+            pooling=params["pooling"],
+            num_labels=params["num_labels"],
+        )
+    else:
+        raise KeyError(name)
+
+    return model
+
+
+def get_criteria(params: Params) -> nn.Module:
+    if params["num_labels"] == 2:
+        return nn.BCEWithLogitsLoss()
+
+    return nn.CrossEntropyLoss()
+
+
 def initialize(
-    params: Params,
-    num_train_examples: int,
-) -> tuple[nn.Module, nn.BCEWithLogitsLoss, AdamW, LambdaLR]:
-    model = BertForSequenceClassification(
-        params["pretrained_model"],
-        dropout=params["dropout"],
-        pooling=params["pooling"],
-        num_labels=params["num_labels"],
-    )
+    params: Params, num_train_examples: int
+) -> tuple[nn.Module, nn.Module, Optimizer, _LRScheduler]:
+    model = get_model(params)
+
+    criteria = get_criteria(params)
 
     num_training_steps = (
         num_train_examples // params["train_batch_size"] * params["max_epochs"]
@@ -82,10 +101,9 @@ def initialize(
         model, params["lr"], params["weight_decay"], warmup_steps, num_training_steps
     )
 
-    criteria = nn.BCEWithLogitsLoss()
     model = idist.auto_model(model)
-    optimizer = idist.auto_optim(optimizer)
     criteria = criteria.to(idist.device())
+    optimizer = idist.auto_optim(optimizer)
 
     return model, criteria, optimizer, lr_scheduler
 
@@ -95,13 +113,13 @@ def train_step(
 ) -> dict:
     x, y = batch
 
-    output = model(
+    logit = model(
         x["input_ids"],
         x["attention_mask"],
         x["token_type_ids"],
     )
 
-    loss = criteria(output.squeeze(dim=-1), y.float())
+    loss = criteria(logit, y.float())
 
     return {"loss": loss}
 
@@ -111,13 +129,18 @@ def eval_step(
 ) -> tuple[torch.Tensor, torch.Tensor]:
     x, y = batch
 
-    output = model(
+    logit = model(
         x["input_ids"],
         x["attention_mask"],
         x["token_type_ids"],
     )
 
-    return torch.sigmoid(output.squeeze(dim=-1)).round(), y.float()
+    if logit.ndim == 1:
+        y_pred = torch.sigmoid(logit.squeeze(dim=-1)).round()
+    else:
+        y_pred = torch.argmax(dim=-1)
+
+    return y_pred, y.float()
 
 
 def training(local_rank: int, params: Params) -> None:

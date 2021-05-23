@@ -31,6 +31,8 @@ class BertForSequenceClassification(nn.Module):
             bert.config.hidden_size, 1 if num_labels == 2 else num_labels
         )
 
+        self.num_labels = num_labels
+
     def forward(
         self,
         input_ids: torch.LongTensor,
@@ -46,5 +48,8 @@ class BertForSequenceClassification(nn.Module):
         pooled = self.pooling(bert_output, attention_mask)
         drop = self.dropout(pooled)
         logit = self.classifier(drop)
+
+        if self.num_labels == 2:
+            logit = logit.squeeze(dim=-1)
 
         return logit
