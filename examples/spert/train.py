@@ -13,7 +13,6 @@ from torch.utils.data.dataloader import DataLoader
 from transformers import AdamW, BertTokenizer, BertTokenizerFast
 
 from texi.apps.ner import SpERTVisualizer, encode_labels, split_example
-from texi.datasets import JSONDatasets
 from texi.datasets.dataset import Dataset, Datasets
 from texi.preprocessing import LabelEncoder
 from texi.pytorch.plm.spert import (
@@ -25,6 +24,7 @@ from texi.pytorch.plm.spert import (
     SpERTParams,
     SpERTSampler,
 )
+from texi.pytorch.plm.spert.dataset import SpERTCollator
 from texi.pytorch.plm.spert.training import eval_step, train_step
 from texi.pytorch.plm.utils import get_pretrained_optimizer_and_scheduler, plm_path
 from texi.pytorch.training.training import (
@@ -33,35 +33,7 @@ from texi.pytorch.training.training import (
     run,
     setup_env,
 )
-from texi.utils import ModeKeys
-
-
-def get_dataset(
-    examples: Dataset,
-    tokenizer: Union[BertTokenizer, BertTokenizerFast],
-    entity_label_encoder: LabelEncoder,
-    relation_label_encoder: LabelEncoder,
-    params: SpERTParams,
-    mode: ModeKeys,
-) -> SpERTDataset:
-    negative_sampler = SpERTSampler(
-        num_negative_entities=params["num_negative_entities"],
-        num_negative_relations=params["num_negative_relations"],
-        max_entity_length=params["max_entity_length"],
-        negative_entity_type=params["negative_entity_type"],
-        negative_relation_type=params["negative_relation_type"],
-    )
-    dataset = SpERTDataset(
-        examples,
-        negative_sampler,
-        entity_label_encoder,
-        relation_label_encoder,
-        tokenizer,
-        mode=mode,
-        device=idist.device(),
-    )
-
-    return dataset
+from texi.pytorch.utils import get_dataloader
 
 
 def get_dataflows(
@@ -74,25 +46,32 @@ def get_dataflows(
     # `pin_memory = False` is required since `auto_dataloader` set
     # `pin_memory` to True by default, but we have moved tensors to GPU
     # by passing `device` to Dataset.
-    dataflows = SpERTDataset.get_dataloaders(
-        {
-            mode: get_dataset(
+    negative_sampler = SpERTSampler(
+        num_negative_entities=params["num_negative_entities"],
+        num_negative_relations=params["num_negative_relations"],
+        max_entity_length=params["max_entity_length"],
+        negative_entity_type=params["negative_entity_type"],
+        negative_relation_type=params["negative_relation_type"],
+    )
+
+    dataflows = {}
+    for mode, dataset in datasets.items():
+        dataflow = get_dataloader(
+            dataset,
+            batch_size=params[f"{Dataset.map_modekeys(mode)}_batch_size"],
+            collate_fn=SpERTCollator(
                 dataset,
+                negative_sampler,
                 tokenizer,
                 entity_label_encoder,
                 relation_label_encoder,
-                params,
-                ModeKeys.TRAIN if mode == "train" else ModeKeys.EVAL,
-            )
-            for mode, dataset in datasets.items()
-            if dataset is not None
-        },
-        train_batch_size=params["train_batch_size"],
-        eval_batch_size=params["eval_batch_size"],
-        num_workers=params["num_workers"],
-        sort_key=lambda x: len(x["tokens"]),
-        pin_memory=False,
-    )
+                idist.device(),
+            ),
+            sort_key=lambda x: len(x["tokens"]),
+            pin_memory=False,
+            num_workers=params["num_workers"],
+        )
+        dataflows[mode] = dataflow
 
     return dataflows
 
@@ -135,7 +114,9 @@ def training(local_rank: int, params: SpERTParams) -> None:
         setup_env(params)
 
     # Load datasets.
-    datasets = JSONDatasets.from_dir(params.data_dir, array=True).load()
+    datasets = Datasets.from_json(
+        params.data_dir, array=True, class_=SpERTDataset
+    ).load()
     if params.split_delimiter:
         datasets.split(
             functools.partial(

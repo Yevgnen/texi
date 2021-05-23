@@ -4,8 +4,8 @@ import torch
 from torchnlp.encoders.text import stack_and_pad_tensors
 from torchnlp.utils import collate_tensors, identity
 
+from texi.datasets import Dataset
 from texi.preprocessing import LabelEncoder
-from texi.pytorch.dataset import Dataset
 
 
 class SequenceLabelingDataset(Dataset):

@@ -24,7 +24,7 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data import DataLoader
 
-from texi.pytorch.dataset.dataset import Dataset
+from texi.datasets import Dataset
 from texi.pytorch.training.handlers import handle_dataset_mode, setup_extra_handlers
 from texi.pytorch.training.params import Params
 from texi.utils import ModeKeys

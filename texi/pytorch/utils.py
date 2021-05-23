@@ -5,14 +5,20 @@ from __future__ import annotations
 import inspect
 import os
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from typing import Union
+from typing import TYPE_CHECKING, Optional, Union, cast
 
+import ignite.distributed as idist
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from ignite.handlers.checkpoint import Checkpoint
-from torch.utils.data import BatchSampler, RandomSampler, SequentialSampler
+from torch.utils.data import BatchSampler, DataLoader, RandomSampler, SequentialSampler
 from torchnlp.samplers import BucketBatchSampler
+
+from texi.datasets.dataset import Dataset, Datasets
+
+if TYPE_CHECKING:
+    from texi.pytorch.dataset import Collator
 
 
 def cuda(enable: bool) -> bool:
@@ -125,6 +131,80 @@ def get_sampler(
         )
 
     return batch_sampler
+
+
+def get_dataloader(
+    dataset: Dataset,
+    batch_size: int,
+    collate_fn: Optional[Union[Callable, Collator]] = None,
+    drop_last: bool = False,
+    sort_key: Callable = lambda x: x,
+    **kwargs,
+) -> DataLoader:
+    sampler = get_sampler(
+        cast(Sequence, dataset.examples),
+        dataset.is_train(),
+        batch_size,
+        drop_last=drop_last,
+        sort_key=lambda index: sort_key(dataset[index]),
+    )
+
+    dataloader = idist.auto_dataloader(
+        dataset, batch_sampler=sampler, collate_fn=collate_fn, **kwargs
+    )  # type: DataLoader[Dataset]
+
+    return dataloader
+
+
+def get_dataloaders(
+    datasets: Union[Datasets, Mapping[str, Dataset]],
+    train_batch_size: Optional[int] = None,
+    eval_batch_size: Optional[int] = None,
+    batch_size: Optional[int] = None,
+    drop_last: bool = False,
+    sort_key: Callable = lambda x: x,
+    **kwargs,
+) -> dict[str, DataLoader]:
+    # 1. Train dataset has individual batch size.
+    # 2. `drop_last` will alwarys be False for val and test datasets.
+    # 3. `sort_key` is passed only in train dataset.
+
+    if (train_batch_size is None or eval_batch_size is None) and batch_size is None:
+        raise ValueError(
+            "`batch_size` must not be None"
+            " if `train_batch_size` or `eval_batch_size` is None"
+        )
+
+    if train_batch_size is None:
+        train_batch_size = cast(int, batch_size)
+
+    if eval_batch_size is None:
+        eval_batch_size = cast(int, batch_size)
+
+    batch_sizes = {
+        "train": train_batch_size,
+        "val": eval_batch_size,
+        "test": eval_batch_size,
+    }
+
+    loaders = {}
+    for mode, dataset in datasets.items():
+        if mode == "train":
+            loader = get_dataloader(
+                dataset,
+                batch_sizes[mode],
+                drop_last=drop_last,
+                sort_key=sort_key,
+                **kwargs,
+            )
+        else:
+            loader = get_dataloader(
+                dataset, batch_sizes[mode], drop_last=False, **kwargs
+            )
+
+        loaders[mode] = loader
+
+    return loaders
 
 
 def get_default_arguments(f: Callable) -> dict:

@@ -1,28 +1,49 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import annotations
+
+from collections.abc import Callable
+from typing import Optional
+
 import torch
 from torchnlp.encoders.text import stack_and_pad_tensors
 from torchnlp.utils import collate_tensors, identity
 
-from texi.pytorch.dataset import Dataset
+from texi.datasets import Dataset
+from texi.preprocessing import LabelEncoder
+from texi.pytorch.dataset.collator import Collator
 
 
-class TextDataset(Dataset):
+class TextClassificationCollator(Collator):
+    def __init__(
+        self,
+        dataset: Dataset,
+        tokenizer: Callable,
+        label_encoder: LabelEncoder,
+        device: Optional[torch.device] = None,
+    ) -> None:
+        super().__init__(dataset, device=device)
+        self.tokenizer = tokenizer
+        self.label_encoder = label_encoder
+
     def encode(self, example):
         return {
-            "text": self.tokenize(example["text"]),
-            "label": self.label_encoder.encode(example["label"]),
+            "text": self.tokenizer(example["text"]),
+            "label": self.label_encoder.encode_label(example["label"]),
         }
 
-    def collate(self, batch):
+    def collate_train(self, batch):
         batch = self.encode_batch(batch)
 
         batch = collate_tensors(batch, identity)
-        texts, text_lengths = stack_and_pad_tensors(batch["text"])
-        labels = torch.stack(batch["label"])
+        text, length = stack_and_pad_tensors(batch["text"])
+        label = torch.stack(batch["label"])
 
-        x = {"text": texts, "length": text_lengths}
-        y = labels
+        x = {
+            "text": text,
+            "length": length,
+        }
+        y = label
 
         return x, y
 

@@ -3,48 +3,49 @@
 from __future__ import annotations
 
 import itertools
-from collections.abc import Iterable, Sequence
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, Optional, Union
 
 import torch
 from carton.collections import collate, flatten_dict
 
 from texi.apps.ner.utils import Entity, NerExample, Relation, describe_examples
+from texi.datasets import Dataset
 from texi.preprocessing import LabelEncoder
-from texi.pytorch.dataset import Dataset
-from texi.pytorch.dataset.dataset import EagerEncodeMixin
+from texi.pytorch.dataset import Collator
 from texi.pytorch.masking import create_span_mask
 from texi.pytorch.plm.spert.sampler import SpERTSampler
 from texi.pytorch.utils import pad_stack_1d, pad_stack_2d
-from texi.utils import ModeKeys
 
 if TYPE_CHECKING:
     from transformers import BertTokenizer, BertTokenizerFast
 
 
-class SpERTDataset(EagerEncodeMixin, Dataset):
-    def __init__(
-        self,
-        examples: Iterable[NerExample],
-        negative_sampler: SpERTSampler,
-        entity_label_encoder: LabelEncoder,
-        relation_label_encoder: LabelEncoder,
-        tokenizer: Union[BertTokenizer, BertTokenizerFast] = None,
-        mode: ModeKeys = ModeKeys.TRAIN,
-        device: Optional[torch.device] = None,
-    ) -> None:
-        super().__init__(examples, tokenizer=tokenizer, mode=mode, device=device)
-
-        self.negative_sampler = negative_sampler
-        self.entity_label_encoder = entity_label_encoder
-        self.relation_label_encoder = relation_label_encoder
-
+class SpERTDataset(Dataset):
     def describe(self) -> dict[str, Any]:
         info = super().describe()
         type_stats = flatten_dict(describe_examples(self.examples))
         info.update(type_stats)
 
         return info
+
+
+class SpERTCollator(Collator):
+    def __init__(
+        self,
+        dataset: SpERTDataset,
+        negative_sampler: SpERTSampler,
+        tokenizer: Union[BertTokenizer, BertTokenizerFast],
+        entity_label_encoder: LabelEncoder,
+        relation_label_encoder: LabelEncoder,
+        device: Optional[torch.device] = None,
+    ) -> None:
+        super().__init__(dataset, device=device)
+
+        self.tokenizer = tokenizer
+        self.negative_sampler = negative_sampler
+        self.entity_label_encoder = entity_label_encoder
+        self.relation_label_encoder = relation_label_encoder
 
     def _encode_entities(self, entities, tokens):
         num_tokens = sum(map(len, tokens))
@@ -189,7 +190,7 @@ class SpERTDataset(EagerEncodeMixin, Dataset):
         positive_relations = example["relations"]
         negative_entities = self.negative_sampler.sample_negative_entities(example)
 
-        if self.is_train():
+        if self.dataset.is_train():
             negative_relations = self.negative_sampler.sample_negative_relations(
                 example
             )
@@ -249,7 +250,7 @@ class SpERTDataset(EagerEncodeMixin, Dataset):
         }
 
     def collate_train(self, batch: Sequence[NerExample]) -> dict[str, torch.Tensor]:
-        assert self.is_train(), "`collate_train` must be called in train mode"
+        assert self.dataset.is_train(), "`collate_train` must be called in train mode"
 
         return self._collate_internal(collate(batch))
 
@@ -258,7 +259,9 @@ class SpERTDataset(EagerEncodeMixin, Dataset):
     ) -> Union[
         dict[str, torch.Tensor], tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]
     ]:
-        assert not self.is_train(), "`collate_train` must NOT be called in train mode"
+        assert (
+            not self.dataset.is_train()
+        ), "`collate_train` must NOT be called in train mode"
 
         positives, negatives = zip(*batch)
 

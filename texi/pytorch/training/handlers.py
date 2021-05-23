@@ -25,7 +25,7 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data.dataloader import DataLoader
 
-from texi.pytorch.dataset.dataset import Dataset, EagerEncodeMixin
+from texi.datasets import Dataset, EagerEncodeMixin
 from texi.pytorch.logger import setup_tb_logging
 from texi.pytorch.training.params import Params
 from texi.utils import ModeKeys
