@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import abc
 from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any, Optional, TypeVar, cast
 
@@ -16,7 +17,7 @@ if TYPE_CHECKING:
     from texi.datasets.dataset import Dataset
 
 
-class Collator(object):
+class Collator(object, metaclass=abc.ABCMeta):
     T = TypeVar("T", bound="Collator")
 
     def __init__(

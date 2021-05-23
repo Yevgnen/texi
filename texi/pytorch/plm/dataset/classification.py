@@ -1,18 +1,26 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import annotations
+
+from collections.abc import Sequence
+from typing import Any
+
 import torch
 from carton.collections import collate
 
-from texi.pytorch.dataset import TextDataset as _TextDataset
 from texi.pytorch.dataset import TextPairDataset as _TextPairDataset
+from texi.pytorch.plm.dataset.collator import PreTrainedCollator
 
 
-class TextDataset(_TextDataset):
-    def collate(self, batch):
+class TextClassificationCollator(PreTrainedCollator):
+    def collate_train(self, batch: Sequence) -> Any:
         collated = collate(batch)
 
         x = self.tokenizer(
-            list(collated["text"]), padding=True, truncation=True, return_tensors="pt"
+            collated["text"],
+            padding=True,
+            truncation=True,
+            return_tensors="pt",
         )
         y = torch.tensor(collated["label"], dtype=torch.int64)
 
