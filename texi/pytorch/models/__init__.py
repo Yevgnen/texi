@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from texi.pytorch.models.classification import BertForSequenceClassification
 from texi.pytorch.models.question_answering import BertForQuestionAnswering
 from texi.pytorch.models.sequence_labeling import (
     BiLstmCrf,
@@ -10,6 +11,7 @@ from texi.pytorch.models.similarity import ESIM, SiameseLSTM
 
 __all__ = [
     "BertForQuestionAnswering",
+    "BertForSequenceClassification",
     "BiLstmCrf",
     "CRFForPreTraining",
     "SequenceCrossEntropyLoss",
