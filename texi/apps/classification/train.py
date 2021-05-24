@@ -115,11 +115,7 @@ def train_step(
 ) -> dict:
     x, y = batch
 
-    logit = model(
-        x["input_ids"],
-        x["attention_mask"],
-        x["token_type_ids"],
-    )
+    logit = model(**x)
 
     loss = criteria(logit, y.float())
 
@@ -131,11 +127,7 @@ def eval_step(
 ) -> tuple[torch.Tensor, torch.Tensor]:
     x, y = batch
 
-    logit = model(
-        x["input_ids"],
-        x["attention_mask"],
-        x["token_type_ids"],
-    )
+    logit = model(**x)
 
     if logit.ndim == 1:
         y_pred = torch.sigmoid(logit.squeeze(dim=-1)).round()
