@@ -140,7 +140,7 @@ def eval_step(
     if logit.ndim == 1:
         y_pred = torch.sigmoid(logit.squeeze(dim=-1)).round()
     else:
-        y_pred = torch.argmax(dim=-1)
+        y_pred = torch.argmax(logit, dim=-1)
 
     return y_pred, y.float()
 
