@@ -18,6 +18,7 @@ from transformers import BertTokenizer, BertTokenizerFast
 
 from texi.datasets import JSONDatasets
 from texi.datasets.dataset import Dataset, Datasets
+from texi.preprocessing import LabelEncoder
 from texi.pytorch.models import BertForSequenceClassification
 from texi.pytorch.plm.dataset.classification import TextClassificationCollator
 from texi.pytorch.plm.utils import get_pretrained_optimizer_and_scheduler, plm_path
@@ -46,6 +47,7 @@ class Params(_Params):
 def get_dataflows(
     datasets: Datasets,
     tokenizer: Union[BertTokenizerFast, BertTokenizer],
+    label_encoder: LabelEncoder,
     params: Params,
 ) -> dict[str, DataLoader]:
     # `pin_memory = False` is required since `auto_dataloader` set
@@ -55,7 +57,9 @@ def get_dataflows(
         mode: get_dataloader(
             dataset,
             params[f"{Dataset.map_modekeys(mode)}_batch_size"],
-            collate_fn=TextClassificationCollator(dataset, tokenizer, idist.device()),
+            collate_fn=TextClassificationCollator(
+                dataset, tokenizer, label_encoder, idist.device()
+            ),
             num_workers=params["num_workers"],
             sort_key=lambda x: len(x["text"]),
             pin_memory=False,
@@ -144,9 +148,10 @@ def training(local_rank: int, params: Params) -> None:
     # Load datasets.
     datasets = JSONDatasets.from_dir(params.data_dir, array=True).load()
     tokenizer = BertTokenizerFast.from_pretrained(plm_path(params["pretrained_model"]))
+    label_encoder = LabelEncoder(x["label"] for x in datasets.train)
 
     # Get data dataflows.
-    dataflows = get_dataflows(datasets, tokenizer, params)
+    dataflows = get_dataflows(datasets, tokenizer, label_encoder, params)
     describe_dataflows(dataflows)
 
     # Create model.

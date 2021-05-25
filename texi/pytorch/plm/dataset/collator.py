@@ -10,6 +10,7 @@ import torch
 from ignite.utils import convert_tensor
 from transformers.tokenization_utils import PreTrainedTokenizer
 
+from texi.preprocessing import LabelEncoder
 from texi.pytorch.dataset.collator import Collator
 
 if TYPE_CHECKING:
@@ -21,10 +22,14 @@ class PreTrainedCollator(Collator, metaclass=abc.ABCMeta):
         self,
         dataset: Dataset,
         tokenizer: PreTrainedTokenizer,
+        label_encoder: Optional[LabelEncoder] = None,
         device: Optional[torch.device] = None,
     ) -> None:
         super().__init__(dataset, device=device)
         self.tokenizer = tokenizer
+        if label_encoder is None:
+            label_encoder = LabelEncoder()
+        self.label_encoder = label_encoder
 
     def collate_fn(self, batch: Sequence) -> Any:
         fn = self.collate_train if self.dataset.is_train() else self.collate_eval
