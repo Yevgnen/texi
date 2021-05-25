@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
 
 import torch
 from carton.collections import collate
@@ -13,7 +12,9 @@ from texi.pytorch.plm.dataset.collator import PreTrainedCollator
 
 
 class TextClassificationCollator(PreTrainedCollator):
-    def collate_train(self, batch: Sequence) -> Any:
+    def collate_train(
+        self, batch: Sequence
+    ) -> tuple[dict[str, torch.Tensor], torch.Tensor]:
         collated = collate(batch)
 
         x = self.tokenizer(
