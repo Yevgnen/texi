@@ -53,3 +53,7 @@ def _init():
 
 
 _init()
+
+
+def get_rnn(cell: str) -> nn.Module:
+    return globals()[cell.upper()]

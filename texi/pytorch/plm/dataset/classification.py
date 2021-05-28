@@ -3,17 +3,17 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
 
 import torch
 from carton.collections import collate
 
-from texi.pytorch.dataset import TextPairDataset as _TextPairDataset
 from texi.pytorch.plm.dataset.collator import PreTrainedCollator
 
 
 class TextClassificationCollator(PreTrainedCollator):
-    def collate_train(self, batch: Sequence) -> Any:
+    def collate_train(
+        self, batch: Sequence
+    ) -> tuple[dict[str, torch.Tensor], torch.Tensor]:
         collated = collate(batch)
 
         x = self.tokenizer(
@@ -22,13 +22,15 @@ class TextClassificationCollator(PreTrainedCollator):
             truncation=True,
             return_tensors="pt",
         )
-        y = torch.tensor(collated["label"], dtype=torch.int64)
+        y = self.label_encoder.encode(collated["label"], return_tensors="pt")
 
         return x, y
 
 
-class TextPairDataset(_TextPairDataset):
-    def collate(self, batch):
+class TextPairClassificationCollator(PreTrainedCollator):
+    def collate_train(
+        self, batch: Sequence
+    ) -> tuple[dict[str, torch.Tensor], torch.Tensor]:
         collated = collate(batch)
 
         text_pairs = list(zip(collated["sentence1"], collated["sentence2"]))
@@ -38,6 +40,6 @@ class TextPairDataset(_TextPairDataset):
             truncation=True,
             return_tensors="pt",
         )
-        y = torch.tensor(collated["label"], dtype=torch.int64)
+        y = self.label_encoder.encode(collated["label"], return_tensors="pt")
 
         return x, y
