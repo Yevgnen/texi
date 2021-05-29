@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 from transformers import BertModel
 
-from texi.pytorch.plm.utils import plm_path
+from texi.pytorch.utils import plm_path
 
 
 class BertForQuestionAnswering(nn.Module):

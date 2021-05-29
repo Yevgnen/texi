@@ -13,8 +13,8 @@ from transformers import BertModel
 
 from texi.preprocessing import LabelEncoder
 from texi.pytorch.masking import length_to_mask
-from texi.pytorch.plm.utils import plm_path
 from texi.pytorch.rnn import LSTM
+from texi.pytorch.utils import plm_path
 from texi.tagger.sequence_labeling import SequeceLabelingTagger, Tagged
 from texi.utils import ModeKeys
 

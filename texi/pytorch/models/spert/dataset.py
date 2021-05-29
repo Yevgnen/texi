@@ -14,7 +14,7 @@ from texi.datasets import Dataset
 from texi.preprocessing import LabelEncoder
 from texi.pytorch.dataset import Collator
 from texi.pytorch.masking import create_span_mask
-from texi.pytorch.plm.spert.sampler import SpERTSampler
+from texi.pytorch.models.spert.sampler import SpERTSampler
 from texi.pytorch.utils import pad_stack_1d, pad_stack_2d
 
 if TYPE_CHECKING:
