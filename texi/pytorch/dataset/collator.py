@@ -7,8 +7,6 @@ from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any, Optional, TypeVar, cast
 
 import ignite.distributed as idist
-import torch
-from ignite.utils import convert_tensor
 from torch.utils.data import DataLoader
 
 from texi.pytorch.utils import get_sampler
@@ -20,13 +18,8 @@ if TYPE_CHECKING:
 class Collator(object, metaclass=abc.ABCMeta):
     T = TypeVar("T", bound="Collator")
 
-    def __init__(
-        self,
-        dataset: Dataset,
-        device: Optional[torch.device] = None,
-    ) -> None:
+    def __init__(self, dataset: Dataset) -> None:
         self.dataset = dataset
-        self.device = device
 
     def __call__(self, batch: Sequence) -> Any:
         return self.collate_fn(batch)
@@ -45,9 +38,6 @@ class Collator(object, metaclass=abc.ABCMeta):
 
     def collate_fn(self, batch: Sequence) -> Any:
         encoded = self.encode_batch(batch)
-
-        if self.device is not None:
-            encoded = convert_tensor(encoded, device=self.device, non_blocking=True)
 
         fn = self.collate_train if self.dataset.is_train() else self.collate_eval
         collated = fn(encoded)

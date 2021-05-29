@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import itertools
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Union
 
 import torch
 from carton.collections import collate, flatten_dict
@@ -38,9 +38,8 @@ class SpERTCollator(Collator):
         tokenizer: Union[BertTokenizer, BertTokenizerFast],
         entity_label_encoder: LabelEncoder,
         relation_label_encoder: LabelEncoder,
-        device: Optional[torch.device] = None,
     ) -> None:
-        super().__init__(dataset, device=device)
+        super().__init__(dataset)
 
         self.tokenizer = tokenizer
         self.negative_sampler = negative_sampler

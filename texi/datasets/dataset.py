@@ -9,9 +9,7 @@ import os
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from typing import Any, Generic, Optional, Type, TypeVar, Union, cast
 
-import torch
 import tqdm
-from ignite.utils import convert_tensor
 
 from texi.utils import ModeKeys, PhaseMixin
 
@@ -111,7 +109,6 @@ class EagerEncodeMixin(DatasetTransformMixin):
     _mixin_attributes = ["_original_examples"]
     _mixin_transform = "eager_encode"
     _mixin_inverse_transform = "eager_decode"
-    device: Optional[torch.device]
     encode_batch: Callable
     collate_train: Callable
     collate_eval: Callable
@@ -127,9 +124,6 @@ class EagerEncodeMixin(DatasetTransformMixin):
         encoded = self.encode_batch(
             tqdm.tqdm(examples, desc="Encode batch:", ncols=0, leave=False)
         )  # type: ignore
-
-        if self.device is not None:
-            encoded = convert_tensor(encoded, device=self.device, non_blocking=True)
 
         self.examples = encoded
 

@@ -139,6 +139,7 @@ def get_dataloader(
     collate_fn: Optional[Union[Callable, Collator]] = None,
     drop_last: bool = False,
     sort_key: Callable = lambda x: x,
+    pin_memory: bool = True,
     **kwargs,
 ) -> DataLoader:
     sampler = get_sampler(
@@ -150,7 +151,11 @@ def get_dataloader(
     )
 
     dataloader = idist.auto_dataloader(
-        dataset, batch_sampler=sampler, collate_fn=collate_fn, **kwargs
+        dataset,
+        batch_sampler=sampler,
+        collate_fn=collate_fn,
+        pin_memory=pin_memory,
+        **kwargs,
     )  # type: DataLoader[Dataset]
 
     return dataloader

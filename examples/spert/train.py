@@ -43,9 +43,6 @@ def get_dataflows(
     relation_label_encoder: LabelEncoder,
     params: SpERTParams,
 ) -> dict[str, DataLoader]:
-    # `pin_memory = False` is required since `auto_dataloader` set
-    # `pin_memory` to True by default, but we have moved tensors to GPU
-    # by passing `device` to Dataset.
     negative_sampler = SpERTSampler(
         num_negative_entities=params["num_negative_entities"],
         num_negative_relations=params["num_negative_relations"],
@@ -65,10 +62,9 @@ def get_dataflows(
                 tokenizer,
                 entity_label_encoder,
                 relation_label_encoder,
-                idist.device(),
             ),
             sort_key=lambda x: len(x["tokens"]),
-            pin_memory=False,
+            pin_memory=params["pin_memory"],
             num_workers=params["num_workers"],
         )
         dataflows[mode] = dataflow

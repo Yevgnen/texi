@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Optional
 
 import torch
 from torchnlp.encoders.text import stack_and_pad_tensors
@@ -20,9 +19,8 @@ class TextClassificationCollator(Collator):
         dataset: Dataset,
         tokenizer: Callable,
         label_encoder: LabelEncoder,
-        device: Optional[torch.device] = None,
     ) -> None:
-        super().__init__(dataset, device=device)
+        super().__init__(dataset)
         self.tokenizer = tokenizer
         self.label_encoder = label_encoder
 

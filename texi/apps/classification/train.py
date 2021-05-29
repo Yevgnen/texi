@@ -50,19 +50,14 @@ def get_dataflows(
     label_encoder: LabelEncoder,
     params: Params,
 ) -> dict[str, DataLoader]:
-    # `pin_memory = False` is required since `auto_dataloader` set
-    # `pin_memory` to True by default, but we have moved tensors to GPU
-    # by passing `device` to Dataset.
     dataflows = {
         mode: get_dataloader(
             dataset,
             params[f"{Dataset.map_modekeys(mode)}_batch_size"],
-            collate_fn=TextClassificationCollator(
-                dataset, tokenizer, label_encoder, idist.device()
-            ),
+            collate_fn=TextClassificationCollator(dataset, tokenizer, label_encoder),
             num_workers=params["num_workers"],
             sort_key=lambda x: len(x["text"]),
-            pin_memory=False,
+            pin_memory=params["pin_memory"],
         )
         for mode, dataset in datasets.items()
     }
