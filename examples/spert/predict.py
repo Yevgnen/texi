@@ -21,9 +21,9 @@ from texi.apps.ner import split_example
 from texi.apps.ner.utils import merge_examples
 from texi.datasets.dataset import Dataset
 from texi.preprocessing import LabelEncoder
-from texi.pytorch.plm.spert import SpERT, SpERTParams
-from texi.pytorch.plm.spert.prediction import predict as predict_relations
-from texi.pytorch.plm.spert.training import eval_step
+from texi.pytorch.models.spert import SpERT, SpERTParams
+from texi.pytorch.models.spert.prediction import predict as predict_relations
+from texi.pytorch.models.spert.training import eval_step
 from texi.pytorch.plm.utils import plm_path
 from texi.pytorch.training.training import create_evaluator, run
 from texi.pytorch.utils import load_checkpoint

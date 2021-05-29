@@ -7,7 +7,7 @@ import torch
 from transformers import BertTokenizer
 
 from texi.preprocessing import LabelEncoder
-from texi.pytorch.plm.spert import SpERTDataset
+from texi.pytorch.models.spert import SpERTDataset
 from texi.pytorch.plm.utils import plm_path
 
 

@@ -15,7 +15,7 @@ from transformers import AdamW, BertTokenizer, BertTokenizerFast
 from texi.apps.ner import SpERTVisualizer, encode_labels, split_example
 from texi.datasets.dataset import Dataset, Datasets
 from texi.preprocessing import LabelEncoder
-from texi.pytorch.plm.spert import (
+from texi.pytorch.models.spert import (
     SpERT,
     SpERTDataset,
     SpERTEnv,
@@ -24,8 +24,8 @@ from texi.pytorch.plm.spert import (
     SpERTParams,
     SpERTSampler,
 )
-from texi.pytorch.plm.spert.dataset import SpERTCollator
-from texi.pytorch.plm.spert.training import eval_step, train_step
+from texi.pytorch.models.spert.dataset import SpERTCollator
+from texi.pytorch.models.spert.training import eval_step, train_step
 from texi.pytorch.plm.utils import get_pretrained_optimizer_and_scheduler, plm_path
 from texi.pytorch.training.training import (
     create_engines,

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import texi.pytorch.models.spert
 from texi.pytorch.models.classification import BertForSequenceClassification
 from texi.pytorch.models.question_answering import BertForQuestionAnswering
 from texi.pytorch.models.sequence_labeling import (

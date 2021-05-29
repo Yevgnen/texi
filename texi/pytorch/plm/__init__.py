@@ -2,5 +2,4 @@
 
 import texi.pytorch.plm.dataset
 import texi.pytorch.plm.pooling
-import texi.pytorch.plm.spert
 import texi.pytorch.plm.utils

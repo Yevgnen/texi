@@ -21,7 +21,7 @@ from texi.apps.ner import (
 )
 from texi.preprocessing import LabelEncoder
 from texi.pytorch.metrics import NerMetrics, ReMetrics
-from texi.pytorch.plm.spert import predict
+from texi.pytorch.models.spert import predict
 from texi.pytorch.training.params import Params
 from texi.pytorch.training.training import Metrics
 
@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from ignite.contrib.handlers import WandBLogger
     from transformers import BertTokenizer, BertTokenizerFast
 
-    from texi.pytorch.plm.spert.model import SpERT
+    from texi.pytorch.models.spert.model import SpERT
 
 
 class SpERTParams(Params):
