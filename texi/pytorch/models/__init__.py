@@ -8,6 +8,7 @@ from texi.pytorch.models.sequence_labeling import (
     SequenceCrossEntropyLoss,
 )
 from texi.pytorch.models.similarity import ESIM, SiameseLSTM
+from texi.pytorch.models.text_matching import SBertBiEncoder, SBertForClassification
 
 __all__ = [
     "BertForQuestionAnswering",
@@ -17,4 +18,6 @@ __all__ = [
     "SequenceCrossEntropyLoss",
     "ESIM",
     "SiameseLSTM",
+    "SBertBiEncoder",
+    "SBertForClassification",
 ]
