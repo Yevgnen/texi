@@ -90,3 +90,37 @@ class SBertForClassification(nn.Module):
             logit = logit.squeeze(dim=-1)
 
         return logit
+
+
+class SBertForRegression(nn.Module):
+    def __init__(
+        self,
+        bert: Union[BertModel, str],
+        pooling: str = "mean",
+    ) -> None:
+        super().__init__()
+        self.sbert_encoder = SBertBiEncoder(bert, pooling=pooling)
+        self.cosine_similarity = nn.CosineSimilarity()
+
+    def forward(
+        self,
+        input_ids: torch.LongTensor,
+        attention_mask: torch.LongTensor,
+        token_type_ids: torch.LongTensor,
+    ) -> torch.Tensor:
+        def _check_size(t):
+            if t.ndim != 3 or t.size()[0] != 2:
+                raise ValueError(
+                    "Input tensor should have size: [2, batch_size, max_length]"
+                )
+
+        _check_size(input_ids)
+        _check_size(attention_mask)
+        _check_size(token_type_ids)
+
+        hidden = self.sbert_encoder(input_ids, attention_mask, token_type_ids)
+
+        u, v = hidden
+        score = self.cosine_similarity(u, v)
+
+        return score
