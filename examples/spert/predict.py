@@ -16,16 +16,17 @@ from ignite.engine.engine import Engine
 from ignite.engine.events import Events
 from transformers import BertTokenizerFast
 
-from examples.spert.train import get_dataset
 from texi.apps.ner import split_example
 from texi.apps.ner.utils import merge_examples
 from texi.datasets.dataset import Dataset
 from texi.preprocessing import LabelEncoder
 from texi.pytorch.models.spert import SpERT, SpERTParams
+from texi.pytorch.models.spert.dataset import SpERTCollator, SpERTDataset
 from texi.pytorch.models.spert.prediction import predict as predict_relations
+from texi.pytorch.models.spert.sampler import SpERTSampler
 from texi.pytorch.models.spert.training import eval_step
 from texi.pytorch.training.training import create_evaluator, run
-from texi.pytorch.utils import load_checkpoint, plm_path
+from texi.pytorch.utils import get_dataloader, load_checkpoint, plm_path
 
 
 def add_dummy_labels(x: MutableMapping) -> dict:
@@ -96,8 +97,9 @@ def predict(
     checkpoint: Path,
 ) -> None:
     # Load datasets.
-    dataset = Dataset.from_json_iter(test_file, array=True).load()
+    dataset = SpERTDataset.from_json_iter(test_file, array=True).load()
     dataset.map(add_dummy_labels)
+    dataset.eval()
 
     if params.split_delimiter:
         dataset.split(
@@ -119,17 +121,26 @@ def predict(
         int, relation_label_encoder.encode_label(params["negative_relation_type"])
     )
 
-    # Get data dataflows.
-    th_dataset = get_dataset(
+    # Get data dataflow.
+    negative_sampler = SpERTSampler(
+        num_negative_entities=params["num_negative_entities"],
+        num_negative_relations=params["num_negative_relations"],
+        max_entity_length=params["max_entity_length"],
+        negative_entity_type=params["negative_entity_type"],
+        negative_relation_type=params["negative_relation_type"],
+    )
+    dataflow = get_dataloader(
         dataset,
-        tokenizer,
-        entity_label_encoder,
-        relation_label_encoder,
-        params,
-        train=False,
-    )  # type: ignore
-    dataflow = th_dataset.get_dataloader(
-        params["eval_batch_size"], num_workers=params["num_workers"], pin_memory=False
+        collate_fn=SpERTCollator(
+            dataset,
+            negative_sampler,
+            tokenizer,
+            entity_label_encoder,
+            relation_label_encoder,
+        ),
+        batch_size=params["predict_batch_size"],
+        num_workers=params["num_workers"],
+        pin_memory=True,
     )
 
     # Create model.
