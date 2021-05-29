@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 from transformers import BertModel
 
-from texi.pytorch.plm.pooling import get_pooling
+from texi.pytorch.pooling import get_pooling
 from texi.pytorch.utils import plm_path
 
 
