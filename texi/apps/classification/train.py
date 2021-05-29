@@ -21,7 +21,6 @@ from texi.datasets.dataset import Dataset, Datasets
 from texi.preprocessing import LabelEncoder
 from texi.pytorch.models import BertForSequenceClassification
 from texi.pytorch.plm.dataset.classification import TextClassificationCollator
-from texi.pytorch.plm.utils import get_pretrained_optimizer_and_scheduler, plm_path
 from texi.pytorch.training.params import Params as _Params
 from texi.pytorch.training.training import (
     create_engines,
@@ -29,7 +28,11 @@ from texi.pytorch.training.training import (
     run,
     setup_env,
 )
-from texi.pytorch.utils import get_dataloader
+from texi.pytorch.utils import (
+    get_dataloader,
+    get_pretrained_optimizer_and_scheduler,
+    plm_path,
+)
 
 
 class Params(_Params):

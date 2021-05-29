@@ -9,8 +9,8 @@ import torch.nn as nn
 from transformers import BertModel
 
 from texi.pytorch.plm.pooling import get_pooling
-from texi.pytorch.plm.utils import plm_path
 from texi.pytorch.rnn import get_rnn
+from texi.pytorch.utils import plm_path
 
 
 class TextRNN(nn.Module):

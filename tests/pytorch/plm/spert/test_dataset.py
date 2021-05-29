@@ -8,7 +8,7 @@ from transformers import BertTokenizer
 
 from texi.preprocessing import LabelEncoder
 from texi.pytorch.models.spert import SpERTDataset
-from texi.pytorch.plm.utils import plm_path
+from texi.pytorch.utils import plm_path
 
 
 class TestSpERTDataset(unittest.TestCase):

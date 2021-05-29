@@ -24,9 +24,8 @@ from texi.preprocessing import LabelEncoder
 from texi.pytorch.models.spert import SpERT, SpERTParams
 from texi.pytorch.models.spert.prediction import predict as predict_relations
 from texi.pytorch.models.spert.training import eval_step
-from texi.pytorch.plm.utils import plm_path
 from texi.pytorch.training.training import create_evaluator, run
-from texi.pytorch.utils import load_checkpoint
+from texi.pytorch.utils import load_checkpoint, plm_path
 
 
 def add_dummy_labels(x: MutableMapping) -> dict:

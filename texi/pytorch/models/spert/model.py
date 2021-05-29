@@ -10,8 +10,7 @@ from transformers import BertModel
 
 from texi.pytorch.masking import create_span_mask
 from texi.pytorch.plm.pooling import get_pooling
-from texi.pytorch.plm.utils import plm_path
-from texi.pytorch.utils import split_apply
+from texi.pytorch.utils import plm_path, split_apply
 
 
 class SpERT(nn.Module):

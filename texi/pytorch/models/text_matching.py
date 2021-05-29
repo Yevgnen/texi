@@ -7,7 +7,7 @@ import torch.nn as nn
 from transformers import BertModel
 
 from texi.pytorch.plm.pooling import get_pooling
-from texi.pytorch.plm.utils import plm_path
+from texi.pytorch.utils import plm_path
 
 
 class SBertBiEncoder(nn.Module):
