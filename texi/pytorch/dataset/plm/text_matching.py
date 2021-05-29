@@ -11,7 +11,7 @@ from carton.collections import collate
 from transformers.tokenization_utils import PreTrainedTokenizer
 
 from texi.preprocessing import LabelEncoder
-from texi.pytorch.plm.dataset.collator import PreTrainedCollator
+from texi.pytorch.dataset.plm.collator import PreTrainedCollator
 
 if TYPE_CHECKING:
     from texi.datasets.dataset import Dataset

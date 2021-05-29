@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import texi.pytorch.dataset.plm
 from texi.datasets import Dataset
 from texi.pytorch.dataset.classification import (
     TextClassificationCollator,

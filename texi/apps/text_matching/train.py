@@ -19,8 +19,8 @@ from transformers import BertTokenizer, BertTokenizerFast
 from texi.datasets import JSONDatasets
 from texi.datasets.dataset import Dataset, Datasets
 from texi.preprocessing import LabelEncoder
+from texi.pytorch.dataset.plm.text_matching import TextMatchingCollator
 from texi.pytorch.models.text_matching import SBertForClassification, SBertForRegression
-from texi.pytorch.plm.dataset.text_matching import TextMatchingCollator
 from texi.pytorch.training.params import Params as _Params
 from texi.pytorch.training.training import (
     create_engines,

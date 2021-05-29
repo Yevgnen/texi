@@ -7,7 +7,7 @@ from collections.abc import Sequence
 import torch
 from carton.collections import collate
 
-from texi.pytorch.plm.dataset.collator import PreTrainedCollator
+from texi.pytorch.dataset.plm.collator import PreTrainedCollator
 
 
 class TextClassificationCollator(PreTrainedCollator):
