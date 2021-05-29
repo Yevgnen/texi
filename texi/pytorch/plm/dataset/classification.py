@@ -25,21 +25,3 @@ class TextClassificationCollator(PreTrainedCollator):
         y = self.label_encoder.encode(collated["label"], return_tensors="pt")
 
         return x, y
-
-
-class TextPairClassificationCollator(PreTrainedCollator):
-    def collate_train(
-        self, batch: Sequence
-    ) -> tuple[dict[str, torch.Tensor], torch.Tensor]:
-        collated = collate(batch)
-
-        text_pairs = list(zip(collated["sentence1"], collated["sentence2"]))
-        x = self.tokenizer(
-            text_pairs,
-            padding=True,
-            truncation=True,
-            return_tensors="pt",
-        )
-        y = self.label_encoder.encode(collated["label"], return_tensors="pt")
-
-        return x, y
