@@ -9,7 +9,12 @@ from texi.pytorch.dataset.classification import (
 )
 from texi.pytorch.dataset.collator import Collator
 from texi.pytorch.dataset.question_answering import QuestionAnsweringDataset
-from texi.pytorch.dataset.sampler import BucketBatchSampler, BucketIterableDataset
+from texi.pytorch.dataset.sampler import (
+    BucketBatchSampler,
+    BucketIterableDataset,
+    bucket_batch_sampler,
+    bucket_iterator_dataset,
+)
 
 __all__ = [
     "Collator",
@@ -19,4 +24,6 @@ __all__ = [
     "QuestionAnsweringDataset",
     "BucketIterableDataset",
     "BucketBatchSampler",
+    "bucket_batch_sampler",
+    "bucket_iterator_dataset",
 ]
