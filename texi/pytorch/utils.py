@@ -5,7 +5,7 @@ from __future__ import annotations
 import inspect
 import os
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from typing import TYPE_CHECKING, Optional, Union, cast
+from typing import TYPE_CHECKING, Optional, Union
 
 import ignite.distributed as idist
 import torch
@@ -18,7 +18,7 @@ from torch.utils.data.dataset import IterableDataset
 from torch.utils.data.sampler import Sampler
 from transformers.optimization import AdamW, get_linear_schedule_with_warmup
 
-from texi.datasets.dataset import Dataset, Datasets
+from texi.datasets.dataset import Dataset
 
 if TYPE_CHECKING:
     from texi.pytorch.dataset import Collator
@@ -145,55 +145,6 @@ def get_dataloader(
     dataloader = idist.auto_dataloader(dataset, **kwargs)  # type: DataLoader[Dataset]
 
     return dataloader
-
-
-def get_dataloaders(
-    datasets: Union[Datasets, Mapping[str, Dataset]],
-    train_batch_size: Optional[int] = None,
-    eval_batch_size: Optional[int] = None,
-    batch_size: Optional[int] = None,
-    drop_last: bool = False,  # NOTE: For `train` only.
-    **kwargs,
-) -> dict[str, DataLoader]:
-    # 1. Train dataset has individual batch size.
-    # 2. `drop_last` will alwarys be False for val and test datasets.
-    # 3. `sort_key` is passed only in train dataset.
-
-    if (train_batch_size is None or eval_batch_size is None) and batch_size is None:
-        raise ValueError(
-            "`batch_size` must not be None"
-            " if `train_batch_size` or `eval_batch_size` is None"
-        )
-
-    if train_batch_size is None:
-        train_batch_size = cast(int, batch_size)
-
-    if eval_batch_size is None:
-        eval_batch_size = cast(int, batch_size)
-
-    batch_sizes = {
-        "train": train_batch_size,
-        "val": eval_batch_size,
-        "test": eval_batch_size,
-    }
-
-    loaders = {}
-    for mode, dataset in datasets.items():
-        if mode == "train":
-            loader = get_dataloader(
-                dataset,
-                batch_size=batch_sizes[mode],
-                drop_last=drop_last,
-                **kwargs,
-            )
-        else:
-            loader = get_dataloader(
-                dataset, batch_size=batch_sizes[mode], drop_last=False, **kwargs
-            )
-
-        loaders[mode] = loader
-
-    return loaders
 
 
 def get_default_arguments(f: Callable) -> dict:
