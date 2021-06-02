@@ -126,13 +126,16 @@ class BucketIterableDataset(IterableDataset):
 
 
 def bucket_iterator_dataset(
-    iterator: Iterable,
+    iterator: Union[Iterable, Callable],
     batch_size: int,
     sort_key: Callable = _identity,
     batch_size_multiplier: int = 100,
 ) -> BucketIterableDataset:
+    if callable(iterator):
+        iterator = cast(Iterable, iterator())
+
     return BucketIterableDataset(
-        iterator=lambda: itertools.islice(
+        iterator=itertools.islice(
             iterator, idist.get_rank(), None, idist.get_world_size()
         ),
         batch_size=batch_size,
