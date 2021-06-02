@@ -150,12 +150,16 @@ def get_dataloader(
                     drop_last=False,
                     sort_key=sort_key,
                 )
+
+                # When `batch_sampler` is given, `batch_size` must be 1
+                # when initializing `DataLoader`.
                 kwargs["batch_size"] = 1
                 kwargs["batch_sampler"] = batch_sampler
 
             elif sampler is None:
-                if not isinstance(dataset, IterableDataset):
-                    sampler = get_sampler(dataset, dataset.is_train())
+                # `sampler` will be wrapped in `idist.auto_dataloader`,
+                # so we dont' need `batch_sampler`.
+                sampler = get_sampler(dataset, dataset.is_train())
 
     kwargs.update(
         {
