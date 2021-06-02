@@ -5,7 +5,7 @@ from __future__ import annotations
 import inspect
 import os
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from texi.pytorch.dataset.sampler import bucket_batch_sampler
+from texi.pytorch.dataset.sampler import bucket_batch_sampler, bucket_iterator_dataset
 from typing import TYPE_CHECKING, Optional, Union
 
 import ignite.distributed as idist
@@ -135,7 +135,13 @@ def get_dataloader(
     sort_key: Optional[Callable] = None,
     **kwargs,
 ) -> DataLoader:
-    if batch_sampler is None:
+    if isinstance(dataset, IterableDataset):
+        if sort_key is not None:
+            dataset = bucket_iterator_dataset(
+                dataset, kwargs["batch_size"], sort_key=sort_key
+            )  # type: ignore
+
+    elif batch_sampler is None:
         if sort_key is not None:
             batch_sampler = bucket_batch_sampler(
                 dataset,  # type: ignore
