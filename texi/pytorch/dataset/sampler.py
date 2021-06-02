@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import itertools
 from collections.abc import Callable, Iterable
-from typing import Optional, Union, cast
+from typing import Optional, cast
 
 import ignite.distributed as idist
 import torch
 from ignite.distributed.auto import DistributedProxySampler
-from torch.utils.data import BatchSampler, Dataset, IterableDataset
+from torch.utils.data import BatchSampler, Dataset
+from torch.utils.data import IterableDataset as _IterableDataset
 from torch.utils.data.sampler import RandomSampler, Sampler
 
 
@@ -82,63 +83,64 @@ def bucket_batch_sampler(
     )
 
 
+class IterableDataset(_IterableDataset):
+    def __init__(
+        self,
+        generating_function: Callable,
+        batch_size: int,
+        world_size: Optional[int] = None,
+        rank: Optional[int] = None,
+    ) -> None:
+        super().__init__()
+        self.generating_function = generating_function
+        self.batch_size = batch_size
+        if ((rank is None) + (world_size is None)) % 2 != 0:
+            raise ValueError("`rank` and `world_size` must both given or unspecified")
+        self.world_size = world_size
+        self.rank = rank
+
+    def _get_iterator(self):
+        # Generate new iterator.
+        iterator = self.generating_function()
+
+        # Deal with `DistributedDataParallel`.
+        if self.world_size is not None and self.rank is not None:
+            iterator = itertools.islice(iterator, self.rank, None, self.world_size)
+
+        # Deal with `num_workers` > 1 of `DataLoader`.
+        worker_info = torch.utils.data.get_worker_info()
+        if worker_info is not None:
+            iterator = itertools.islice(
+                iterator, worker_info.id, None, worker_info.num_workers
+            )
+
+        return iterator
+
+    def __getitem__(self, index):
+        raise RuntimeError("`IterableDataset` does not support indexing")
+
+
 class BucketIterableDataset(IterableDataset):
     def __init__(
         self,
-        iterator: Union[Iterable, Callable],
+        generating_function: Callable,
         batch_size: int,
+        world_size: Optional[int] = None,
+        rank: Optional[int] = None,
         sort_key: Callable = _identity,
         batch_size_multiplier: int = 100,
     ) -> None:
-        super().__init__()
-        self.iterator = iterator
-        self.batch_size = batch_size
+        super().__init__(
+            generating_function, batch_size, world_size=world_size, rank=rank
+        )
         self.bucket_size = batch_size_multiplier * batch_size
         self.sort_key = sort_key
 
     def __iter__(self):
-        if callable(self.iterator):
-            iterator = self.iterator()
-        else:
-            iterator = self.iterator
+        iterator = self._get_iterator()
 
-        worker_info = torch.utils.data.get_worker_info()
-        if worker_info is None:
-            bucket = list(itertools.islice(iterator, 0, self.bucket_size))
-        else:
-            bucket = list(
-                itertools.islice(
-                    iterator,
-                    worker_info.id,
-                    self.bucket_size,
-                    worker_info.num_workers,
-                )
-            )
-
-        if bucket:
+        while bucket := list(itertools.islice(iterator, None, self.bucket_size)):
             bucket.sort(key=self.sort_key)
 
             for batch in _random_access_bucket(bucket, self.batch_size, False):
                 yield from batch
-
-    def __getitem__(self, index):
-        raise NotImplementedError()
-
-
-def bucket_iterator_dataset(
-    iterator: Union[Iterable, Callable],
-    batch_size: int,
-    sort_key: Callable = _identity,
-    batch_size_multiplier: int = 100,
-) -> BucketIterableDataset:
-    if callable(iterator):
-        iterator = cast(Iterable, iterator())
-
-    return BucketIterableDataset(
-        iterator=itertools.islice(
-            iterator, idist.get_rank(), None, idist.get_world_size()
-        ),
-        batch_size=batch_size,
-        sort_key=sort_key,
-        batch_size_multiplier=batch_size_multiplier,
-    )

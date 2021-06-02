@@ -12,8 +12,8 @@ from texi.pytorch.dataset.question_answering import QuestionAnsweringDataset
 from texi.pytorch.dataset.sampler import (
     BucketBatchSampler,
     BucketIterableDataset,
+    IterableDataset,
     bucket_batch_sampler,
-    bucket_iterator_dataset,
 )
 
 __all__ = [
@@ -25,5 +25,5 @@ __all__ = [
     "BucketIterableDataset",
     "BucketBatchSampler",
     "bucket_batch_sampler",
-    "bucket_iterator_dataset",
+    "IterableDataset",
 ]
