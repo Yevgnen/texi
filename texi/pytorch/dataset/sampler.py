@@ -5,7 +5,7 @@ from __future__ import annotations
 import itertools
 import random
 from collections.abc import Callable, Iterable
-from typing import Optional
+from typing import Optional, Union
 
 import ignite.distributed as idist
 import torch
@@ -84,7 +84,7 @@ def bucket_batch_sampler(
 class BucketIterableDataset(IterableDataset):
     def __init__(
         self,
-        iterator: Iterable,
+        iterator: Union[Iterable, Callable],
         batch_size: int,
         sort_key: Callable = _identity,
         batch_size_multiplier: int = 100,
@@ -96,13 +96,18 @@ class BucketIterableDataset(IterableDataset):
         self.sort_key = sort_key
 
     def __iter__(self):
+        if callable(self.iterator):
+            iterator = self.iterator()
+        else:
+            iterator = self.iterator
+
         worker_info = torch.utils.data.get_worker_info()
         if worker_info is None:
-            bucket = list(itertools.islice(self.iterator, 0, self.bucket_size))
+            bucket = list(itertools.islice(iterator, 0, self.bucket_size))
         else:
             bucket = list(
                 itertools.islice(
-                    self.iterator,
+                    iterator,
                     worker_info.id,
                     self.bucket_size,
                     worker_info.num_workers,
@@ -119,27 +124,16 @@ class BucketIterableDataset(IterableDataset):
         raise NotImplementedError()
 
 
-def _get_local_slice(iterator, world_size=None, rank=None):
-    if ((rank is None) + (world_size is None)) % 2 != 0:
-        raise ValueError("`rank` and `world_size` must both given or unspecified")
-    if world_size is not None:
-        iterator = itertools.islice(iterator, rank, None, world_size)
-
-    return iterator
-
-
 def bucket_iterator_dataset(
     iterator: Iterable,
     batch_size: int,
     sort_key: Callable = _identity,
     batch_size_multiplier: int = 100,
 ) -> BucketIterableDataset:
-    iterator = _get_local_slice(
-        iterator, world_size=idist.get_world_size(), rank=idist.get_rank()
-    )
-
     return BucketIterableDataset(
-        iterator=iterator,
+        iterator=lambda: itertools.islice(
+            iterator, idist.get_rank(), None, idist.get_world_size()
+        ),
         batch_size=batch_size,
         sort_key=sort_key,
         batch_size_multiplier=batch_size_multiplier,
