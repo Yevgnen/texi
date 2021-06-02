@@ -112,7 +112,8 @@ class BucketIterableDataset(IterableDataset):
         if bucket:
             bucket.sort(key=self.sort_key)
 
-            yield from _random_access_bucket(bucket, self.batch_size, False)
+            for batch in _random_access_bucket(bucket, self.batch_size, False):
+                yield from batch
 
     def __getitem__(self, index):
         raise NotImplementedError()
