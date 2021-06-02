@@ -10,8 +10,8 @@ from typing import Optional
 import ignite.distributed as idist
 import torch
 from ignite.distributed.auto import DistributedProxySampler
-from torch.utils.data import BatchSampler, IterableDataset
-from torch.utils.data.sampler import Sampler
+from torch.utils.data import BatchSampler, Dataset, IterableDataset
+from torch.utils.data.sampler import RandomSampler, Sampler
 
 
 def _identity(x):
@@ -37,6 +37,7 @@ def _random_access_bucket(
 class BucketBatchSampler(BatchSampler):
     def __init__(
         self,
+        dataset: Dataset,
         sampler: Sampler,
         batch_size: int,
         drop_last: bool,
@@ -45,6 +46,7 @@ class BucketBatchSampler(BatchSampler):
     ) -> None:
         super().__init__(sampler, batch_size, drop_last)
 
+        self.dataset = dataset
         self.bucket_size = min(
             batch_size_multiplier * batch_size, len(sampler)  # type: ignore
         )
@@ -53,13 +55,13 @@ class BucketBatchSampler(BatchSampler):
 
     def __iter__(self):
         for bucket in self.batch_sampler:
-            bucket.sort(key=self.sort_key)
+            bucket.sort(key=lambda i: self.sort_key(self.dataset[i]))
 
             yield from _random_access_bucket(bucket, self.batch_size, self.drop_last)
 
 
 def bucket_batch_sampler(
-    sampler: Sampler,
+    dataset: Dataset,
     batch_size: int,
     drop_last: bool,
     sort_key: Callable = _identity,
@@ -67,7 +69,8 @@ def bucket_batch_sampler(
 ) -> DistributedProxySampler:
     return DistributedProxySampler(
         BucketBatchSampler(
-            sampler,
+            dataset,
+            RandomSampler(range(len(dataset))),  # type: ignore
             batch_size,
             drop_last,
             sort_key=sort_key,
