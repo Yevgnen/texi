@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import inspect
 import os
+import warnings
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from typing import TYPE_CHECKING, Optional, Union
 
@@ -138,6 +139,11 @@ def get_dataloader(
     if not isinstance(dataset, IterableDataset):
         if batch_sampler is None:
             if sort_key is not None:
+                if dataset.is_train():
+                    warnings.warn(
+                        "`sort_key` is given when `dataset.is_train()` is False"
+                    )
+
                 batch_sampler = bucket_batch_sampler(
                     dataset,  # type: ignore
                     kwargs["batch_size"],
