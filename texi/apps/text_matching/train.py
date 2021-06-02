@@ -54,10 +54,12 @@ def get_dataflows(
     dataflows = {
         mode: get_dataloader(
             dataset,
-            params[f"{Dataset.map_modekeys(mode)}_batch_size"],
+            batch_size=params[f"{Dataset.map_modekeys(mode)}_batch_size"],
             collate_fn=TextMatchingCollator(dataset, tokenizer, label_encoder),
+            sort_key=(lambda x: sum(len(xi) for xi in x["texts"]))
+            if mode == "train"
+            else None,
             num_workers=params["num_workers"],
-            sort_key=lambda x: sum(len(xi) for xi in x["texts"]),
             pin_memory=params["pin_memory"],
         )
         for mode, dataset in datasets.items()

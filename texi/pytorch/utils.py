@@ -5,6 +5,7 @@ from __future__ import annotations
 import inspect
 import os
 from collections.abc import Callable, Iterable, Mapping, Sequence
+from texi.pytorch.dataset.sampler import bucket_batch_sampler
 from typing import TYPE_CHECKING, Optional, Union
 
 import ignite.distributed as idist
@@ -131,16 +132,30 @@ def get_dataloader(
     collate_fn: Optional[Union[Callable, Collator]] = None,
     sampler: Optional[Sampler] = None,
     batch_sampler: Optional[Sampler] = None,
+    sort_key: Optional[Callable] = None,
     **kwargs,
 ) -> DataLoader:
     if batch_sampler is None:
-        if sampler is None:
+        if sort_key is not None:
+            batch_sampler = bucket_batch_sampler(
+                dataset,  # type: ignore
+                kwargs["batch_size"],
+                drop_last=False,
+                sort_key=sort_key,
+            )
+            kwargs["batch_size"] = 1
+            kwargs["batch_sampler"] = batch_sampler
+
+        elif sampler is None:
             if not isinstance(dataset, IterableDataset):
                 sampler = get_sampler(dataset, dataset.is_train())
-    else:
-        kwargs.update({"batch_sampler": batch_sampler})
 
-    kwargs.update({"collate_fn": collate_fn, "sampler": sampler})
+    kwargs.update(
+        {
+            "collate_fn": collate_fn,
+            "sampler": sampler,
+        }
+    )
 
     dataloader = idist.auto_dataloader(dataset, **kwargs)  # type: DataLoader[Dataset]
 
