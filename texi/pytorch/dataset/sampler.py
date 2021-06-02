@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import itertools
-import random
 from collections.abc import Callable, Iterable
-from typing import Optional, Union
+from typing import Optional, Union, cast
 
 import ignite.distributed as idist
 import torch
@@ -28,7 +27,9 @@ def _random_access_bucket(
                 yield bucket
             bucket = []
         else:
-            start = random.randint(0, size - batch_size)
+            # NOTE: Use `torch.randint` becasue
+            # `DistributedProxySampler` use `torch.manual_seed`.
+            start = cast(int, torch.randint(0, size - batch_size, size=(1,)).item())
             end = start + batch_size
             yield bucket[start:end]
             bucket = bucket[:start] + bucket[end:]
