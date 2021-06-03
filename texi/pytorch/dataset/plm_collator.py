@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import abc
 import itertools
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any, Optional
 
 import torch
@@ -90,3 +90,93 @@ class TextMatchingCollator(PreTrainedCollator):
         y = self.label_encoder.encode(collated["label"], return_tensors="pt")
 
         return x, y
+
+
+class MaskedLMCollator(PreTrainedCollator):
+    def __init__(
+        self,
+        tokenizer: PreTrainedTokenizer,
+        mlm_probability: float = 0.15,
+        mode: ModeKeys = ModeKeys.TRAIN,
+    ) -> None:
+        super().__init__(tokenizer=tokenizer, mode=mode)
+        self.mlm_probability = torch.tensor(mlm_probability)
+
+    def _whole_word_mask(self, words, tokens):
+        # Create MLM mask with `self.mlm_probability`.
+        special_token_mask = torch.tensor(
+            [token in self.tokenizer.all_special_tokens for token in tokens]
+        )
+        prob = torch.full((len(tokens),), self.mlm_probability)
+        prob.masked_fill_(special_token_mask, 0)
+        mlm_mask = torch.bernoulli(prob).bool()
+
+        num_tokens = (~special_token_mask).sum()
+        num_masked_tokens = int(self.mlm_probability * num_tokens)
+
+        word_iter = iter(words)
+        i = 0
+
+        # Loop all token pieces until we have masked enough tokens.
+        while i < len(tokens) and num_masked_tokens > 0:
+            token = tokens[i]
+
+            # Don't mask special tokens.
+            if token in self.tokenizer.all_special_tokens:
+                i += 1
+                continue
+
+            # When we find a new word,
+            if not token.startswith("##"):
+                word = next(word_iter)
+
+                selected = mlm_mask[i]
+                j = 1
+
+                # if it is not a single-piece word, we need to find all
+                # pieces of it and check if any piece is selected to be
+                # masked.
+                if [token] != self.tokenizer.basic_tokenizer.tokenize(word):
+
+                    # if the word is split into piece with explicit markers
+                    while j < len(word) and tokens[i + j].startswith("##"):
+                        selected |= mlm_mask[i + j]
+                        j += 1
+
+                    # or it is split simply by chars
+                    if j == 1:
+                        while j < len(word):
+                            selected |= mlm_mask[i + j]
+                            j += 1
+
+                # Mask all piece of current word.
+                if selected:
+                    mlm_mask[i : i + j] = True
+
+                    # Break if we have masked enough tokens.
+                    num_masked_tokens -= j
+                    if num_masked_tokens <= 0:
+                        mlm_mask[i + j :] = False
+                        break
+
+                i += j
+
+        # We may break early if `num_masked_tokens` <= 0, otherwise we
+        # should have looped over all the words.
+        assert num_masked_tokens <= 0 or next(word_iter, None) is None
+
+        return mlm_mask
+
+    def collate_train(self, batch: Sequence[Mapping]) -> Any:
+        collated = collate(batch)
+
+        input_ = self.tokenizer(
+            collated,
+            is_split_into_words=True,
+            add_special_tokens=True,
+            padding=True,
+            truncation=True,
+        )
+        label = input_.clone()
+
+        return input_, label
