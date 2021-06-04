@@ -66,7 +66,7 @@ def get_dataflows(
                 entity_label_encoder,
                 relation_label_encoder,
             ),
-            sort_key=lambda x: len(x["tokens"]),
+            sort_key=(lambda x: len(x["tokens"])) if mode == "train" else None,
             pin_memory=params["pin_memory"],
             num_workers=params["num_workers"],
         )

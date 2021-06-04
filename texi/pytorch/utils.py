@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import inspect
 import os
+import warnings
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from typing import TYPE_CHECKING, Optional, Union, cast
+from typing import TYPE_CHECKING, Optional, Union
 
 import ignite.distributed as idist
 import torch
@@ -13,11 +14,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from ignite.handlers.checkpoint import Checkpoint
-from torch.utils.data import BatchSampler, DataLoader, RandomSampler, SequentialSampler
-from torchnlp.samplers import BucketBatchSampler
+from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
+from torch.utils.data.dataset import IterableDataset
+from torch.utils.data.sampler import Sampler
 from transformers.optimization import AdamW, get_linear_schedule_with_warmup
 
-from texi.datasets.dataset import Dataset, Datasets
+from texi.datasets.dataset import Dataset
+from texi.pytorch.dataset.sampler import bucket_batch_sampler
 
 if TYPE_CHECKING:
     from texi.pytorch.dataset import Collator
@@ -115,103 +118,59 @@ def pad_stack_2d(
 
 
 def get_sampler(
-    examples: Sequence,
-    train: bool,
-    batch_size: int,
-    drop_last: bool = False,
-    sort_key: Callable = lambda x: x,
-) -> Union[BatchSampler, BucketBatchSampler]:
+    dataset: Dataset, train: bool
+) -> Union[RandomSampler, SequentialSampler]:
     if train:
-        sampler = RandomSampler(examples)  # type: ignore
-        batch_sampler = BucketBatchSampler(
-            sampler, batch_size=batch_size, drop_last=drop_last, sort_key=sort_key
-        )
+        sampler = RandomSampler(dataset)  # type: ignore
     else:
-        sampler = SequentialSampler(examples)  # type: ignore
-        batch_sampler = BatchSampler(
-            sampler, batch_size=batch_size, drop_last=drop_last
-        )
+        sampler = SequentialSampler(dataset)  # type: ignore
 
-    return batch_sampler
+    return sampler
 
 
 def get_dataloader(
     dataset: Dataset,
-    batch_size: int,
     collate_fn: Optional[Union[Callable, Collator]] = None,
-    drop_last: bool = False,
-    sort_key: Callable = lambda x: x,
-    pin_memory: bool = True,
+    sampler: Optional[Sampler] = None,
+    batch_sampler: Optional[Sampler] = None,
+    sort_key: Optional[Callable] = None,
     **kwargs,
 ) -> DataLoader:
-    sampler = get_sampler(
-        cast(Sequence, dataset.examples),
-        dataset.is_train(),
-        batch_size,
-        drop_last=drop_last,
-        sort_key=lambda index: sort_key(dataset[index]),
+    if not isinstance(dataset, IterableDataset):
+        if batch_sampler is None:
+            if sort_key is not None:
+                if dataset.is_train():
+                    warnings.warn(
+                        "`sort_key` is given when `dataset.is_train()` is False"
+                    )
+
+                batch_sampler = bucket_batch_sampler(
+                    dataset,  # type: ignore
+                    kwargs["batch_size"],
+                    drop_last=False,
+                    sort_key=sort_key,
+                )
+
+                # When `batch_sampler` is given, `batch_size` must be 1
+                # when initializing `DataLoader`.
+                kwargs["batch_size"] = 1
+                kwargs["batch_sampler"] = batch_sampler
+
+            elif sampler is None:
+                # `sampler` will be wrapped in `idist.auto_dataloader`,
+                # so we dont' need `batch_sampler`.
+                sampler = get_sampler(dataset, dataset.is_train())
+
+    kwargs.update(
+        {
+            "collate_fn": collate_fn,
+            "sampler": sampler,
+        }
     )
 
-    dataloader = idist.auto_dataloader(
-        dataset,
-        batch_sampler=sampler,
-        collate_fn=collate_fn,
-        pin_memory=pin_memory,
-        **kwargs,
-    )  # type: DataLoader[Dataset]
+    dataloader = idist.auto_dataloader(dataset, **kwargs)  # type: DataLoader[Dataset]
 
     return dataloader
-
-
-def get_dataloaders(
-    datasets: Union[Datasets, Mapping[str, Dataset]],
-    train_batch_size: Optional[int] = None,
-    eval_batch_size: Optional[int] = None,
-    batch_size: Optional[int] = None,
-    drop_last: bool = False,
-    sort_key: Callable = lambda x: x,
-    **kwargs,
-) -> dict[str, DataLoader]:
-    # 1. Train dataset has individual batch size.
-    # 2. `drop_last` will alwarys be False for val and test datasets.
-    # 3. `sort_key` is passed only in train dataset.
-
-    if (train_batch_size is None or eval_batch_size is None) and batch_size is None:
-        raise ValueError(
-            "`batch_size` must not be None"
-            " if `train_batch_size` or `eval_batch_size` is None"
-        )
-
-    if train_batch_size is None:
-        train_batch_size = cast(int, batch_size)
-
-    if eval_batch_size is None:
-        eval_batch_size = cast(int, batch_size)
-
-    batch_sizes = {
-        "train": train_batch_size,
-        "val": eval_batch_size,
-        "test": eval_batch_size,
-    }
-
-    loaders = {}
-    for mode, dataset in datasets.items():
-        if mode == "train":
-            loader = get_dataloader(
-                dataset,
-                batch_sizes[mode],
-                drop_last=drop_last,
-                sort_key=sort_key,
-                **kwargs,
-            )
-        else:
-            loader = get_dataloader(
-                dataset, batch_sizes[mode], drop_last=False, **kwargs
-            )
-
-        loaders[mode] = loader
-
-    return loaders
 
 
 def get_default_arguments(f: Callable) -> dict:
