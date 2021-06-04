@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import abc
 import itertools
+import random
 from collections.abc import Mapping, Sequence
 from typing import Any, Optional
 
@@ -97,10 +98,12 @@ class MaskedLMCollator(PreTrainedCollator):
         self,
         tokenizer: PreTrainedTokenizer,
         mlm_probability: float = 0.15,
+        strict: bool = False,
         mode: ModeKeys = ModeKeys.TRAIN,
     ) -> None:
         super().__init__(tokenizer=tokenizer, mode=mode)
         self.mlm_probability = torch.tensor(mlm_probability)
+        self.strict = strict
 
     def _whole_word_mask(self, words, tokens):
         # Create MLM mask with `self.mlm_probability`.
@@ -116,9 +119,10 @@ class MaskedLMCollator(PreTrainedCollator):
 
         word_iter = iter(words)
         i = 0
+        spans = []
 
         # Loop all token pieces until we have masked enough tokens.
-        while i < len(tokens) and num_masked_tokens > 0:
+        while i < len(tokens):
             token = tokens[i]
 
             # Don't mask special tokens.
@@ -155,15 +159,24 @@ class MaskedLMCollator(PreTrainedCollator):
 
                     # Break if we have masked enough tokens.
                     num_masked_tokens -= j
-                    if num_masked_tokens <= 0:
-                        mlm_mask[i + j :] = False
-                        break
 
+                spans += [(i, i + j)]
                 i += j
 
-        # We may break early if `num_masked_tokens` <= 0, otherwise we
-        # should have looped over all the words.
-        assert num_masked_tokens <= 0 or next(word_iter, None) is None
+        assert next(word_iter, None) is None
+        assert len(spans) == len(words)
+
+        if self.strict:
+            # Select random token piece spans,
+            random.shuffle(spans)
+
+            # to reduce masked tokens.
+            for start, end in spans:
+                mlm_mask[start:end] = False
+                num_masked_tokens += end - start
+
+                if num_masked_tokens > 0:
+                    break
 
         return mlm_mask
 
