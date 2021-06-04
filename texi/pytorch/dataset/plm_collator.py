@@ -224,5 +224,6 @@ class MaskedLMCollator(PreTrainedCollator):
         input_id[random_mask] = random_words[random_mask]
 
         inputs["input_ids"] = input_id
+        inputs["mlm_mask"] = whole_word_mask.long()
 
         return inputs, label
