@@ -99,11 +99,13 @@ class MaskedLMCollator(PreTrainedCollator):
         tokenizer: PreTrainedTokenizer,
         mlm_probability: float = 0.15,
         strict: bool = False,
+        ignore_index: int = -100,
         mode: ModeKeys = ModeKeys.TRAIN,
     ) -> None:
         super().__init__(tokenizer=tokenizer, mode=mode)
         self.mlm_probability = torch.tensor(mlm_probability)
         self.strict = strict
+        self.ignore_index = ignore_index
 
     def _whole_word_mask(self, words, tokens):
         # Create MLM mask with `self.mlm_probability`.
@@ -112,7 +114,7 @@ class MaskedLMCollator(PreTrainedCollator):
         )
         prob = torch.full((len(tokens),), self.mlm_probability)
         prob.masked_fill_(special_token_mask, 0)
-        mlm_mask = torch.bernoulli(prob).bool()
+        mask = torch.bernoulli(prob).bool()
 
         num_tokens = (~special_token_mask).sum()
         num_masked_tokens = int(self.mlm_probability * num_tokens)
@@ -134,7 +136,7 @@ class MaskedLMCollator(PreTrainedCollator):
             if not token.startswith("##"):
                 word = next(word_iter)
 
-                selected = mlm_mask[i]
+                selected = mask[i]
                 j = 1
 
                 # if it is not a single-piece word, we need to find all
@@ -144,18 +146,18 @@ class MaskedLMCollator(PreTrainedCollator):
 
                     # if the word is split into piece with explicit markers
                     while j < len(word) and tokens[i + j].startswith("##"):
-                        selected |= mlm_mask[i + j]
+                        selected |= mask[i + j]
                         j += 1
 
                     # or it is split simply by chars
                     if j == 1:
                         while j < len(word):
-                            selected |= mlm_mask[i + j]
+                            selected |= mask[i + j]
                             j += 1
 
                 # Mask all piece of current word.
                 if selected:
-                    mlm_mask[i : i + j] = True
+                    mask[i : i + j] = True
 
                     # Break if we have masked enough tokens.
                     num_masked_tokens -= j
@@ -172,13 +174,13 @@ class MaskedLMCollator(PreTrainedCollator):
 
             # to reduce masked tokens.
             for start, end in spans:
-                mlm_mask[start:end] = False
+                mask[start:end] = False
                 num_masked_tokens += end - start
 
                 if num_masked_tokens > 0:
                     break
 
-        return mlm_mask
+        return mask
 
     def collate_train(self, batch: Sequence[Mapping]) -> Any:
         collated = collate(batch)
@@ -189,7 +191,33 @@ class MaskedLMCollator(PreTrainedCollator):
             add_special_tokens=True,
             padding=True,
             truncation=True,
+            return_tensors="pt",
         )
-        label = input_.clone()
+        input_id = input_["input_ids"]
+        label = input_id.clone()
 
-        return input_, label
+        whole_word_mask = torch.stack(
+            [
+                self._whole_word_mask(
+                    words, self.tokenizer.convert_ids_to_tokens(sample_input_ids)
+                )
+                for words, sample_input_ids in zip(collated, input_id.tolist())
+            ],
+            dim=0,
+        )
+        label[~whole_word_mask] = self.ignore_index
+
+        replace_mask = (
+            torch.bernoulli(torch.full(input_id.size(), 0.8)).bool() & whole_word_mask
+        )
+        input_id[replace_mask] = self.tokenizer.mask_token_id
+
+        random_mask = (
+            torch.bernoulli(torch.full(input_id.size(), 0.1)).bool()
+            & whole_word_mask
+            & ~replace_mask
+        )
+        random_words = torch.randint(len(self.tokenizer), input_id.size())
+        input_id[random_mask] = random_words[random_mask]
+
+        return input_id, label
