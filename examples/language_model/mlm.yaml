@@ -1,0 +1,45 @@
+---
+# Project
+project: "mlm"
+
+# Dataset
+data_dir: "./wiki_segmented.txt"
+test_size: 0.1
+val_size: 0.05
+
+# Training
+backend: null
+nproc_per_node: null
+seed: null
+max_epochs: 50
+lr: 0.00005
+lr_warmup: 0.1
+weight_decay: 0.01
+max_grad_norm: 1.0
+schedule_steps: 1
+
+# Dataloader
+train_batch_size: 32
+eval_batch_size: 32
+num_workers: 0
+pin_memory: true
+non_blocking: true
+
+# Evaluation
+eval_train: false
+eval_steps: "epoch"
+eval_metric: "accuracy"
+save_best_models: 1
+
+# Early Stopping
+early_stopping: false
+patience: 10
+
+# Logging
+log_steps: 1
+tensorboard: true
+wandb: true
+debug: false
+
+# Model
+pretrained_model: "hfl/chinese-bert-wwm"
