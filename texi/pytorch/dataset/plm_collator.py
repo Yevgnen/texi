@@ -128,7 +128,10 @@ class MaskedLMCollator(PreTrainedCollator):
             token = tokens[i]
 
             # Don't mask special tokens.
-            if token in self.tokenizer.all_special_tokens:
+            if (
+                token in self.tokenizer.all_special_tokens
+                and token != self.tokenizer.unk_token
+            ):
                 i += 1
                 continue
 
