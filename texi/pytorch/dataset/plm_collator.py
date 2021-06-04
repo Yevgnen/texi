@@ -185,7 +185,7 @@ class MaskedLMCollator(PreTrainedCollator):
     def collate_train(self, batch: Sequence[Mapping]) -> Any:
         collated = collate(batch)
 
-        input_ = self.tokenizer(
+        inputs = self.tokenizer(
             collated,
             is_split_into_words=True,
             add_special_tokens=True,
@@ -193,7 +193,7 @@ class MaskedLMCollator(PreTrainedCollator):
             truncation=True,
             return_tensors="pt",
         )
-        input_id = input_["input_ids"]
+        input_id = inputs["input_ids"]
         label = input_id.clone()
 
         whole_word_mask = torch.stack(
@@ -220,4 +220,6 @@ class MaskedLMCollator(PreTrainedCollator):
         random_words = torch.randint(len(self.tokenizer), input_id.size())
         input_id[random_mask] = random_words[random_mask]
 
-        return input_id, label
+        inputs["input_ids"] = input_id
+
+        return inputs, label
