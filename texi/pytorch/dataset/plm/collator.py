@@ -29,7 +29,4 @@ class PreTrainedCollator(Collator, metaclass=abc.ABCMeta):
         self.label_encoder = label_encoder
 
     def collate_fn(self, batch: Sequence) -> Any:
-        fn = self.collate_train if self.dataset.is_train() else self.collate_eval
-        collated = fn(batch)
-
-        return collated
+        return self._collate(batch)

@@ -110,9 +110,7 @@ class EagerEncodeMixin(DatasetTransformMixin):
     _mixin_transform = "eager_encode"
     _mixin_inverse_transform = "eager_decode"
     encode_batch: Callable
-    collate_train: Callable
-    collate_eval: Callable
-    is_train: Callable
+    _collate: Callable
 
     def eager_encode(self) -> None:
         if hasattr(self, "_original_examples"):
@@ -137,10 +135,7 @@ class EagerEncodeMixin(DatasetTransformMixin):
         if not hasattr(self, "_original_examples"):
             return super().collate_fn(batch)
 
-        fn = self.collate_train if self.is_train() else self.collate_eval
-        collated = fn(batch)
-
-        return collated
+        return self._collate(batch)
 
 
 class Dataset(PhaseMixin, MaskableMixin, SplitableMixin, Generic[T_co]):

@@ -6,6 +6,8 @@ import abc
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, TypeVar
 
+from texi.utils import ModeKeys
+
 if TYPE_CHECKING:
     from texi.datasets.dataset import Dataset
 
@@ -31,10 +33,21 @@ class Collator(object, metaclass=abc.ABCMeta):
     def collate_eval(self, batch: Sequence) -> Any:
         return self.collate_train(batch)
 
-    def collate_fn(self, batch: Sequence) -> Any:
-        encoded = self.encode_batch(batch)
+    def collate_predict(self, batch: Sequence) -> Any:
+        raise NotImplementedError()
 
-        fn = self.collate_train if self.dataset.is_train() else self.collate_eval
-        collated = fn(encoded)
+    def _get_collate_fn(self):
+        return {
+            ModeKeys.TRAIN: self.collate_train,
+            ModeKeys.EVAL: self.collate_eval,
+            ModeKeys.PREDICT: self.collate_predict,
+        }[self.dataset.mode]
+
+    def _collate(self, encoded_batch):
+        return self._get_collate_fn()(encoded_batch)
+
+    def collate_fn(self, batch: Sequence) -> Any:
+        encoded_batch = self.encode_batch(batch)
+        collated = self._collate(encoded_batch)
 
         return collated
