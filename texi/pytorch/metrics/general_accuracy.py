@@ -10,7 +10,7 @@ class GeneralAccuracy(Metric):
     @reinit__is_reduced
     def reset(self):
         self._num_correct = torch.tensor(0, device=self._device)
-        self._num_examples = torch.tensor(0, device=self._device)
+        self._num_examples = 0
         super().reset()
 
     @reinit__is_reduced
