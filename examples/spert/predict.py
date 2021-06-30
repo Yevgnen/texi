@@ -14,20 +14,20 @@ import ignite.distributed as idist
 from ignite.engine.engine import Engine
 from ignite.engine.events import Events
 from torch import nn
+from torchlight.dataset import get_dataloader
+from torchlight.preprocessing import LabelEncoder
+from torchlight.training import create_evaluator, run
+from torchlight.utils import ModeKeys, load_checkpoint, plm_path
 from transformers import BertTokenizerFast
 
 from texi.apps.ner import split_example
 from texi.apps.ner.utils import merge_examples
 from texi.datasets.dataset import Dataset
-from texi.preprocessing import LabelEncoder
 from texi.pytorch.models.spert import SpERT, SpERTParams
 from texi.pytorch.models.spert.dataset import SpERTCollator, SpERTDataset
 from texi.pytorch.models.spert.prediction import predict as predict_relations
 from texi.pytorch.models.spert.sampler import SpERTSampler
 from texi.pytorch.models.spert.training import eval_step
-from texi.pytorch.training.training import create_evaluator, run
-from texi.pytorch.utils import get_dataloader, load_checkpoint, plm_path
-from texi.utils import ModeKeys
 
 
 def add_dummy_labels(x: MutableMapping) -> dict:

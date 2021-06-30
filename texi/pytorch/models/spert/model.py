@@ -6,11 +6,10 @@ from typing import Union, cast
 
 import torch
 from torch import nn
+from torchlight.masking import create_span_mask
+from torchlight.pooling import get_pooling
+from torchlight.utils import plm_path, split_apply
 from transformers import BertModel
-
-from texi.pytorch.masking import create_span_mask
-from texi.pytorch.pooling import get_pooling
-from texi.pytorch.utils import plm_path, split_apply
 
 
 class SpERT(nn.Module):

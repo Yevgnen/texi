@@ -6,11 +6,10 @@ from typing import Optional, Union
 
 import torch
 from torch import nn
+from torchlight.pooling import get_pooling
+from torchlight.rnn import get_rnn
+from torchlight.utils import plm_path
 from transformers import BertModel
-
-from texi.pytorch.pooling import get_pooling
-from texi.pytorch.rnn import get_rnn
-from texi.pytorch.utils import plm_path
 
 
 class TextRNN(nn.Module):

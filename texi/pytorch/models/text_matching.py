@@ -7,13 +7,12 @@ from typing import Optional, Union, cast
 import torch
 from torch import nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
+from torchlight.attention import BidirectionalAttention
+from torchlight.losses import ManhattanSimilarity
+from torchlight.masking import length_to_mask
+from torchlight.pooling import get_pooling
+from torchlight.utils import plm_path
 from transformers import BertModel
-
-from texi.pytorch.attention import BidirectionalAttention
-from texi.pytorch.losses import ManhattanSimilarity
-from texi.pytorch.masking import length_to_mask
-from texi.pytorch.pooling import get_pooling
-from texi.pytorch.utils import plm_path
 
 
 class SiameseLSTM(nn.Module):

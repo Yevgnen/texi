@@ -4,11 +4,11 @@ import unittest
 from unittest.mock import Mock
 
 import torch
+from torchlight.preprocessing import LabelEncoder
+from torchlight.utils import plm_path
 from transformers import BertTokenizer
 
-from texi.preprocessing import LabelEncoder
 from texi.pytorch.models.spert import SpERTCollator
-from texi.pytorch.utils import plm_path
 
 
 class TestSpERTDataset(unittest.TestCase):

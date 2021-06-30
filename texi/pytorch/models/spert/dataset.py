@@ -8,15 +8,14 @@ from typing import TYPE_CHECKING, Any, Union
 
 import torch
 from carton.collections import collate, flatten_dict
+from torchlight.dataset import Collator
+from torchlight.masking import create_span_mask
+from torchlight.preprocessing import LabelEncoder
+from torchlight.utils import ModeKeys, pad_stack_1d, pad_stack_2d
 
 from texi.apps.ner.utils import Entity, NerExample, Relation, describe_examples
 from texi.datasets import Dataset
-from texi.preprocessing import LabelEncoder
-from texi.pytorch.dataset import Collator
-from texi.pytorch.masking import create_span_mask
 from texi.pytorch.models.spert.sampler import SpERTSampler
-from texi.pytorch.utils import pad_stack_1d, pad_stack_2d
-from texi.utils import ModeKeys
 
 if TYPE_CHECKING:
     from transformers import BertTokenizer, BertTokenizerFast
