@@ -17,6 +17,7 @@ from texi.datasets.dataset import Dataset, Datasets
 from texi.preprocessing import LabelEncoder
 from texi.pytorch.models.spert import (
     SpERT,
+    SpERTCollator,
     SpERTDataset,
     SpERTEnv,
     SpERTEvalSampler,
@@ -24,7 +25,6 @@ from texi.pytorch.models.spert import (
     SpERTParams,
     SpERTSampler,
 )
-from texi.pytorch.models.spert.dataset import SpERTCollator
 from texi.pytorch.models.spert.training import eval_step, train_step
 from texi.pytorch.training.training import (
     create_engines,

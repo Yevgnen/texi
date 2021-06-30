@@ -7,7 +7,7 @@ import torch
 from transformers import BertTokenizer
 
 from texi.preprocessing import LabelEncoder
-from texi.pytorch.models.spert import SpERTDataset
+from texi.pytorch.models.spert import SpERTCollator
 from texi.pytorch.utils import plm_path
 
 
@@ -32,14 +32,14 @@ class TestSpERTDataset(unittest.TestCase):
         entity_label_encoder = LabelEncoder(["per", "prep", "loc", "NEGATIVE_ENTITY"])
         relation_label_encoder = LabelEncoder(["born in", "NEGATIVE_RELATION"])
 
-        dataset = SpERTDataset(
+        collator = SpERTCollator(
             [self.example],
             Mock(),
+            BertTokenizer.from_pretrained(plm_path("bert-base-uncased")),
             entity_label_encoder,
             relation_label_encoder,
-            tokenizer=BertTokenizer.from_pretrained(plm_path("bert-base-uncased")),
         )
-        output = dataset.encode_example(
+        output = collator.encode_example(
             self.example["tokens"], self.example["entities"], self.example["relations"]
         )
         keys = {
