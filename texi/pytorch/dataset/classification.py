@@ -46,15 +46,25 @@ class TextClassificationCollator(Collator):
         return x, y
 
 
-class TextPairDataset(Dataset):
+class TextMatchingCollator(Collator):
+    def __init__(
+        self,
+        dataset: Dataset,
+        tokenizer: Callable,
+        label_encoder: LabelEncoder,
+    ) -> None:
+        super().__init__(dataset)
+        self.tokenizer = tokenizer
+        self.label_encoder = label_encoder
+
     def encode(self, example):
         return {
-            "sentence1": self.tokenize(example["sentence1"]),
-            "sentence2": self.tokenize(example["sentence2"]),
+            "sentence1": self.tokenizer(example["sentence1"]),
+            "sentence2": self.tokenizer(example["sentence2"]),
             "label": self.label_encoder.encode(example["label"]),
         }
 
-    def collate(self, batch):
+    def collate_train(self, batch):
         batch = self.encode_batch(batch)
 
         batch = collate_tensors(batch, identity)

@@ -5,7 +5,7 @@ import texi.pytorch.dataset.sampler
 from texi.datasets import Dataset
 from texi.pytorch.dataset.classification import (
     TextClassificationCollator,
-    TextPairDataset,
+    TextMatchingCollator,
 )
 from texi.pytorch.dataset.collator import Collator
 from texi.pytorch.dataset.question_answering import QuestionAnsweringDataset
@@ -20,7 +20,7 @@ __all__ = [
     "Collator",
     "Dataset",
     "TextClassificationCollator",
-    "TextPairDataset",
+    "TextMatchingCollator",
     "QuestionAnsweringDataset",
     "BucketIterableDataset",
     "BucketBatchSampler",
