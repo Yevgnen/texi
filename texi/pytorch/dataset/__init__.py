@@ -3,12 +3,12 @@
 import texi.pytorch.dataset.plm
 import texi.pytorch.dataset.sampler
 from texi.datasets import Dataset
-from texi.pytorch.dataset.classification import (
+from texi.pytorch.dataset.collator import (
+    Collator,
+    QuestionAnsweringCollator,
     TextClassificationCollator,
     TextMatchingCollator,
 )
-from texi.pytorch.dataset.collator import Collator
-from texi.pytorch.dataset.question_answering import QuestionAnsweringCollator
 from texi.pytorch.dataset.sampler import (
     BucketBatchSampler,
     BucketIterableDataset,
