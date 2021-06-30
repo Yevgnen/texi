@@ -2,19 +2,37 @@
 
 from __future__ import annotations
 
+import abc
 import itertools
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import torch
 from carton.collections import collate
 from transformers.tokenization_utils import PreTrainedTokenizer
 
 from texi.preprocessing import LabelEncoder
-from texi.pytorch.dataset.plm.collator import PreTrainedCollator
+from texi.pytorch.dataset.collator import Collator
 
 if TYPE_CHECKING:
     from texi.datasets.dataset import Dataset
+
+
+class PreTrainedCollator(Collator, metaclass=abc.ABCMeta):
+    def __init__(
+        self,
+        dataset: Dataset,
+        tokenizer: PreTrainedTokenizer,
+        label_encoder: Optional[LabelEncoder] = None,
+    ) -> None:
+        super().__init__(dataset)
+        self.tokenizer = tokenizer
+        if label_encoder is None:
+            label_encoder = LabelEncoder()
+        self.label_encoder = label_encoder
+
+    def collate_fn(self, batch: Sequence) -> Any:
+        return self._collate(batch)
 
 
 class TextClassificationCollator(PreTrainedCollator):

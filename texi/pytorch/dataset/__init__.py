@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
-import texi.pytorch.dataset.plm
+import texi.pytorch.dataset.collator
+import texi.pytorch.dataset.plm_collator
 import texi.pytorch.dataset.sampler
 from texi.datasets import Dataset
 from texi.pytorch.dataset.collator import (
