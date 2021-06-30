@@ -9,11 +9,10 @@ from typing import Any, Optional
 
 import torch
 from carton.collections import collate
+from torchlight.dataset import Collator
+from torchlight.preprocessing import LabelEncoder
+from torchlight.utils import ModeKeys
 from transformers.tokenization_utils import PreTrainedTokenizer
-
-from texi.preprocessing import LabelEncoder
-from texi.pytorch.dataset.collator import Collator
-from texi.utils import ModeKeys
 
 
 class PreTrainedCollator(Collator, metaclass=abc.ABCMeta):

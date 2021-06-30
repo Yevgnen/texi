@@ -13,8 +13,7 @@ from typing import Optional, TypedDict, Union, cast
 
 from carton.collections import dict_to_tuple
 from carton.data import describe_series
-
-from texi.preprocessing import LabelEncoder
+from torchlight.preprocessing import LabelEncoder
 
 
 class NerExample(TypedDict, total=False):

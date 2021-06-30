@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import torch
 from torch import nn
+from torchlight.utils import plm_path
 from transformers import BertModel
-
-from texi.pytorch.utils import plm_path
 
 
 class BertForQuestionAnswering(nn.Module):

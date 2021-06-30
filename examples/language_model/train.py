@@ -15,13 +15,13 @@ from torch import nn
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data import DataLoader
+from torchlight.training import create_engines, run, setup_env
+from torchlight.training.params import Params as _Params
 from transformers import BertConfig, BertForMaskedLM, BertTokenizer, BertTokenizerFast
 
 from texi.datasets.dataset import Dataset, Datasets
 from texi.pytorch.dataset.plm_collator import MaskedLMCollator
 from texi.pytorch.dataset.sampler import BucketIterableDataset, IterableDataset
-from texi.pytorch.training.params import Params as _Params
-from texi.pytorch.training.training import create_engines, run, setup_env
 from texi.pytorch.utils import (
     get_dataloader,
     get_pretrained_optimizer_and_scheduler,

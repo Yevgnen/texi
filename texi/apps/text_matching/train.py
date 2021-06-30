@@ -14,20 +14,17 @@ from torch import nn
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data import DataLoader
+from torchlight.dataset import get_dataloader
+from torchlight.preprocessing import LabelEncoder
+from torchlight.training import create_engines, run, setup_env
+from torchlight.training.params import Params as _Params
+from torchlight.utils import get_pretrained_optimizer_and_scheduler, plm_path
 from transformers import BertTokenizer, BertTokenizerFast
 
 from texi.datasets import JSONDatasets
 from texi.datasets.dataset import Dataset, Datasets
-from texi.preprocessing import LabelEncoder
 from texi.pytorch.dataset.plm_collator import TextMatchingCollator
 from texi.pytorch.models.text_matching import SBertForClassification, SBertForRegression
-from texi.pytorch.training.params import Params as _Params
-from texi.pytorch.training.training import create_engines, run, setup_env
-from texi.pytorch.utils import (
-    get_dataloader,
-    get_pretrained_optimizer_and_scheduler,
-    plm_path,
-)
 
 
 class Params(_Params):

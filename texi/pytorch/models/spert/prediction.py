@@ -3,9 +3,9 @@
 from typing import List, Tuple, Union, cast
 
 import torch
+from torchlight.preprocessing import LabelEncoder
 
 from texi.apps.ner.utils import Entity, Relation
-from texi.preprocessing import LabelEncoder
 
 Entities = List[List[Entity]]
 Relations = List[List[Relation]]

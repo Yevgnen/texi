@@ -9,14 +9,13 @@ import torch
 from ignite.utils import convert_tensor
 from torch import nn
 from torchcrf import CRF
+from torchlight.masking import length_to_mask
+from torchlight.preprocessing import LabelEncoder
+from torchlight.rnn import LSTM
+from torchlight.utils import ModeKeys, plm_path
 from transformers import BertModel
 
-from texi.preprocessing import LabelEncoder
-from texi.pytorch.masking import length_to_mask
-from texi.pytorch.rnn import LSTM
-from texi.pytorch.utils import plm_path
 from texi.tagger.sequence_labeling import SequeceLabelingTagger, Tagged
-from texi.utils import ModeKeys
 
 if TYPE_CHECKING:
     from transformers.tokenization_utils import PreTrainedTokenizer

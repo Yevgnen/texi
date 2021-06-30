@@ -10,11 +10,14 @@ from typing import Union
 import ignite.distributed as idist
 from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data.dataloader import DataLoader
+from torchlight.dataset import get_dataloader
+from torchlight.preprocessing import LabelEncoder
+from torchlight.training import create_engines, run, setup_env
+from torchlight.utils import get_pretrained_optimizer_and_scheduler, plm_path
 from transformers import AdamW, BertTokenizer, BertTokenizerFast
 
 from texi.apps.ner import SpERTVisualizer, encode_labels, split_example
 from texi.datasets.dataset import Dataset, Datasets
-from texi.preprocessing import LabelEncoder
 from texi.pytorch.models.spert import (
     SpERT,
     SpERTCollator,
@@ -26,12 +29,6 @@ from texi.pytorch.models.spert import (
     SpERTSampler,
 )
 from texi.pytorch.models.spert.training import eval_step, train_step
-from texi.pytorch.training.training import create_engines, run, setup_env
-from texi.pytorch.utils import (
-    get_dataloader,
-    get_pretrained_optimizer_and_scheduler,
-    plm_path,
-)
 
 
 def get_dataflows(

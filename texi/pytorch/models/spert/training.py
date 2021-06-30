@@ -12,6 +12,9 @@ import ignite.distributed as idist
 from ignite.engine import Engine, Events
 from ignite.handlers import global_step_from_engine
 from torch import nn
+from torchlight.preprocessing import LabelEncoder
+from torchlight.training import Metrics
+from torchlight.training.params import Params
 
 from texi.apps.ner import (
     SpERTVisualizer,
@@ -19,11 +22,8 @@ from texi.apps.ner import (
     expand_entities,
     relation_to_tuple,
 )
-from texi.preprocessing import LabelEncoder
 from texi.pytorch.metrics import NerMetrics, ReMetrics
 from texi.pytorch.models.spert import predict
-from texi.pytorch.training.params import Params
-from texi.pytorch.training.training import Metrics
 
 try:
     import wandb

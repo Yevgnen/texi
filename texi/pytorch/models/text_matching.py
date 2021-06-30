@@ -7,6 +7,8 @@ from typing import Optional, Union, cast
 import torch
 from torch import nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
+from torchlight.pooling import get_pooling
+from torchlight.utils import plm_path
 from transformers import BertModel
 
 from texi.pytorch.attention import BidirectionalAttention
