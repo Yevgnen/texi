@@ -5,10 +5,9 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 
 import torch
-from torch import Tensor
 
 
-def get_pooling(method: str) -> Callable[[Mapping, Tensor], Tensor]:
+def get_pooling(method: str) -> Callable[[Mapping, torch.Tensor], torch.Tensor]:
     methods = {
         "cls": cls_pooling,
         "mean": mean_pooling,
@@ -21,7 +20,7 @@ def get_pooling(method: str) -> Callable[[Mapping, Tensor], Tensor]:
     return pooling
 
 
-def mean_pooling(model_output: Mapping, attention_mask: Tensor) -> Tensor:
+def mean_pooling(model_output: Mapping, attention_mask: torch.Tensor) -> torch.Tensor:
     token_embeddings = model_output["last_hidden_state"]
     input_mask_expanded = attention_mask.unsqueeze(dim=-1).float()
     sum_embeddings = torch.sum(token_embeddings * input_mask_expanded, dim=1)
@@ -30,7 +29,7 @@ def mean_pooling(model_output: Mapping, attention_mask: Tensor) -> Tensor:
     return sum_embeddings / sum_mask
 
 
-def max_pooling(model_output: Mapping, attention_mask: Tensor) -> Tensor:
+def max_pooling(model_output: Mapping, attention_mask: torch.Tensor) -> torch.Tensor:
     token_embeddings = model_output["last_hidden_state"]
     input_mask_expanded = (
         attention_mask.unsqueeze(dim=-1).expand(token_embeddings.size()).float()
@@ -41,5 +40,5 @@ def max_pooling(model_output: Mapping, attention_mask: Tensor) -> Tensor:
     return max_over_time
 
 
-def cls_pooling(model_output: Mapping, attention_mask: Tensor) -> Tensor:
+def cls_pooling(model_output: Mapping, attention_mask: torch.Tensor) -> torch.Tensor:
     return model_output["last_hidden_state"][:, 0]
