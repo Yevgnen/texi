@@ -11,20 +11,19 @@ from ignite.metrics import Metric
 from ignite.metrics.metric import reinit__is_reduced, sync_all_reduce
 
 from texi.metrics import prf1
-from texi.preprocessing import LabelEncoder
 
 
 class ReMetrics(Metric):
     def __init__(
         self,
-        relation_label_encoder: LabelEncoder,
+        relation_index2label: Mapping,
         negative_relation_index: int,
         relation_filter_threshold: float,
         prefix: str = "",
         output_transform: Callable = lambda x: x,
         device: Union[str, torch.device] = torch.device("cpu"),
     ):
-        self.relation_label_encoder = relation_label_encoder
+        self.relation_index2label = relation_index2label
         self.negative_relation_index = negative_relation_index
         self.relation_filter_threshold = relation_filter_threshold
         self.prefix = prefix
@@ -36,7 +35,7 @@ class ReMetrics(Metric):
         # TP, FP, FN
         self.tpfpfn = torch.zeros((3,), device=self._device)
         self.typed_tpfpfn = torch.zeros(
-            (len(self.relation_label_encoder), 3), device=self._device
+            (len(self.relation_index2label), 3), device=self._device
         )
 
     @reinit__is_reduced
@@ -72,7 +71,7 @@ class ReMetrics(Metric):
             # easier.
 
             # Use negative/sample mask to filter non-related relations.
-            num_relation_types = len(self.relation_label_encoder)
+            num_relation_types = len(self.relation_index2label)
             negative_mask = torch.arange(num_relation_types, device=self._device)
             negative_mask = negative_mask[None, None, :]
             if index is None:
@@ -127,7 +126,7 @@ class ReMetrics(Metric):
         y_pred = _expand_entities(y_pred)
 
         _update(y, y_pred, self.tpfpfn)
-        for i in range(len(self.relation_label_encoder)):
+        for i in range(len(self.relation_index2label)):
             if i != self.negative_relation_index:
                 _update(y, y_pred, self.typed_tpfpfn[i], i)
 
@@ -135,12 +134,12 @@ class ReMetrics(Metric):
     def compute(self) -> dict[str, float]:
         metrics = prf1(self.tpfpfn[0], self.tpfpfn[1], self.tpfpfn[2])
         typed_metrics = {
-            self.relation_label_encoder.decode_label(i): prf1(
+            self.relation_index2label[i]: prf1(
                 self.typed_tpfpfn[i][0],
                 self.typed_tpfpfn[i][1],
                 self.typed_tpfpfn[i][2],
             )
-            for i in range(len(self.relation_label_encoder))
+            for i in range(len(self.relation_index2label))
             if i != self.negative_relation_index
         }
 

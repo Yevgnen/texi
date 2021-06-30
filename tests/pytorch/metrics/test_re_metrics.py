@@ -4,27 +4,25 @@ import unittest
 
 import torch
 
-from texi.preprocessing import LabelEncoder
 from texi.pytorch.metrics.re_metrics import ReMetrics
 
 
 class TestReMetrics(unittest.TestCase):
     def setUp(self):
-        relation_label_encoder = LabelEncoder(["born in", "loves", "NEGATIVE_RELATION"])
-        negative_relation_index = relation_label_encoder.encode_label(
-            "NEGATIVE_RELATION"
-        )
+        labels = ["born in", "loves", "NEGATIVE_RELATION"]
+        relation_index2label = dict(zip(range(len(labels)), labels))
+        negative_relation_index = 2
         relation_filter_threshold = 0.4
 
         device = torch.device("cpu")
         metric = ReMetrics(
-            relation_label_encoder,
+            relation_index2label,
             negative_relation_index,
             relation_filter_threshold,
             device=device,
         )
 
-        self.relation_label_encoder = relation_label_encoder
+        self.relation_index2label = relation_index2label
         self.negative_relation_index = negative_relation_index
         self.device = device
         self.metric = metric
@@ -144,9 +142,7 @@ class TestReMetrics(unittest.TestCase):
         self.assertTrue(
             torch.all(
                 self.metric.typed_tpfpfn
-                == torch.zeros(
-                    (len(self.relation_label_encoder), 3), device=self.device
-                )
+                == torch.zeros((len(self.relation_index2label), 3), device=self.device)
             )
         )
 
@@ -159,9 +155,7 @@ class TestReMetrics(unittest.TestCase):
         self.assertTrue(
             torch.all(
                 self.metric.typed_tpfpfn
-                == torch.zeros(
-                    (len(self.relation_label_encoder), 3), device=self.device
-                )
+                == torch.zeros((len(self.relation_index2label), 3), device=self.device)
             )
         )
 

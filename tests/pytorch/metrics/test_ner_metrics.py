@@ -4,18 +4,18 @@ import unittest
 
 import torch
 
-from texi.preprocessing import LabelEncoder
 from texi.pytorch.metrics.ner_metrics import NerMetrics
 
 
 class TestNerMetrics(unittest.TestCase):
     def setUp(self):
-        label_encoder = LabelEncoder(["per", "loc", "NEGATIVE_ENTITY"])
-        negative_index = label_encoder.encode_label("NEGATIVE_ENTITY")
+        labels = ["per", "loc", "NEGATIVE_ENTITY"]
+        entity_index2label = dict(zip(range(len(labels)), labels))
+        negative_index = 2
         device = torch.device("cpu")
-        metric = NerMetrics(label_encoder, negative_index, device=device)
+        metric = NerMetrics(entity_index2label, negative_index, device=device)
 
-        self.label_encoder = label_encoder
+        self.entity_index2label = entity_index2label
         self.negative_index = negative_index
         self.device = device
         self.metric = metric
@@ -71,7 +71,7 @@ class TestNerMetrics(unittest.TestCase):
         self.assertTrue(
             torch.all(
                 self.metric.typed_tpfpfn
-                == torch.zeros((len(self.label_encoder), 3), device=self.device)
+                == torch.zeros((len(self.entity_index2label), 3), device=self.device)
             )
         )
 
@@ -84,7 +84,7 @@ class TestNerMetrics(unittest.TestCase):
         self.assertTrue(
             torch.all(
                 self.metric.typed_tpfpfn
-                == torch.zeros((len(self.label_encoder), 3), device=self.device)
+                == torch.zeros((len(self.entity_index2label), 3), device=self.device)
             )
         )
 

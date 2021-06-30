@@ -122,7 +122,7 @@ class SpERTEnv(object):
 
         return {
             "ner": NerMetrics(
-                self.entity_label_encoder,
+                self.entity_label_encoder.index2label,
                 self.negative_entity_index,
                 prefix="NER",
                 output_transform=lambda outputs: {
@@ -140,7 +140,7 @@ class SpERTEnv(object):
                 device=idist.device(),
             ),
             "re": ReMetrics(
-                self.relation_label_encoder,
+                self.relation_label_encoder.index2label,
                 self.negative_relation_index,
                 self.relation_filter_threshold,
                 prefix="RE",
