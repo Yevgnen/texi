@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import abc
 import itertools
-import random
 from collections.abc import Mapping, Sequence
 from typing import Any, Optional
 
@@ -98,116 +97,57 @@ class MaskedLMCollator(PreTrainedCollator):
         self,
         tokenizer: PreTrainedTokenizer,
         mlm_probability: float = 0.15,
-        strict: bool = False,
         ignore_index: int = -100,
         mode: ModeKeys = ModeKeys.TRAIN,
     ) -> None:
         super().__init__(tokenizer=tokenizer, mode=mode)
         self.mlm_probability = torch.tensor(mlm_probability)
-        self.strict = strict
         self.ignore_index = ignore_index
 
-    def _whole_word_mask(self, words, tokens):
-        # Create MLM mask with `self.mlm_probability`.
-        special_token_mask = torch.tensor(
-            [token in self.tokenizer.all_special_tokens for token in tokens]
-        )
-        prob = torch.full((len(tokens),), self.mlm_probability)
-        prob.masked_fill_(special_token_mask, 0)
-        mask = torch.bernoulli(prob).bool()
-
-        num_tokens = (~special_token_mask).sum()
-        num_masked_tokens = int(self.mlm_probability * num_tokens)
-
-        word_iter = iter(words)
-        i = 0
-        spans = []
-
-        # Loop all token pieces until we have masked enough tokens.
-        while i < len(tokens):
-            token = tokens[i]
-
-            # Don't mask special tokens.
+    def _whole_word_mask(self, tokens):
+        masks = []
+        for word_tokens in tokens:
             if (
-                token in self.tokenizer.all_special_tokens
-                and token != self.tokenizer.unk_token
+                len(word_tokens) == 1
+                and word_tokens[0] in self.tokenizer.all_special_tokens
             ):
-                i += 1
-                continue
+                masks += [0]
+            elif torch.rand(1) < self.mlm_probability:
+                masks += [1] * len(word_tokens)
+            else:
+                masks += [0] * len(word_tokens)
 
-            # When we find a new word,
-            if not token.startswith("##"):
-                word = next(word_iter)
-
-                selected = mask[i]
-                j = 1
-
-                # if it is not a single-piece word, we need to find all
-                # pieces of it and check if any piece is selected to be
-                # masked.
-                if [token] != self.tokenizer.basic_tokenizer.tokenize(word):
-
-                    # if the word is split into piece with explicit markers
-                    while j < len(word) and tokens[i + j].startswith("##"):
-                        selected |= mask[i + j]
-                        j += 1
-
-                    # or it is split simply by chars
-                    if j == 1:
-                        while j < len(word):
-                            selected |= mask[i + j]
-                            j += 1
-
-                # Mask all piece of current word.
-                if selected:
-                    mask[i : i + j] = True
-
-                    # Break if we have masked enough tokens.
-                    num_masked_tokens -= j
-
-                spans += [(i, i + j)]
-                i += j
-
-        assert next(word_iter, None) is None
-        assert len(spans) == len(words)
-
-        if self.strict:
-            # Select random token piece spans,
-            random.shuffle(spans)
-
-            # to reduce masked tokens.
-            for start, end in spans:
-                mask[start:end] = False
-                num_masked_tokens += end - start
-
-                if num_masked_tokens > 0:
-                    break
-
-        return mask
+        return masks
 
     def collate_train(self, batch: Sequence[Mapping]) -> Any:
-        collated = collate(batch)
+        collated = collate(batch)  # type: ignore
+        collated = [
+            [self.tokenizer.cls_token] + x + [self.tokenizer.sep_token]
+            for x in collated
+        ]
 
-        inputs = self.tokenizer(
-            collated,
-            is_split_into_words=True,
-            add_special_tokens=True,
-            padding=True,
-            truncation=True,
-            return_tensors="pt",
+        keys = ["input_ids", "token_type_ids", "attention_mask"]
+        input_lists = dict(zip(keys, [[], [], []]))  # type: ignore
+        whole_word_masks = []
+        for words in collated:
+            encoded_inputs = self.tokenizer(words, add_special_tokens=False)
+            whole_word_masks += [self._whole_word_mask(encoded_inputs["input_ids"])]
+
+            for key in keys:
+                input_lists[key] += [
+                    list(itertools.chain.from_iterable(encoded_inputs[key]))
+                ]
+
+        inputs = self.tokenizer.pad(input_lists, padding=True, return_tensors="pt")
+        input_id: torch.Tensor = inputs["input_ids"]
+
+        max_length = input_id.size(1)
+        whole_word_mask = torch.tensor(
+            [x + [0] * (max_length - len(x)) for x in whole_word_masks],
+            dtype=torch.bool,
         )
-        input_id = inputs["input_ids"]
+
         label = input_id.clone()
-
-        whole_word_mask = torch.stack(
-            [
-                self._whole_word_mask(
-                    words, self.tokenizer.convert_ids_to_tokens(sample_input_ids)
-                )
-                for words, sample_input_ids in zip(collated, input_id.tolist())
-            ],
-            dim=0,
-        )
         label[~whole_word_mask] = self.ignore_index
 
         replace_mask = (
