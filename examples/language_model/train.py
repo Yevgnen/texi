@@ -67,7 +67,7 @@ def get_dataflows(
     dataflows = {
         mode: get_dataloader(
             dataset,
-            params[f"{Dataset.map_modekeys(mode)}_batch_size"],
+            batch_size=params[f"{Dataset.map_modekeys(mode)}_batch_size"],
             collate_fn=MaskedLMCollator(tokenizer, mode=Dataset.map_modekeys(mode)),
             num_workers=params["num_workers"],
             sort_key=lambda x: len(x["text"]),
