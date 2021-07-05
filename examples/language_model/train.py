@@ -18,7 +18,7 @@ from torch.utils.data import DataLoader
 from transformers import BertForMaskedLM, BertTokenizer, BertTokenizerFast
 
 from texi.datasets.dataset import Dataset, Datasets
-from texi.pytorch.dataset.plm.language_model import MaskedLMCollator
+from texi.pytorch.dataset.plm_collator import MaskedLMCollator
 from texi.pytorch.training.params import Params as _Params
 from texi.pytorch.training.training import (
     create_engines,
