@@ -82,7 +82,7 @@ def get_dataflows(
 def initialize(
     params: Params, num_train_examples: int
 ) -> tuple[nn.Module, nn.Module, Optimizer, _LRScheduler]:
-    model = BertForMaskedLM.from_pretrained(params["pretrained_model"])
+    model = BertForMaskedLM.from_pretrained(plm_path(params["pretrained_model"]))
 
     criteria = nn.CrossEntropyLoss()
 
