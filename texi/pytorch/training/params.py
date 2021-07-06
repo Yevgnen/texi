@@ -81,6 +81,7 @@ class Params(object):
             and self.eval_metric is not None
             else 0,
         )
+        self.eval_before_training = kwargs.get("eval_before_training", False)
 
         # Early Stopping
         self.early_stopping = kwargs.get("early_stopping", False)

@@ -257,6 +257,9 @@ def setup_evaluate_handlers(
         )
         trainer.add_event_handler(Events.COMPLETED, evaluate_handler)
 
+        if params.eval_before_training:
+            trainer.add_event_handler(Events.STARTED, evaluate_handler)
+
         @trainer.on(Events.EXCEPTION_RAISED)
         def evaluate_test_on_exceptions(*_):
             evaluate_handler(test_evaluator)
