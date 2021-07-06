@@ -30,6 +30,7 @@ eval_train: false
 eval_steps: "epoch"
 eval_metric: "accuracy"
 save_best_models: 1
+eval_before_training: true
 
 # Early Stopping
 early_stopping: false
