@@ -97,11 +97,13 @@ class MaskedLMCollator(PreTrainedCollator):
         self,
         tokenizer: PreTrainedTokenizer,
         mlm_probability: float = 0.15,
+        max_length: int = 512,
         ignore_index: int = -100,
         mode: ModeKeys = ModeKeys.TRAIN,
     ) -> None:
         super().__init__(tokenizer=tokenizer, mode=mode)
         self.mlm_probability = torch.tensor(mlm_probability)
+        self.max_length = max_length
         self.ignore_index = ignore_index
 
     def _whole_word_mask(self, tokens):
@@ -126,11 +128,25 @@ class MaskedLMCollator(PreTrainedCollator):
             for x in collated
         ]
 
+        def _truncate(tokens):
+            cls, *tokens, sep = tokens
+            truncated = []
+            length = self.max_length - 2
+            for token in tokens:
+                if len(token) <= length:
+                    truncated += [token]
+                    length -= len(token)
+                else:
+                    break
+
+            return [cls] + truncated + [sep]
+
         keys = ["input_ids", "token_type_ids", "attention_mask"]
         input_lists = dict(zip(keys, [[], [], []]))  # type: ignore
         whole_word_masks = []
         for words in collated:
             encoded_inputs = self.tokenizer(words, add_special_tokens=False)
+            encoded_inputs = {key: _truncate(encoded_inputs[key]) for key in keys}
             whole_word_masks += [self._whole_word_mask(encoded_inputs["input_ids"])]
 
             for key in keys:
