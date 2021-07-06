@@ -129,7 +129,7 @@ def eval_step(
         token_type_ids=x["token_type_ids"],
     )
 
-    mlm_mask = x["mlm_mask"].flatten()
+    mlm_mask = x["mlm_mask"].flatten().bool()
     y_pred = output["logits"].flatten(0, -2)[mlm_mask]
     y = y.flatten()[mlm_mask]
 
