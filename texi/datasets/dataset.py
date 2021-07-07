@@ -265,7 +265,7 @@ class Datasets(Generic[T_Dataset]):
         filename: Optional[Union[str, os.PathLike]] = None,
     ) -> None:
         def _wrap(d):
-            if not isinstance(d, Dataset):
+            if d is not None and not isinstance(d, Dataset):
                 return Dataset(d)
 
             return d
