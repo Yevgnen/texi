@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import abc
+import glob
 import itertools
 import json
 import os
@@ -234,7 +235,17 @@ class Dataset(PhaseMixin, MaskableMixin, SplitableMixin, Generic[T_co]):
                     if line:
                         yield format_function(json.loads(line))
 
-        fn = _iter_whole_file if array else _iter_multiple_lines
+        def _iter_dir():
+            for json_file in glob.iglob(
+                os.path.join(filename, "**/*.json"), recursive=True
+            ):
+                with open(json_file) as f:
+                    yield format_function(json.load(f))
+
+        if os.path.isdir(filename):
+            fn = _iter_dir
+        else:
+            fn = _iter_whole_file if array else _iter_multiple_lines
 
         return cls(fn, mode=mode)
 
