@@ -14,7 +14,7 @@ from ignite.metrics import Accuracy
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data import DataLoader
-from transformers import BertForMaskedLM, BertTokenizer, BertTokenizerFast
+from transformers import BertConfig, BertForMaskedLM, BertTokenizer, BertTokenizerFast
 
 from texi.datasets.dataset import Dataset, Datasets
 from texi.pytorch.dataset.plm_collator import MaskedLMCollator
@@ -37,7 +37,7 @@ from texi.utils import ModeKeys
 class Params(_Params):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.pretrained_model = kwargs.get("pretrained_model", "hfl/chinese-bert-wwm")
+        self.pretrained_model = kwargs["pretrained_model"]
 
 
 def load_datasets(params):
@@ -106,7 +106,7 @@ def get_dataflows(
 
 
 def initialize(params: Params) -> tuple[nn.Module, nn.Module, Optimizer, _LRScheduler]:
-    model = BertForMaskedLM.from_pretrained(plm_path(params["pretrained_model"]))
+    model = BertForMaskedLM(BertConfig())
 
     criteria = nn.CrossEntropyLoss()
 
@@ -166,7 +166,7 @@ def training(local_rank: int, params: Params) -> None:
 
     # Load datasets.
     datasets = load_datasets(params)
-    tokenizer = BertTokenizer.from_pretrained(plm_path(params["pretrained_model"]))
+    tokenizer = BertTokenizerFast.from_pretrained(plm_path(params["pretrained_model"]))
 
     # Get data dataflows.
     dataflows = get_dataflows(datasets, tokenizer, params)
