@@ -49,14 +49,9 @@ def describe_dataflows(dataflows, logger_: Optional[logging.Logger] = None) -> N
         logger_ = logger
 
     for mode, flow in dataflows.items():
-        logger_.info("Dataset description [%s]:", mode)
-
         if isinstance(flow.dataset, Dataset):
-            stats = flow.dataset.describe()
-        else:
-            stats = {"size": len(flow.dataset)}
-
-        log_dict(logger_, stats)
+            logger_.info("Dataset description [%s]:", mode)
+            log_dict(logger_, flow.dataset.describe())
 
 
 def setup_engine(
