@@ -25,7 +25,7 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data.dataloader import DataLoader
 
-from texi.datasets import Dataset, EagerEncodeMixin
+from texi.datasets import Dataset
 from texi.pytorch.logger import setup_tb_logging
 from texi.pytorch.training.params import Params
 from texi.utils import ModeKeys
@@ -49,7 +49,7 @@ def get_event(steps: Union[int, str]) -> CallableEventWithFilter:
     )
 
 
-def handle_dataset_mode(engine: Engine, ds: str, mode: str, eager_encode: bool) -> None:
+def handle_dataset_mode(engine: Engine, ds: str, mode: str) -> None:
     dataset = engine.state.dataloader.dataset
 
     if isinstance(dataset, Dataset):
@@ -58,13 +58,6 @@ def handle_dataset_mode(engine: Engine, ds: str, mode: str, eager_encode: bool) 
 
         getattr(dataset, mode)()
         engine.logger.info("Dataset [%s] switched to [%s] mode.", ds, mode)
-
-        if eager_encode:
-            if isinstance(dataset, EagerEncodeMixin):
-                engine.logger.info("Dataset [%s] is eager to encode.", ds)
-                dataset.eager_encode()
-            else:
-                logger.warning("Dataset [%s] does not support eager encoding.", ds)
 
 
 def build_evaluate_handler(

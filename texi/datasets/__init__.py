@@ -21,7 +21,6 @@ from texi.datasets.dataset import (
     Dataset,
     Datasets,
     DatasetTransformMixin,
-    EagerEncodeMixin,
     JSONDatasets,
     MaskableMixin,
     SplitableMixin,
@@ -32,7 +31,6 @@ from texi.datasets.translation import Translate2019Zh
 
 __all__ = [
     "DatasetTransformMixin",
-    "EagerEncodeMixin",
     "MaskableMixin",
     "SplitableMixin",
     "Dataset",

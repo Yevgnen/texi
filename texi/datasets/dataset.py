@@ -10,8 +10,6 @@ import os
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from typing import Any, Generic, Optional, Type, TypeVar, Union, cast
 
-import tqdm
-
 from texi.utils import ModeKeys, PhaseMixin
 
 T_co = TypeVar("T_co", covariant=True)
@@ -104,39 +102,6 @@ class MaskableMixin(DatasetTransformMixin):
         self.examples = [x[1] for x in examples]
 
         self._remove_attributes()
-
-
-class EagerEncodeMixin(DatasetTransformMixin):
-    _mixin_attributes = ["_original_examples"]
-    _mixin_transform = "eager_encode"
-    _mixin_inverse_transform = "eager_decode"
-    encode_batch: Callable
-    _collate: Callable
-
-    def eager_encode(self) -> None:
-        if hasattr(self, "_original_examples"):
-            examples = self._original_examples  # type: ignore
-        else:
-            examples = self.examples  # type: ignore
-            self._original_examples = self.examples  # type: ignore
-
-        encoded = self.encode_batch(
-            tqdm.tqdm(examples, desc="Encode batch:", ncols=0, leave=False)
-        )  # type: ignore
-
-        self.examples = encoded
-
-    def eager_decode(self) -> None:
-        self._check_inverse_transform()
-        self.examples = self._original_examples  # type: ignore
-
-        self._remove_attributes()
-
-    def collate_fn(self, batch: Sequence) -> Any:
-        if not hasattr(self, "_original_examples"):
-            return super().collate_fn(batch)
-
-        return self._collate(batch)
 
 
 class Dataset(PhaseMixin, MaskableMixin, SplitableMixin, Generic[T_co]):

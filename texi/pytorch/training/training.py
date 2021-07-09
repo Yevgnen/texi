@@ -133,7 +133,6 @@ def create_trainer(
             handle_dataset_mode,
             "train",
             ModeKeys.TRAIN,
-            params.eager_encode,
         )
 
         to_save = {
@@ -220,7 +219,6 @@ def create_evaluator(
             handle_dataset_mode,
             tag,
             ModeKeys.EVAL,
-            params.eager_encode,
         )
 
     return evaluator
