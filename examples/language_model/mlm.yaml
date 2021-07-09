@@ -3,9 +3,10 @@
 project: "mlm"
 
 # Dataset
-data_dir: "./wiki_segmented.txt"
-test_size: 0.1
-val_size: 0.05
+train_data: "mlm.train.txt"
+val_data: "mlm.val.txt"
+test_data: "mlm.test.txt"
+train_size: 6631832
 
 # Training
 backend: null
