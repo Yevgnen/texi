@@ -8,7 +8,6 @@ import json
 import os
 from collections.abc import Mapping, MutableMapping, Sequence
 from pathlib import Path
-from texi.utils import ModeKeys
 from typing import Union, cast
 
 import ignite.distributed as idist
@@ -28,6 +27,7 @@ from texi.pytorch.models.spert.sampler import SpERTSampler
 from texi.pytorch.models.spert.training import eval_step
 from texi.pytorch.training.training import create_evaluator, run
 from texi.pytorch.utils import get_dataloader, load_checkpoint, plm_path
+from texi.utils import ModeKeys
 
 
 def add_dummy_labels(x: MutableMapping) -> dict:
@@ -98,7 +98,7 @@ def predict(
     checkpoint: Path,
 ) -> None:
     # Load datasets.
-    dataset = SpERTDataset.from_json_iter(test_file, array=True).load()
+    dataset = SpERTDataset.from_json(test_file, array=True).load()
     dataset.map(add_dummy_labels)
     dataset.eval()
 

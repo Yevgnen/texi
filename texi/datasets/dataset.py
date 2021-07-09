@@ -182,7 +182,7 @@ class Dataset(MaskableMixin, SplitableMixin, Generic[T_co]):
         }[mode]
 
     @classmethod
-    def from_json_iter(
+    def from_json(
         cls: Type[T],
         filename: Union[str, os.PathLike],
         format_function: Optional[Callable] = lambda x: x,
@@ -322,7 +322,7 @@ class Datasets(Generic[T_Dataset]):
             }
 
         data = {
-            key: class_.from_json_iter(
+            key: class_.from_json(
                 os.path.join(dirname, value),
                 cls.format,
                 *args,
