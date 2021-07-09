@@ -12,7 +12,7 @@ train_size: 6631832
 backend: null
 nproc_per_node: null
 seed: null
-max_epochs: 50
+max_epochs: 30
 lr: 0.00005
 lr_warmup: 0.1
 weight_decay: 0.01
@@ -28,7 +28,7 @@ non_blocking: true
 
 # Evaluation
 eval_train: false
-eval_steps: "epoch"
+eval_steps: 100000
 eval_metric: "accuracy"
 save_best_models: 1
 eval_before_training: true
@@ -44,4 +44,4 @@ wandb: true
 debug: false
 
 # Model
-pretrained_model: "hfl/chinese-bert-wwm"
+pretrained_model: "./mbert/"
