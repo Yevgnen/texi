@@ -9,6 +9,7 @@ from typing import Union
 import ignite.distributed as idist
 import torch
 import torch.nn as nn
+from carton.file import iter_lines
 from ignite.engine import Engine
 from ignite.metrics import Accuracy
 from torch.optim import Optimizer
@@ -20,12 +21,7 @@ from texi.datasets.dataset import Dataset, Datasets
 from texi.pytorch.dataset.plm_collator import MaskedLMCollator
 from texi.pytorch.dataset.sampler import BucketIterableDataset, IterableDataset
 from texi.pytorch.training.params import Params as _Params
-from texi.pytorch.training.training import (
-    create_engines,
-    describe_dataflows,
-    run,
-    setup_env,
-)
+from texi.pytorch.training.training import create_engines, run, setup_env
 from texi.pytorch.utils import (
     get_dataloader,
     get_pretrained_optimizer_and_scheduler,
@@ -41,22 +37,11 @@ class Params(_Params):
 
 
 def load_datasets(params):
-    def _iter(filename):
-        def _inner():
-            with open(filename) as f:
-                i = 0
-                for line in f:
-                    line = line.rstrip()
-                    if i > 200:
-                        break
-                    i += 1
-                    if line:
-                        yield {"text": line.split(" ")}
-
-        return _inner
+    def _transform(x):
+        return {"text": x.split(" ")}
 
     train = BucketIterableDataset(
-        _iter(params["train_data"]),
+        lambda: iter_lines(params["train_data"], transform=_transform),
         params["train_batch_size"],
         world_size=idist.get_world_size(),
         rank=idist.get_rank(),
@@ -64,14 +49,14 @@ def load_datasets(params):
         mode=ModeKeys.TRAIN,
     )
     val = IterableDataset(
-        _iter(params["val_data"]),
+        lambda: iter_lines(params["val_data"], transform=_transform),
         params["eval_batch_size"],
         world_size=idist.get_world_size(),
         rank=idist.get_rank(),
         mode=ModeKeys.EVAL,
     )
     test = IterableDataset(
-        _iter(params["test_data"]),
+        lambda: iter_lines(params["test_data"], transform=_transform),
         params["predict_batch_size"],
         world_size=idist.get_world_size(),
         rank=idist.get_rank(),
@@ -96,7 +81,6 @@ def get_dataflows(
             batch_size=params[f"{Dataset.map_modekeys(mode)}_batch_size"],
             collate_fn=MaskedLMCollator(tokenizer, mode=Dataset.map_modekeys(mode)),
             num_workers=params["num_workers"],
-            sort_key=lambda x: len(x["text"]),
             pin_memory=params["pin_memory"],
         )
         for mode, dataset in datasets.items()
@@ -170,7 +154,6 @@ def training(local_rank: int, params: Params) -> None:
 
     # Get data dataflows.
     dataflows = get_dataflows(datasets, tokenizer, params)
-    describe_dataflows(dataflows)
 
     # Create model.
     model, criteria, optimizer, lr_scheduler = initialize(params)
