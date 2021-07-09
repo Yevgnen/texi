@@ -33,7 +33,6 @@ class TestSpERTDataset(unittest.TestCase):
         relation_label_encoder = LabelEncoder(["born in", "NEGATIVE_RELATION"])
 
         collator = SpERTCollator(
-            [self.example],
             Mock(),
             BertTokenizer.from_pretrained(plm_path("bert-base-uncased")),
             entity_label_encoder,

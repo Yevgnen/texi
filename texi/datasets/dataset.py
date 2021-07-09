@@ -10,7 +10,7 @@ import os
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from typing import Any, Generic, Optional, Type, TypeVar, Union, cast
 
-from texi.utils import ModeKeys, PhaseMixin
+from texi.utils import ModeKeys
 
 T_co = TypeVar("T_co", covariant=True)
 
@@ -104,7 +104,7 @@ class MaskableMixin(DatasetTransformMixin):
         self._remove_attributes()
 
 
-class Dataset(PhaseMixin, MaskableMixin, SplitableMixin, Generic[T_co]):
+class Dataset(MaskableMixin, SplitableMixin, Generic[T_co]):
     T = TypeVar("T", bound="Dataset")
 
     def __init__(

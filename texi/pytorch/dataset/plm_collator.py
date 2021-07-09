@@ -5,7 +5,7 @@ from __future__ import annotations
 import abc
 import itertools
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Optional
+from typing import Any, Optional
 
 import torch
 from carton.collections import collate
@@ -13,19 +13,17 @@ from transformers.tokenization_utils import PreTrainedTokenizer
 
 from texi.preprocessing import LabelEncoder
 from texi.pytorch.dataset.collator import Collator
-
-if TYPE_CHECKING:
-    from texi.datasets.dataset import Dataset
+from texi.utils import ModeKeys
 
 
 class PreTrainedCollator(Collator, metaclass=abc.ABCMeta):
     def __init__(
         self,
-        dataset: Dataset,
         tokenizer: PreTrainedTokenizer,
         label_encoder: Optional[LabelEncoder] = None,
+        mode: ModeKeys = ModeKeys.TRAIN,
     ) -> None:
-        super().__init__(dataset)
+        super().__init__(mode=mode)
         self.tokenizer = tokenizer
         if label_encoder is None:
             label_encoder = LabelEncoder()
@@ -55,11 +53,11 @@ class TextClassificationCollator(PreTrainedCollator):
 class TextMatchingCollator(PreTrainedCollator):
     def __init__(
         self,
-        dataset: Dataset,
         tokenizer: PreTrainedTokenizer,
         label_encoder: Optional[LabelEncoder] = None,
+        mode: ModeKeys = ModeKeys.TRAIN,
     ) -> None:
-        super().__init__(dataset, tokenizer, label_encoder=label_encoder)
+        super().__init__(tokenizer, label_encoder=label_encoder, mode=mode)
 
     def collate_train(
         self, batch: Sequence

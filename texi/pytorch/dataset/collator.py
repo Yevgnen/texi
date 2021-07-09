@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import abc
 from collections.abc import Callable, Sequence
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import Any, TypeVar
 
 import torch
 from carton.collections import collate
@@ -12,17 +12,14 @@ from torchnlp.encoders.text import stack_and_pad_tensors
 from torchnlp.utils import collate_tensors, identity
 
 from texi.preprocessing import LabelEncoder
-from texi.utils import ModeKeys
-
-if TYPE_CHECKING:
-    from texi.datasets.dataset import Dataset
+from texi.utils import ModeKeys, PhaseMixin
 
 
-class Collator(object, metaclass=abc.ABCMeta):
+class Collator(PhaseMixin, metaclass=abc.ABCMeta):
     T = TypeVar("T", bound="Collator")
 
-    def __init__(self, dataset: Dataset) -> None:
-        self.dataset = dataset
+    def __init__(self, mode: ModeKeys = ModeKeys.TRAIN) -> None:
+        self.mode = mode
 
     def __call__(self, batch: Sequence) -> Any:
         return self.collate_fn(batch)
@@ -47,7 +44,7 @@ class Collator(object, metaclass=abc.ABCMeta):
             ModeKeys.TRAIN: self.collate_train,
             ModeKeys.EVAL: self.collate_eval,
             ModeKeys.PREDICT: self.collate_predict,
-        }[self.dataset.mode]
+        }[self.mode]
 
     def _collate(self, encoded_batch):
         return self._get_collate_fn()(encoded_batch)
@@ -62,11 +59,11 @@ class Collator(object, metaclass=abc.ABCMeta):
 class TextClassificationCollator(Collator):
     def __init__(
         self,
-        dataset: Dataset,
         tokenizer: Callable,
         label_encoder: LabelEncoder,
+        mode: ModeKeys = ModeKeys.TRAIN,
     ) -> None:
-        super().__init__(dataset)
+        super().__init__(mode=mode)
         self.tokenizer = tokenizer
         self.label_encoder = label_encoder
 
@@ -95,11 +92,11 @@ class TextClassificationCollator(Collator):
 class TextMatchingCollator(Collator):
     def __init__(
         self,
-        dataset: Dataset,
         tokenizer: Callable,
         label_encoder: LabelEncoder,
+        mode: ModeKeys = ModeKeys.TRAIN,
     ) -> None:
-        super().__init__(dataset)
+        super().__init__(mode=mode)
         self.tokenizer = tokenizer
         self.label_encoder = label_encoder
 
@@ -129,8 +126,8 @@ class TextMatchingCollator(Collator):
 
 
 class QuestionAnsweringCollator(Collator):
-    def __init__(self, dataset: Dataset, tokenizer: Callable) -> None:
-        super().__init__(dataset)
+    def __init__(self, tokenizer: Callable, mode: ModeKeys = ModeKeys.TRAIN) -> None:
+        super().__init__(mode=mode)
         self.tokenizer = tokenizer
 
     def encode(self, example):

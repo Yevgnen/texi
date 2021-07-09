@@ -60,11 +60,11 @@ def get_dataflows(
             dataset,
             batch_size=params[f"{Dataset.map_modekeys(mode)}_batch_size"],
             collate_fn=SpERTCollator(
-                dataset,
                 negative_sampler,
                 tokenizer,
                 entity_label_encoder,
                 relation_label_encoder,
+                mode=Dataset.map_modekeys(mode),
             ),
             sort_key=(lambda x: len(x["tokens"])) if mode == "train" else None,
             pin_memory=params["pin_memory"],

@@ -134,14 +134,15 @@ def get_dataloader(
     sampler: Optional[Sampler] = None,
     batch_sampler: Optional[Sampler] = None,
     sort_key: Optional[Callable] = None,
+    shuffle: bool = False,
     **kwargs,
 ) -> DataLoader:
     if not isinstance(dataset, IterableDataset):
         if batch_sampler is None:
             if sort_key is not None:
-                if dataset.is_train():
+                if isinstance(collate_fn, Collator) and dataset.is_train():
                     warnings.warn(
-                        "`sort_key` is given when `dataset.is_train()` is False"
+                        "`sort_key` is given when `collate_fn.is_train()` is False"
                     )
 
                 batch_sampler = bucket_batch_sampler(
@@ -159,7 +160,12 @@ def get_dataloader(
             elif sampler is None:
                 # `sampler` will be wrapped in `idist.auto_dataloader`,
                 # so we dont' need `batch_sampler`.
-                sampler = get_sampler(dataset, dataset.is_train())
+                sampler = get_sampler(
+                    dataset,
+                    collate_fn.is_train()
+                    if isinstance(collate_fn, Collator)
+                    else shuffle,
+                )
 
     kwargs.update(
         {

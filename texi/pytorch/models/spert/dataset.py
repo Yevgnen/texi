@@ -16,6 +16,7 @@ from texi.pytorch.dataset import Collator
 from texi.pytorch.masking import create_span_mask
 from texi.pytorch.models.spert.sampler import SpERTSampler
 from texi.pytorch.utils import pad_stack_1d, pad_stack_2d
+from texi.utils import ModeKeys
 
 if TYPE_CHECKING:
     from transformers import BertTokenizer, BertTokenizerFast
@@ -33,13 +34,13 @@ class SpERTDataset(Dataset):
 class SpERTCollator(Collator):
     def __init__(
         self,
-        dataset: SpERTDataset,
         negative_sampler: SpERTSampler,
         tokenizer: Union[BertTokenizer, BertTokenizerFast],
         entity_label_encoder: LabelEncoder,
         relation_label_encoder: LabelEncoder,
+        mode: ModeKeys = ModeKeys.TRAIN,
     ) -> None:
-        super().__init__(dataset)
+        super().__init__(mode=mode)
 
         self.tokenizer = tokenizer
         self.negative_sampler = negative_sampler
@@ -189,7 +190,7 @@ class SpERTCollator(Collator):
         positive_relations = example["relations"]
         negative_entities = self.negative_sampler.sample_negative_entities(example)
 
-        if self.dataset.is_train():
+        if self.is_train():
             negative_relations = self.negative_sampler.sample_negative_relations(
                 example
             )
@@ -249,7 +250,7 @@ class SpERTCollator(Collator):
         }
 
     def collate_train(self, batch: Sequence[NerExample]) -> dict[str, torch.Tensor]:
-        assert self.dataset.is_train(), "`collate_train` must be called in train mode"
+        assert self.is_train(), "`collate_train` must be called in train mode"
 
         return self._collate_internal(collate(batch))
 
@@ -258,9 +259,7 @@ class SpERTCollator(Collator):
     ) -> Union[
         dict[str, torch.Tensor], tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]
     ]:
-        assert (
-            not self.dataset.is_train()
-        ), "`collate_train` must NOT be called in train mode"
+        assert not self.is_train(), "`collate_train` must NOT be called in train mode"
 
         positives, negatives = zip(*batch)
 

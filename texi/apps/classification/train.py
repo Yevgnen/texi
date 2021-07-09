@@ -57,7 +57,9 @@ def get_dataflows(
         mode: get_dataloader(
             dataset,
             batch_size=params[f"{Dataset.map_modekeys(mode)}_batch_size"],
-            collate_fn=TextClassificationCollator(dataset, tokenizer, label_encoder),
+            collate_fn=TextClassificationCollator(
+                tokenizer, label_encoder, mode=Dataset.map_modekeys(mode)
+            ),
             sort_key=(lambda x: len(x["text"])) if mode == "train" else None,
             num_workers=params["num_workers"],
             pin_memory=params["pin_memory"],

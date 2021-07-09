@@ -8,6 +8,7 @@ import json
 import os
 from collections.abc import Mapping, MutableMapping, Sequence
 from pathlib import Path
+from texi.utils import ModeKeys
 from typing import Union, cast
 
 import ignite.distributed as idist
@@ -132,11 +133,11 @@ def predict(
     dataflow = get_dataloader(
         dataset,
         collate_fn=SpERTCollator(
-            dataset,
             negative_sampler,
             tokenizer,
             entity_label_encoder,
             relation_label_encoder,
+            mode=ModeKeys.PREDICT,
         ),
         batch_size=params["predict_batch_size"],
         num_workers=params["num_workers"],
