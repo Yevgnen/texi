@@ -183,3 +183,6 @@ class MaskedLMCollator(PreTrainedCollator):
         inputs["mlm_mask"] = whole_word_mask.long()
 
         return inputs, label
+
+    def collate_predict(self, batch: Sequence) -> Any:
+        return self.collate_train(batch)
