@@ -31,6 +31,7 @@ class Params(object):
         self.train_data = kwargs.get("train_data")
         self.val_data = kwargs.get("val_data")
         self.test_data = kwargs.get("test_data")
+        self.train_size = kwargs.get("train_size")
         self.val_size = kwargs.get("val_size", 0.1)
         self.test_size = kwargs.get("test_size", 0.2)
         self.max_length = kwargs.get("max_length")
@@ -38,6 +39,8 @@ class Params(object):
         # Training
         self.backend = kwargs.get("backend")
         self.nproc_per_node = kwargs.get("nproc_per_node")
+        self.master_addr = kwargs.get("master_addr")
+        self.master_port = kwargs.get("master_port")
         self.seed = random_state(kwargs.get("seed"))
         save_path = os.getenv("SAVE_PATH")
         if not save_path:

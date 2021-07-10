@@ -49,14 +49,9 @@ def describe_dataflows(dataflows, logger_: Optional[logging.Logger] = None) -> N
         logger_ = logger
 
     for mode, flow in dataflows.items():
-        logger_.info("Dataset description [%s]:", mode)
-
         if isinstance(flow.dataset, Dataset):
-            stats = flow.dataset.describe()
-        else:
-            stats = {"size": len(flow.dataset)}
-
-        log_dict(logger_, stats)
+            logger_.info("Dataset description [%s]:", mode)
+            log_dict(logger_, flow.dataset.describe())
 
 
 def setup_engine(
@@ -295,6 +290,9 @@ def create_engines(
 
 def run(fn: Callable, params: Params, *args, **kwargs) -> None:
     with idist.Parallel(
-        backend=params.backend, nproc_per_node=params.nproc_per_node
+        backend=params.backend,
+        nproc_per_node=params.nproc_per_node,
+        master_addr=params.master_addr,
+        master_port=params.master_port,
     ) as parallel:
         parallel.run(fn, params, *args, **kwargs)

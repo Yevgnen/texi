@@ -13,6 +13,8 @@ from torch.utils.data import BatchSampler, Dataset
 from torch.utils.data import IterableDataset as _IterableDataset
 from torch.utils.data.sampler import RandomSampler, Sampler
 
+from texi.utils import ModeKeys
+
 
 def _identity(x):
     return x
@@ -90,6 +92,7 @@ class IterableDataset(_IterableDataset):
         batch_size: int,
         world_size: Optional[int] = None,
         rank: Optional[int] = None,
+        mode: ModeKeys = ModeKeys.TRAIN,  # TODO: Make wrapper.
     ) -> None:
         super().__init__()
         self.generating_function = generating_function
@@ -98,6 +101,7 @@ class IterableDataset(_IterableDataset):
             raise ValueError("`rank` and `world_size` must both given or unspecified")
         self.world_size = world_size
         self.rank = rank
+        self.mode = mode
 
     def _get_iterator(self):
         # Generate new iterator.
@@ -119,6 +123,9 @@ class IterableDataset(_IterableDataset):
     def __getitem__(self, index):
         raise RuntimeError("`IterableDataset` does not support indexing")
 
+    def __iter__(self):
+        yield from self._get_iterator()
+
 
 class BucketIterableDataset(IterableDataset):
     def __init__(
@@ -129,9 +136,10 @@ class BucketIterableDataset(IterableDataset):
         rank: Optional[int] = None,
         sort_key: Callable = _identity,
         batch_size_multiplier: int = 100,
+        mode: ModeKeys = ModeKeys.TRAIN,  # TODO: Make wrapper.
     ) -> None:
         super().__init__(
-            generating_function, batch_size, world_size=world_size, rank=rank
+            generating_function, batch_size, world_size=world_size, rank=rank, mode=mode
         )
         self.bucket_size = batch_size_multiplier * batch_size
         self.sort_key = sort_key
