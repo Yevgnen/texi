@@ -6,8 +6,8 @@ from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Type
 
 import torch
-import torch.nn as nn
 from ignite.utils import convert_tensor
+from torch import nn
 from torchcrf import CRF
 from transformers import BertModel
 

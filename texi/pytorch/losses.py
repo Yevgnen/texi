@@ -3,7 +3,7 @@
 from typing import Union
 
 import torch
-import torch.nn as nn
+from torch import nn
 
 
 def manhattan_similarity(v1: torch.Tensor, v2: torch.Tensor) -> torch.Tensor:

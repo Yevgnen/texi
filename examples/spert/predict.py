@@ -11,9 +11,9 @@ from pathlib import Path
 from typing import Union, cast
 
 import ignite.distributed as idist
-import torch.nn as nn
 from ignite.engine.engine import Engine
 from ignite.engine.events import Events
+from torch import nn
 from transformers import BertTokenizerFast
 
 from texi.apps.ner import split_example

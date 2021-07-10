@@ -3,7 +3,7 @@
 from typing import Union
 
 import torch
-import torch.nn as nn
+from torch import nn
 from transformers import BertModel
 
 from texi.pytorch.pooling import get_pooling

@@ -10,10 +10,10 @@ from typing import Optional, Union
 
 import ignite.distributed as idist
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from ignite.handlers.checkpoint import Checkpoint
+from torch import nn
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
 from torch.utils.data.dataset import IterableDataset
 from torch.utils.data.sampler import Sampler

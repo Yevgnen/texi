@@ -10,7 +10,6 @@ from typing import Mapping, Optional, Union
 
 import ignite.distributed as idist
 import torch
-import torch.nn as nn
 from carton.logger import log_dict
 from carton.logger import setup_logger as carton_setup_logger
 from carton.random import set_seed
@@ -20,6 +19,7 @@ from ignite.engine import Engine, Events
 from ignite.handlers import DiskSaver
 from ignite.metrics import BatchWise, EpochWise, Metric
 from ignite.utils import convert_tensor, setup_logger
+from torch import nn
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data import DataLoader

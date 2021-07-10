@@ -9,9 +9,9 @@ from collections.abc import Callable, Iterable, Mapping
 from typing import TYPE_CHECKING, Optional, Union
 
 import ignite.distributed as idist
-import torch.nn as nn
 from ignite.engine import Engine, Events
 from ignite.handlers import global_step_from_engine
+from torch import nn
 
 from texi.apps.ner import (
     SpERTVisualizer,

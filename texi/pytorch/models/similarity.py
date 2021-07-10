@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Optional, cast
 
 import torch
-import torch.nn as nn
+from torch import nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from transformers import BertModel
 

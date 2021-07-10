@@ -17,9 +17,9 @@ from ignite.engine import Events
 
 if TYPE_CHECKING:
     # pylint: disable=ungrouped-imports
-    import torch.nn as nn
     from ignite.contrib.handlers import TensorboardLogger
     from ignite.engine import Engine
+    from torch import nn
     from torch.optim import Optimizer
 
 

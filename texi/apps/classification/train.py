@@ -8,9 +8,9 @@ from typing import Union
 
 import ignite.distributed as idist
 import torch
-import torch.nn as nn
 from ignite.engine import Engine
 from ignite.metrics import Accuracy, Fbeta, Precision, Recall
+from torch import nn
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data import DataLoader

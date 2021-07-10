@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Union, cast
 
 import torch
-import torch.nn as nn
+from torch import nn
 from transformers import BertModel
 
 from texi.pytorch.masking import create_span_mask

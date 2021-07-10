@@ -8,10 +8,10 @@ from typing import Union
 
 import ignite.distributed as idist
 import torch
-import torch.nn as nn
 from carton.file import iter_lines
 from ignite.engine import Engine
 from ignite.metrics import Accuracy
+from torch import nn
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data import DataLoader

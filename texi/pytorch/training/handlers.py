@@ -9,7 +9,6 @@ from typing import Any, Optional, Union, cast
 
 import ignite.distributed as idist
 import torch
-import torch.nn as nn
 from ignite.contrib.engines.common import (
     add_early_stopping_by_val_score,
     save_best_model_by_val_score,
@@ -21,6 +20,7 @@ from ignite.engine import Engine, Events
 from ignite.engine.events import CallableEventWithFilter
 from ignite.handlers import EarlyStopping
 from ignite.handlers.checkpoint import Checkpoint
+from torch import nn
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data.dataloader import DataLoader
