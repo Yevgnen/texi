@@ -25,7 +25,7 @@ from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data import DataLoader
 
 from texi.datasets import Dataset
-from texi.pytorch.training.handlers import handle_dataset_mode, setup_extra_handlers
+from texi.pytorch.training.handlers import handle_collator_mode, setup_extra_handlers
 from texi.pytorch.training.params import Params
 from texi.utils import ModeKeys
 
@@ -125,7 +125,7 @@ def create_trainer(
 
         trainer.add_event_handler(
             Events.EPOCH_STARTED,
-            handle_dataset_mode,
+            handle_collator_mode,
             "train",
             ModeKeys.TRAIN,
         )
@@ -211,7 +211,7 @@ def create_evaluator(
 
         evaluator.add_event_handler(
             Events.EPOCH_STARTED,
-            handle_dataset_mode,
+            handle_collator_mode,
             tag,
             ModeKeys.EVAL,
         )
