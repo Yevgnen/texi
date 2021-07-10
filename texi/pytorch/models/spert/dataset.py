@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 class SpERTDataset(Dataset):
     def describe(self) -> dict[str, Any]:
         info = super().describe()
-        type_stats = flatten_dict(describe_examples(self.examples))
+        type_stats = flatten_dict(describe_examples(self.examples), sep="/")
         info.update(type_stats)
 
         return info
