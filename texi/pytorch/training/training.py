@@ -24,7 +24,6 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 from torch.utils.data import DataLoader
 
-from texi.datasets import Dataset
 from texi.pytorch.training.handlers import handle_collator_mode, setup_extra_handlers
 from texi.pytorch.training.params import Params
 from texi.utils import ModeKeys
@@ -42,16 +41,6 @@ def setup_env(params: Params):
     carton_setup_logger(level=params["log_level"], filename=params["log_file"])
 
     params.to_yaml(os.path.join(params.save_path, "params.yaml"))
-
-
-def describe_dataflows(dataflows, logger_: Optional[logging.Logger] = None) -> None:
-    if logger_ is None:
-        logger_ = logger
-
-    for mode, flow in dataflows.items():
-        if isinstance(flow.dataset, Dataset):
-            logger_.info("Dataset description [%s]:", mode)
-            log_dict(logger_, flow.dataset.describe())
 
 
 def setup_engine(

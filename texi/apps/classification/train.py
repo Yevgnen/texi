@@ -22,12 +22,7 @@ from texi.preprocessing import LabelEncoder
 from texi.pytorch.dataset.plm_collator import TextClassificationCollator
 from texi.pytorch.models import BertForSequenceClassification
 from texi.pytorch.training.params import Params as _Params
-from texi.pytorch.training.training import (
-    create_engines,
-    describe_dataflows,
-    run,
-    setup_env,
-)
+from texi.pytorch.training.training import create_engines, run, setup_env
 from texi.pytorch.utils import (
     get_dataloader,
     get_pretrained_optimizer_and_scheduler,
@@ -146,13 +141,12 @@ def training(local_rank: int, params: Params) -> None:
         setup_env(params)
 
     # Load datasets.
-    datasets = JSONDatasets.from_dir(params.data_dir, array=True).load()
+    datasets = JSONDatasets.from_dir(params.data_dir, array=True).load().describe()
     tokenizer = BertTokenizerFast.from_pretrained(plm_path(params["pretrained_model"]))
     label_encoder = LabelEncoder(x["label"] for x in datasets.train)
 
     # Get data dataflows.
     dataflows = get_dataflows(datasets, tokenizer, label_encoder, params)
-    describe_dataflows(dataflows)
 
     # Create model.
     model, criteria, optimizer, lr_scheduler = initialize(params, len(datasets.train))

@@ -6,13 +6,18 @@ import abc
 import glob
 import itertools
 import json
+import logging
 import os
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from typing import Any, Generic, Optional, Type, TypeVar, Union, cast
 
+from carton.logger import log_dict
+
 from texi.utils import ModeKeys
 
 T_co = TypeVar("T_co", covariant=True)
+
+logger = logging.getLogger(__name__)
 
 
 class DatasetTransformMixin(Iterable, metaclass=abc.ABCMeta):
@@ -290,6 +295,12 @@ class Datasets(Generic[T_Dataset]):
 
     def mask(self, fn: Callable) -> None:
         self._map_dataset_methods("mask", fn)
+
+    def describe(self):
+        for mode, dataset in self.items():
+            if dataset is not None:
+                logger.info("Dataset info [%s]: ", mode)
+                log_dict(logger, dataset.describe())
 
     @classmethod
     def format(cls: Type[T], x: Any) -> Any:

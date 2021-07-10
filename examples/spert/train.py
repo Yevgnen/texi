@@ -26,12 +26,7 @@ from texi.pytorch.models.spert import (
     SpERTSampler,
 )
 from texi.pytorch.models.spert.training import eval_step, train_step
-from texi.pytorch.training.training import (
-    create_engines,
-    describe_dataflows,
-    run,
-    setup_env,
-)
+from texi.pytorch.training.training import create_engines, run, setup_env
 from texi.pytorch.utils import (
     get_dataloader,
     get_pretrained_optimizer_and_scheduler,
@@ -122,6 +117,7 @@ def training(local_rank: int, params: SpERTParams) -> None:
                 split_example, delimiters=params.split_delimiter, ignore_errors=True
             )
         )
+    datasets.describe()
 
     if params.max_length > 0:
         datasets.mask(lambda x: len(x["tokens"]) < params["max_length"])
@@ -140,7 +136,6 @@ def training(local_rank: int, params: SpERTParams) -> None:
     dataflows = get_dataflows(
         datasets, tokenizer, entity_label_encoder, relation_label_encoder, params
     )
-    describe_dataflows(dataflows)
 
     # Create model.
     model, criteria, optimizer, lr_scheduler = initialize(
