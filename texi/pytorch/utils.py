@@ -138,7 +138,7 @@ def get_dataloader(
     if not isinstance(dataset, IterableDataset):
         if batch_sampler is None:
             if sort_key is not None:
-                if isinstance(collate_fn, Collator) and dataset.is_train():
+                if isinstance(collate_fn, Collator) and collate_fn.is_train():
                     warnings.warn(
                         "`sort_key` is given when `collate_fn.is_train()` is False"
                     )
