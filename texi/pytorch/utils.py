@@ -6,7 +6,7 @@ import inspect
 import os
 import warnings
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from typing import TYPE_CHECKING, Optional, Union
+from typing import Optional, Union
 
 import ignite.distributed as idist
 import torch
@@ -20,10 +20,8 @@ from torch.utils.data.sampler import Sampler
 from transformers.optimization import AdamW, get_linear_schedule_with_warmup
 
 from texi.datasets.dataset import Dataset
+from texi.pytorch.dataset import Collator
 from texi.pytorch.dataset.sampler import bucket_batch_sampler
-
-if TYPE_CHECKING:
-    from texi.pytorch.dataset import Collator
 
 
 def cuda(enable: bool) -> bool:
