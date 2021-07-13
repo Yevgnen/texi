@@ -8,11 +8,13 @@ from texi.pytorch.models.sequence_labeling import (
     CRFForPreTraining,
     SequenceCrossEntropyLoss,
 )
-from texi.pytorch.models.similarity import ESIM, SiameseLSTM
 from texi.pytorch.models.text_matching import (
+    ESIM,
+    BertSimilarity,
     SBertBiEncoder,
     SBertForClassification,
     SBertForRegression,
+    SiameseLSTM,
 )
 
 __all__ = [
@@ -21,6 +23,7 @@ __all__ = [
     "BiLstmCrf",
     "CRFForPreTraining",
     "SequenceCrossEntropyLoss",
+    "BertSimilarity",
     "ESIM",
     "SiameseLSTM",
     "SBertBiEncoder",
