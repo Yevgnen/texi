@@ -39,6 +39,7 @@ class Params(object):
         # Training
         self.backend = kwargs.get("backend")
         self.nproc_per_node = kwargs.get("nproc_per_node")
+        self.nnodes = kwargs.get("nnodes")
         self.master_addr = kwargs.get("master_addr")
         self.master_port = kwargs.get("master_port")
         self.seed = random_state(kwargs.get("seed"))
