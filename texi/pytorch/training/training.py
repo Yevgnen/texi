@@ -285,5 +285,6 @@ def run(fn: Callable, params: Params, *args, **kwargs) -> None:
         nproc_per_node=params.nproc_per_node,
         master_addr=params.master_addr,
         master_port=params.master_port,
+        init_method=params.init_method,
     ) as parallel:
         parallel.run(fn, params, *args, **kwargs)

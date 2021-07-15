@@ -43,6 +43,7 @@ class Params(object):
         self.node_rank = kwargs.get("node_rank")
         self.master_addr = kwargs.get("master_addr")
         self.master_port = kwargs.get("master_port")
+        self.init_method = kwargs.get("init_method")
         self.seed = random_state(kwargs.get("seed"))
         save_path = os.getenv("SAVE_PATH")
         if not save_path:
