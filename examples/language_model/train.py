@@ -98,7 +98,6 @@ def initialize(params: Params) -> tuple[nn.Module, nn.Module, Optimizer, _LRSche
         params["train_size"] // params["train_batch_size"] * params["max_epochs"]
     )
     warmup_steps = params["lr_warmup"] * num_training_steps
-    warmup_steps = 1
     optimizer, lr_scheduler = get_pretrained_optimizer_and_scheduler(
         model, params["lr"], params["weight_decay"], warmup_steps, num_training_steps
     )
