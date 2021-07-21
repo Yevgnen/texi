@@ -8,9 +8,7 @@ import torch
 from carton.collections import collate
 from torchlight.dataset import Collator
 from torchlight.preprocessing import LabelEncoder
-from torchlight.utils import ModeKeys
-from torchnlp.encoders.text import stack_and_pad_tensors
-from torchnlp.utils import collate_tensors, identity
+from torchlight.utils import ModeKeys, pad_stack_1d
 
 
 class TextClassificationCollator(Collator):
@@ -33,8 +31,8 @@ class TextClassificationCollator(Collator):
     def collate_train(self, batch):
         batch = self.encode_batch(batch)
 
-        batch = collate_tensors(batch, identity)
-        text, length = stack_and_pad_tensors(batch["text"])
+        batch = collate(batch)
+        text, length = pad_stack_1d(batch["text"], return_lengths=True)
         label = torch.stack(batch["label"])
 
         x = {
@@ -67,9 +65,9 @@ class TextMatchingCollator(Collator):
     def collate_train(self, batch):
         batch = self.encode_batch(batch)
 
-        batch = collate_tensors(batch, identity)
-        sentence1, length1 = stack_and_pad_tensors(batch["sentence1"])
-        sentence2, length2 = stack_and_pad_tensors(batch["sentence2"])
+        batch = collate(batch)
+        sentence1, length1 = pad_stack_1d(batch["sentence1"], return_lengths=True)
+        sentence2, length2 = pad_stack_1d(batch["sentence2"], return_lengths=True)
 
         x = {
             "sentence1": sentence1,
@@ -109,12 +107,14 @@ class QuestionAnsweringCollator(Collator):
         batch = self.encode(batch)
 
         batch = collate(batch)
-        contexts, context_lengths = stack_and_pad_tensors(batch["context"])
-        questions, question_lengths = stack_and_pad_tensors(batch["question"])
+        contexts, context_lengths = pad_stack_1d(batch["context"], return_lengths=True)
+        questions, question_lengths = pad_stack_1d(
+            batch["question"], return_lengths=True
+        )
 
-        answers = collate_tensors(batch["answers"], identity)
-        starts, _ = stack_and_pad_tensors(answers["start"])
-        ends, _ = stack_and_pad_tensors(answers["end"])
+        answers = collate(batch["answers"])
+        starts = pad_stack_1d(answers["start"])
+        ends = pad_stack_1d(answers["end"])
 
         x = {
             "question": questions,

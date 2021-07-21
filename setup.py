@@ -41,7 +41,6 @@ setup(
         "plotly",
         "pycarton",
         "pytorch-crf",
-        "pytorch-nlp",
         "torch",
         "tqdm",
         "transformers",
