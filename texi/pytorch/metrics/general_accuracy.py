@@ -15,10 +15,13 @@ class GeneralAccuracy(Metric):
 
     @reinit__is_reduced
     def update(self, output):
+        def _detach(t):
+            return t.detach() if isinstance(t, torch.Tensor) else t
+
         y_pred, y = output
 
-        y_pred = y_pred.detach()
-        y = y.detach()
+        y_pred = _detach(y_pred)
+        y = _detach(y)
 
         correct = [yi_pred == yi for yi_pred, yi in zip(y_pred, y)]
 
