@@ -68,9 +68,9 @@ def sample_negative_relations(
 class SpanNerNegativeSampler(object):
     def __init__(
         self,
-        num_negative_entities: int,
-        num_negative_relations: int,
         max_entity_length: int,
+        num_negative_entities: Optional[int] = None,
+        num_negative_relations: Optional[int] = None,
         negative_entity_type: str = "NEGATIVE_ENTITY",
         negative_relation_type: str = "NEGATIVE_RELATION",
     ) -> None:
