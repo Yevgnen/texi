@@ -124,9 +124,9 @@ def predict(
 
     # Get data dataflow.
     negative_sampler = SpERTSampler(
+        max_entity_length=params["max_entity_length"],
         num_negative_entities=params["num_negative_entities"],
         num_negative_relations=params["num_negative_relations"],
-        max_entity_length=params["max_entity_length"],
         negative_entity_type=params["negative_entity_type"],
         negative_relation_type=params["negative_relation_type"],
     )

@@ -23,9 +23,9 @@ class TestSpanNerNegativeSampler(unittest.TestCase):
         self.negative_relation_type = "NEGATIVE_RELATION"
 
         self.sampler = SpanNerNegativeSampler(
+            self.max_entity_length,
             self.num_negative_entities,
             self.num_negative_relations,
-            self.max_entity_length,
             negative_entity_type=self.negative_entity_type,
             negative_relation_type=self.negative_relation_type,
         )
@@ -36,9 +36,9 @@ class TestSpanNerNegativeSampler(unittest.TestCase):
             "entities": [],
         }
         sampler = SpanNerNegativeSampler(
+            self.max_entity_length,
             10,
             self.num_negative_relations,
-            self.max_entity_length,
             negative_entity_type=self.negative_entity_type,
         )
         negatives = sampler.sample_negative_entities(example)
@@ -62,9 +62,9 @@ class TestSpanNerNegativeSampler(unittest.TestCase):
             "entities": [],
         }
         sampler = SpanNerNegativeSampler(
+            self.max_entity_length,
             self.num_negative_entities,
             10,
-            self.max_entity_length,
             negative_entity_type=self.negative_entity_type,
         )
         negatives = sampler.sample_negative_relations(example)
