@@ -21,6 +21,7 @@ class SpERT(nn.Module):
         num_relation_types: int,
         negative_entity_index: int,
         max_entity_length: int = 100,
+        max_entities: int = 1000,
         max_relation_pairs: int = 1000,
         dropout: float = 0.2,
         global_context_pooling: str = "cls",
@@ -41,6 +42,7 @@ class SpERT(nn.Module):
         self.num_relation_types = num_relation_types
         self.negative_entity_index = negative_entity_index
         self.max_entity_length = max_entity_length
+        self.max_entities = max_entities
         self.max_relation_pairs = max_relation_pairs
         self.dropout = nn.Dropout(p=dropout)
         self.global_context_pooling = get_pooling(global_context_pooling)
@@ -53,7 +55,10 @@ class SpERT(nn.Module):
 
         return masked
 
-    def _classify_entities(self, last_hidden_state, context, entity_mask, entity_size):
+    def _classify_entities(self, entity_mask, last_hidden_state, context):
+        # entity_size: [B, E, D]
+        entity_size = self.size_embedding(entity_mask.sum(-1))
+
         # entity: [B, E, L, H] -> [B, E, H]
         entity = self._mask_hidden_states(last_hidden_state, entity_mask)
         entity, _ = entity.max(dim=-2)
@@ -66,7 +71,7 @@ class SpERT(nn.Module):
         # entity_logit: [B, E, NE]
         entity_logit = self.span_classifier(entity_repr)
 
-        return entity_logit, entity
+        return entity_logit, entity, entity_size
 
     def _classify_relations(
         self,
@@ -127,14 +132,24 @@ class SpERT(nn.Module):
         # context: [B, H]
         context = self.global_context_pooling(bert_output, attention_mask)
 
-        # entity_size: [B, E, D]
-        entity_size = self.size_embedding(entity_mask.sum(-1))
-
         # entity_logit: [B, E, NE]
         # entity: [B, E, H]
-        entity_logit, entity = self._classify_entities(
-            last_hidden_state, context, entity_mask, entity_size
-        )
+        # entity_size: [B, E, D]
+        if self.max_entities > 0:
+            entity_logit, entity, entity_size = split_apply(
+                self._classify_entities,
+                [entity_mask],
+                self.max_entities,
+                last_hidden_state,
+                context,
+                dim=1,
+            )
+        else:
+            entity_logit, entity, entity_size = self._classify_entities(
+                entity_mask,
+                last_hidden_state,
+                context,
+            )
 
         return last_hidden_state, entity_logit, entity, entity_size
 
