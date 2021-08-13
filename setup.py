@@ -42,7 +42,6 @@ setup(
         "pytorch-crf",
         "pytorch-ignite",
         "torch",
-        "tqdm",
         "transformers",
     ],
     test_suite="tests",
