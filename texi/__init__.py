@@ -9,4 +9,4 @@ import texi.pytorch
 import texi.tagger
 import texi.vocab
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
