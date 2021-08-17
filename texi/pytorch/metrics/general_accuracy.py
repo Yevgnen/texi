@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+import collections
+
+import numpy as np
 import torch
 from ignite.exceptions import NotComputableError
 from ignite.metrics import Metric
@@ -15,18 +18,28 @@ class GeneralAccuracy(Metric):
 
     @reinit__is_reduced
     def update(self, output):
-        def _detach(t):
-            return t.detach() if isinstance(t, torch.Tensor) else t
-
         y_pred, y = output
 
-        y_pred = _detach(y_pred)
-        y = _detach(y)
+        if type(y_pred) is not type(y):
+            raise TypeError("`y_pred` and `y` should have same type")
 
-        correct = [yi_pred == yi for yi_pred, yi in zip(y_pred, y)]
+        if isinstance(y, torch.Tensor):
+            y_pred, y = y_pred.detach(), y.detach()
+            self._num_correct += (y_pred == y).sum()
+            self._num_examples += y.size(0)
 
-        self._num_correct += sum(correct)
-        self._num_examples += len(correct)
+        elif isinstance(y, np.ndarray):
+            self._num_correct += (y_pred == y).sum()
+            self._num_examples += y.shape[0]
+
+        elif isinstance(y, collections.abc.Sized):
+            self._num_correct += sum(yi_pred == yi for yi_pred, yi in zip(y_pred, y))
+            self._num_examples += len(y)
+        else:
+            raise ValueError(
+                "Both `y_pred` and `y` should be instance of `torch.Tensor` or "
+                "`numpy.ndarray` or `collections.abc.Size`"
+            )
 
     @sync_all_reduce("_num_examples", "_num_correct")
     def compute(self):
