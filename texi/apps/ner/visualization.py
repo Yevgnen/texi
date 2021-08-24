@@ -57,7 +57,7 @@ def spacy_visual_ner(
     )
 
 
-class SpERTVisualizer(object):
+class NerReVisualizer(object):
     # Reference: https://github.com/markus-eberts/spert
 
     def __init__(self, delimiter: str = " ") -> None:

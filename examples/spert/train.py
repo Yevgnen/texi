@@ -16,7 +16,7 @@ from torchlight.training import create_engines, run, setup_env
 from torchlight.utils import get_pretrained_optimizer_and_scheduler, plm_path
 from transformers import AdamW, BertTokenizer, BertTokenizerFast
 
-from texi.apps.ner import SpERTVisualizer, encode_labels, split_example
+from texi.apps.ner import NerReVisualizer, encode_labels, split_example
 from texi.datasets.dataset import Dataset, Datasets
 from texi.pytorch.models.spert import (
     SpERT,
@@ -169,7 +169,7 @@ def training(local_rank: int, params: SpERTParams) -> None:
     # Setup evaluation sampler.
     if idist.get_rank() == 0:
         eval_sampler = SpERTEvalSampler(
-            SpERTVisualizer(params["token_delimiter"]),
+            NerReVisualizer(params["token_delimiter"]),
             tokenizer,
             entity_label_encoder,
             negative_entity_index,

@@ -17,7 +17,7 @@ from torchlight.training import Metrics
 from torchlight.training.params import Params
 
 from texi.apps.ner import (
-    SpERTVisualizer,
+    NerReVisualizer,
     entity_to_tuple,
     expand_entities,
     relation_to_tuple,
@@ -215,7 +215,7 @@ class SpERTEvalSampler(object):
     # pylint: disable=no-self-use, too-many-arguments, too-many-instance-attributes
     def __init__(
         self,
-        visualizer: SpERTVisualizer,
+        visualizer: NerReVisualizer,
         tokenizer: Union[BertTokenizer, BertTokenizerFast],
         entity_label_encoder: LabelEncoder,
         negative_entity_index: int,

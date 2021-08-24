@@ -29,7 +29,7 @@ from texi.apps.ner.utils import (
     split_example,
     to_pybrat_example,
 )
-from texi.apps.ner.visualization import SpERTVisualizer, spacy_visual_ner
+from texi.apps.ner.visualization import NerReVisualizer, spacy_visual_ner
 
 __all__ = [
     "NERDataReport",
@@ -51,7 +51,7 @@ __all__ = [
     "collapse_entities",
     "expand_entities",
     "expand_tokens",
-    "SpERTVisualizer",
+    "NerReVisualizer",
     "spacy_visual_ner",
     "span_utils",
     "NerExample",
