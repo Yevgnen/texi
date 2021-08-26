@@ -125,6 +125,48 @@ def encode_labels(
     return entity_label_encoder, relation_label_encoder
 
 
+def compare_prediction_with_ground_truth(
+    example: NerExample,
+    entity_predictions: Sequence[Entity],
+    relation_predictions: Sequence[Relation],
+    entity_scores: Iterable[float],
+    relation_scores: Iterable[float],
+) -> dict[str, list[dict]]:
+    def _compare(y, y_pred, f, scores):
+        y_trans = [*map(f, y)]
+        y_pred_trans = [*map(f, y_pred)]
+
+        tps = set(y_trans) & set(y_pred_trans)
+
+        items = []
+        for yi_pred, yi_pred_tran, score in zip(y_pred, y_pred_trans, scores):
+            if yi_pred_tran in tps:
+                items += [(yi_pred, 0, score)]  # tp
+            else:
+                items += [(yi_pred, 1, score)]  # fp
+
+        for yi, yi_tran in zip(y, y_trans):
+            if yi_tran not in tps:  # fn
+                items += [(yi, -1, -1)]
+
+        return items
+
+    diff = {
+        "tokens": example["tokens"],
+        "entities": _compare(
+            example["entities"], entity_predictions, entity_to_tuple, entity_scores
+        ),
+        "relations": _compare(
+            expand_entities(example["relations"], example["entities"]),
+            expand_entities(relation_predictions, entity_predictions),
+            relation_to_tuple,
+            relation_scores,
+        ),
+    }
+
+    return diff
+
+
 def from_pybrat_example(example: Mapping) -> NerExample:
     # NOTE:
     # 1. ID fields are kept.

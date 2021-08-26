@@ -18,9 +18,8 @@ from torchlight.training.params import Params
 
 from texi.apps.ner import (
     NerReVisualizer,
-    entity_to_tuple,
+    compare_prediction_with_ground_truth,
     expand_entities,
-    relation_to_tuple,
 )
 from texi.pytorch.metrics import NerMetrics, ReMetrics
 from texi.pytorch.models.spert import predict
@@ -313,37 +312,6 @@ class SpERTEvalSampler(object):
             return_scores=False,
         )  # type: ignore
 
-        relation_targets = self._expand_entities(relation_targets, entity_targets)
-        relation_predictions = self._expand_entities(
-            relation_predictions, entity_predictions
-        )
-
-        entity_samples, relation_samples = [], []
-        for ts, e, e_pred, e_score, r, r_pred, r_score, in zip(
-            input_["tokens"],
-            entity_targets,
-            entity_predictions,
-            entity_scores,
-            relation_targets,
-            relation_predictions,
-            relation_scores,
-        ):
-            entity_samples += [
-                {
-                    "tokens": ts[1:-1],
-                    "entities": self._compare(e, e_pred, entity_to_tuple, e_score),
-                }
-            ]
-            relation_samples += [
-                {
-                    "tokens": ts[1:-1],
-                    "relations": self._compare(r, r_pred, relation_to_tuple, r_score),
-                }
-            ]
-
-        self.entity_samples += entity_samples
-        self.relation_samples += relation_samples
-
         def _convert_to_example(entities, relations):
             examples = [
                 {
@@ -361,6 +329,17 @@ class SpERTEvalSampler(object):
         targets = _convert_to_example(entity_targets, relation_targets)
         predictions = _convert_to_example(entity_predictions, relation_predictions)
         self.exporter.update(targets, predictions)
+
+        for args in zip(
+            targets,
+            entity_predictions,
+            relation_predictions,
+            entity_scores,
+            relation_scores,
+        ):
+            diff = compare_prediction_with_ground_truth(*args)
+            self.entity_samples += diff["entities"]
+            self.relation_samples += diff["relations"]
 
     def _sample(self, examples):
         if self.sample_size is not None:
