@@ -138,7 +138,8 @@ def training(local_rank: int, params: Params) -> None:
         setup_env(params)
 
     # Load datasets.
-    datasets = JSONDatasets.from_dir(params.data_dir, array=True).load().describe()
+    datasets = JSONDatasets.from_dir(params.data_dir, array=True).load()
+    datasets.describe()
     tokenizer = BertTokenizerFast.from_pretrained(plm_path(params["pretrained_model"]))
     label_encoder = LabelEncoder(x["label"] for x in datasets.train)
 
