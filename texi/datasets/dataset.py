@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import abc
+import collections
 import glob
 import itertools
 import json
@@ -167,7 +168,11 @@ class Dataset(MaskableMixin, SplitableMixin, Generic[T_co]):
         self.examples = examples
 
     def describe(self) -> dict[str, Any]:
-        return {"size": len(self)}
+        return {
+            "size": len(self)
+            if isinstance(self.examples, collections.abc.Sized)
+            else "-"
+        }
 
     @staticmethod
     def map_modekeys(mode):
