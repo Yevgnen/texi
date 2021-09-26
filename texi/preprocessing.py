@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import json
+import os
 import re
 import string
 import unicodedata
 from collections.abc import Callable
 from typing import Optional
+
+import pandas as pd
+from pandas import DataFrame
 
 LIGATURE_TABLE = {
     42802: "AA",
@@ -90,3 +95,71 @@ def get_opencc(conversion: Optional[str] = "t2s") -> Callable[[str], str]:
         return converter.convert(text)
 
     return _wrapper
+
+
+def get_html_character_references() -> DataFrame:
+    url = "https://dev.w3.org/html5/html-author/charref"
+    df = pd.read_html(url)[0]
+    df.columns = ["character", "named", "hex", "dec", "desc"]
+    df["named"] = df["named"].map(str.split)
+
+    whitespaces = {
+        "CHARACTER TABULATION": "\t",
+        "LINE FEED (LF)": "\n",
+        "NO-BREAK SPACE": " ",
+        "EN SPACE": " ",
+        "EM SPACE": " ",
+        "THREE-PER-EM SPACE": " ",
+        "FOUR-PER-EM SPACE": " ",
+        "FIGURE SPACE": " ",
+        "PUNCTUATION SPACE": " ",
+        "THIN SPACE": " ",
+        "HAIR SPACE": " ",
+        "MEDIUM MATHEMATICAL SPACE": " ",
+    }
+
+    mask = df["character"].isnull()
+    assert mask.sum() == len(
+        whitespaces
+    ), "Character references has been update, please report an issue."
+
+    df.loc[mask, "character"] = df["desc"].map(whitespaces)
+
+    return df
+
+
+_regex_html_character_references = None
+_html_character_reference_table = None
+
+
+def replace_html_character_references(s: str, replacement: Optional[str] = None) -> str:
+    # pylint: disable=global-statement
+    global _regex_html_character_references, _html_character_reference_table
+
+    if (
+        _regex_html_character_references is None
+        or _html_character_reference_table is None
+    ):
+        df = pd.read_csv(
+            os.path.join(
+                os.path.dirname(__file__), "../static/html_character_reference.csv"
+            )
+        )
+        df["named"] = df["named"].map(json.loads)
+        df = df.explode("named")
+
+        _regex_html_character_references = re.compile(
+            rf'(?P<escaped>{"|".join(re.escape(x) for x in df["named"])})'
+        )
+        _html_character_reference_table = {
+            x["named"]: x["character"] for _, x in df.iterrows()
+        }
+
+    def _replace(match):
+        return (
+            replacement
+            if replacement
+            else _html_character_reference_table[match["escaped"]]
+        )
+
+    return re.sub(_regex_html_character_references, _replace, s)
