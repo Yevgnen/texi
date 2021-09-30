@@ -11,6 +11,8 @@ from typing import Any, Union
 
 import ahocorasick
 import pandas as pd
+import plotly.figure_factory as ff
+import plotly.io as io
 
 
 class NERDataReport(object):
@@ -250,10 +252,6 @@ class NERDataReport(object):
         return {indicator: getattr(self, indicator) for indicator in indicators}
 
     def to_html(self, filename: Union[str, os.PathLike]) -> None:
-        # pylint: disable=import-outside-toplevel
-        import plotly.figure_factory as ff
-        import plotly.io as io
-
         border = pd.options.display.html.border
         pd.options.display.html.border = 0
 

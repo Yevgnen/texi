@@ -7,6 +7,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Hashable, TypeVar, Union
 
 import pandas as pd
+import plotly.figure_factory as ff
 
 if TYPE_CHECKING:
     import torch
@@ -154,9 +155,6 @@ def confusion_matrix(*args, **kwargs):
 
 def confusion_matrix_fu(*args, **kwargs):
     def _plot_confusion_matrix(matrix):
-        # pylint: disable=import-outside-toplevel
-        import plotly.figure_factory as ff
-
         return ff.create_annotated_heatmap(
             z=matrix.values, x=labels, y=labels, showscale=True
         )
