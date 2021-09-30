@@ -6,6 +6,8 @@ import collections
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Hashable, TypeVar, Union
 
+import pandas as pd
+
 if TYPE_CHECKING:
     import torch
 
@@ -130,7 +132,6 @@ def clustering_report(X=None, y=None, y_pred=None, kwargs=None):
 
 def classification_report(*args, **kwargs):
     # pylint: disable=import-outside-toplevel
-    import pandas as pd
     from sklearn.metrics import classification_report as sklearn_classification_report
 
     kwargs["output_dict"] = True
@@ -142,7 +143,6 @@ def classification_report(*args, **kwargs):
 
 def confusion_matrix(*args, **kwargs):
     # pylint: disable=import-outside-toplevel
-    import pandas as pd
     from sklearn.metrics import confusion_matrix as sklearn_confusion_matrix
 
     labels = kwargs.get("labels")

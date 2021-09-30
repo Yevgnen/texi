@@ -10,6 +10,8 @@ import tempfile
 from collections.abc import Iterable
 from typing import Optional, Union
 
+import pandas as pd
+
 
 def conlleval_file(filename: Union[str, os.PathLike]) -> dict:
     script = os.path.join(os.path.dirname(__file__), "conlleval.pl")
@@ -100,7 +102,6 @@ def classification_report(y_true, y_pred, **kwargs):
 
 def confusion_matrix(y_true, y_pred):
     # pylint: disable=import-outside-toplevel
-    import pandas as pd
     from sklearn.metrics import confusion_matrix as sklearn_confusion_matrix
 
     y_true = [*itertools.chain.from_iterable(y_true)]

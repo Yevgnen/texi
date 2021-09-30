@@ -10,6 +10,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any, Union
 
 import ahocorasick
+import pandas as pd
 
 
 class NERDataReport(object):
@@ -250,7 +251,6 @@ class NERDataReport(object):
 
     def to_html(self, filename: Union[str, os.PathLike]) -> None:
         # pylint: disable=import-outside-toplevel
-        import pandas as pd
         import plotly.figure_factory as ff
         import plotly.io as io
 
