@@ -10,7 +10,7 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from torchlight.attention import BidirectionalAttention
 from torchlight.losses import ManhattanSimilarity
 from torchlight.masking import length_to_mask
-from torchlight.pooling import get_pooling, max_pooling, mean_pooling
+from torchlight.pooling import get_pooling
 from torchlight.utils import plm_path
 from transformers import BertModel
 
@@ -303,7 +303,7 @@ class BertSimilarity(nn.Module):
     def __init__(
         self,
         pretrained_model: str,
-        pooling: str = "mean_max",
+        pooling: str = "cls",
         num_labels: int = 2,
         dropout: float = 0.0,
     ) -> None:
@@ -316,11 +316,12 @@ class BertSimilarity(nn.Module):
             )
         else:
             self.bert = pretrained_model
-        self.pooling = pooling
+        self.pooling = get_pooling(pooling)
         self.num_labels = num_labels
         self.dropout = nn.Dropout(dropout)
-        k = 2 if pooling == "mean_max" else 1
-        self.output = nn.Linear(self.bert.config.hidden_size * k, 1)
+        self.output = nn.Linear(
+            self.bert.config.hidden_size, 1 if num_labels == 2 else num_labels
+        )
 
     def forward(
         self,
@@ -334,15 +335,8 @@ class BertSimilarity(nn.Module):
             token_type_ids=token_type_ids,
         )
 
-        hiddens = []
-        if "mean" in self.pooling:
-            hiddens += [mean_pooling(bert_output, attention_mask)]
-
-        if "max" in self.pooling:
-            hiddens += [max_pooling(bert_output, attention_mask)]
-
-        hidden = torch.cat(hiddens, dim=-1)
-        hidden = self.dropout(hidden)
+        pooled = self.pooling(bert_output, attention_mask)
+        hidden = self.dropout(pooled)
         logit = self.output(hidden)
 
         if self.num_labels == 2:
