@@ -10,7 +10,7 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from torchlight.attention import BidirectionalAttention
 from torchlight.losses import ManhattanSimilarity
 from torchlight.masking import length_to_mask
-from torchlight.pooling import get_pooling
+from torchlight.pooling import get_pooling, max_pooling, mean_pooling
 from torchlight.utils import plm_path
 from transformers import BertModel
 
@@ -322,23 +322,24 @@ class BertSimilarity(nn.Module):
         k = 2 if pooling == "mean_max" else 1
         self.output = nn.Linear(self.bert.config.hidden_size * k, 1)
 
-    def forward(self, inputs: dict[str, torch.Tensor]) -> torch.Tensor:
-        outputs = self.bert(**inputs)
-        hidden = outputs[2][-2]
-        mask = inputs["attention_mask"]
+    def forward(
+        self,
+        input_ids: torch.LongTensor,
+        attention_mask: torch.LongTensor,
+        token_type_ids: torch.LongTensor,
+    ) -> torch.Tensor:
+        bert_output = self.bert(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+        )
 
         hiddens = []
         if "mean" in self.pooling:
-            mean_pooled = torch.sum(hidden * mask.unsqueeze(dim=-1), dim=1) / torch.sum(
-                mask, dim=1, keepdim=True
-            )
-            hiddens += [mean_pooled]
+            hiddens += [mean_pooling(bert_output, attention_mask)]
 
         if "max" in self.pooling:
-            max_pooled = torch.max(
-                hidden + (1 - mask.unsqueeze(dim=-1)) * -1e10, dim=1
-            )[0]
-            hiddens += [max_pooled]
+            hiddens += [max_pooling(bert_output, attention_mask)]
 
         hidden = torch.cat(hiddens, dim=-1)
         hidden = self.dropout(hidden)
