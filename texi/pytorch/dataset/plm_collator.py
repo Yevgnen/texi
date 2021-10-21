@@ -54,9 +54,11 @@ class TextMatchingCollator(PreTrainedCollator):
         self,
         tokenizer: PreTrainedTokenizer,
         label_encoder: Optional[LabelEncoder] = None,
+        join_texts: bool = False,
         mode: ModeKeys = ModeKeys.TRAIN,
     ) -> None:
         super().__init__(tokenizer, label_encoder=label_encoder, mode=mode)
+        self.join_texts = join_texts
 
     def collate_train(
         self, batch: Sequence
@@ -65,27 +67,35 @@ class TextMatchingCollator(PreTrainedCollator):
         #     "texts": ["sentence1", "sentence2", ...]
         #     "label": 1
         # }
-
         collated = collate(batch)
 
-        batch_size = len(batch)
-        texts = list(itertools.chain.from_iterable(zip(*collated["texts"])))
-        assert (
-            len(texts) % batch_size == 0
-        ), 'All exmaples should have size of "texts" fields'
+        if self.join_texts:
+            x = self.tokenizer(
+                collated["texts"],
+                padding=True,
+                truncation=True,
+                return_tensors="pt",
+            )
+        else:
+            batch_size = len(batch)
+            texts = list(itertools.chain.from_iterable(zip(*collated["texts"])))
+            assert (
+                len(texts) % batch_size == 0
+            ), 'All exmaples should have size of "texts" fields'
 
-        x = self.tokenizer(
-            texts,
-            padding=True,
-            truncation=True,
-            return_tensors="pt",
-        )
-        chunks = len(texts) // batch_size
+            x = self.tokenizer(
+                texts,
+                padding=True,
+                truncation=True,
+                return_tensors="pt",
+            )
+            chunks = len(texts) // batch_size
 
-        def _stack(t):
-            return torch.stack(t.chunk(chunks, dim=0), dim=0)
+            def _stack(t):
+                return torch.stack(t.chunk(chunks, dim=0), dim=0)
 
-        x = {k: _stack(v) for k, v in x.items()}
+            x = {k: _stack(v) for k, v in x.items()}
+
         y = self.label_encoder.encode(collated["label"], return_tensors="pt")
 
         return x, y
