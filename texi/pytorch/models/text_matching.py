@@ -301,7 +301,11 @@ class ESIM(nn.Module):
 
 class BertSimilarity(nn.Module):
     def __init__(
-        self, pretrained_model: str, pooling: str = "mean_max", dropout: float = 0.0
+        self,
+        pretrained_model: str,
+        pooling: str = "mean_max",
+        num_labels: int = 2,
+        dropout: float = 0.0,
     ) -> None:
         super().__init__()
         if isinstance(pretrained_model, str):
@@ -313,8 +317,9 @@ class BertSimilarity(nn.Module):
         else:
             self.bert = pretrained_model
         self.pooling = pooling
-        k = 2 if pooling == "mean_max" else 1
+        self.num_labels = num_labels
         self.dropout = nn.Dropout(dropout)
+        k = 2 if pooling == "mean_max" else 1
         self.output = nn.Linear(self.bert.config.hidden_size * k, 1)
 
     def forward(self, inputs: dict[str, torch.Tensor]) -> torch.Tensor:
@@ -338,6 +343,9 @@ class BertSimilarity(nn.Module):
         hidden = torch.cat(hiddens, dim=-1)
         hidden = self.dropout(hidden)
         logit = self.output(hidden)
+
+        if self.num_labels == 2:
+            logit = logit.squeeze(dim=-1)
 
         return logit
 
