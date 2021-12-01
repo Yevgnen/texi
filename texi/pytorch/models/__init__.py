@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import texi.pytorch.models.spert
 from texi.pytorch.models.classification import BertForSequenceClassification
 from texi.pytorch.models.question_answering import BertForQuestionAnswering
 from texi.pytorch.models.sequence_labeling import (
@@ -18,6 +17,11 @@ from texi.pytorch.models.text_matching import (
 )
 
 __all__ = [
+    "classification",
+    "question_answering",
+    "sequence_labeling",
+    "spert",
+    "text_matching",
     "BertForQuestionAnswering",
     "BertForSequenceClassification",
     "BiLstmCrf",

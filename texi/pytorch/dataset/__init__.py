@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import texi.pytorch.dataset.collator
-import texi.pytorch.dataset.plm_collator
 from texi.datasets import Dataset
 from texi.pytorch.dataset.collator import (
     QuestionAnsweringCollator,
@@ -10,6 +8,8 @@ from texi.pytorch.dataset.collator import (
 )
 
 __all__ = [
+    "collator",
+    "plm_collator",
     "Dataset",
     "TextClassificationCollator",
     "TextMatchingCollator",

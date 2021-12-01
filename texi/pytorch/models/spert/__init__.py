@@ -12,6 +12,12 @@ from texi.pytorch.models.spert.sampler import SpERTSampler
 from texi.pytorch.models.spert.training import SpERTEnv, SpERTEvalSampler, SpERTParams
 
 __all__ = [
+    "dataset",
+    "loss",
+    "model",
+    "prediction",
+    "sampler",
+    "training",
     "SpERT",
     "SpERTDataset",
     "SpERTCollator",

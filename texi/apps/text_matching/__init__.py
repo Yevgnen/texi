@@ -1,3 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import texi.apps.text_matching.train
+__all__ = [
+    "train",
+]

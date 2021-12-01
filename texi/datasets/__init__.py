@@ -30,6 +30,11 @@ from texi.datasets.text import News2016Zh, WebText2019Zh, WeixinPublicCorpus, Wi
 from texi.datasets.translation import Translate2019Zh
 
 __all__ = [
+    "classification",
+    "dataset",
+    "question_answering",
+    "text",
+    "translation",
     "DatasetTransformMixin",
     "MaskableMixin",
     "SplitableMixin",

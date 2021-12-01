@@ -13,6 +13,12 @@ from texi.pytorch.metrics.re_metrics import ReMetrics
 from texi.pytorch.metrics.sequence_labeling_metrics import SequenceLabelingMetrics
 
 __all__ = [
+    "general_accuracy",
+    "mean_reciprocal_rank",
+    "metrics",
+    "ner_metrics",
+    "re_metrics",
+    "sequence_labeling_metrics",
     "MeanReciprocalRank",
     "GeneralAccuracy",
     "NerMetrics",

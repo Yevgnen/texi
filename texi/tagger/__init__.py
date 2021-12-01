@@ -3,6 +3,7 @@
 from texi.tagger.sequence_labeling import IOB1, IOB2, IOBES, SequeceLabelingTagger
 
 __all__ = [
+    "sequence_labeling",
     "IOB1",
     "IOB2",
     "IOBES",

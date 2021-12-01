@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from texi.apps.ner import span_utils
 from texi.apps.ner.data import NERDataReport
 from texi.apps.ner.eval import (
     classification_report,
@@ -33,6 +32,11 @@ from texi.apps.ner.utils import (
 from texi.apps.ner.visualization import NerReVisualizer, spacy_visual_ner
 
 __all__ = [
+    "data",
+    "eval",
+    "span_utils",
+    "utils",
+    "visualization",
     "NERDataReport",
     "classification_report",
     "confusion_matrix",
@@ -54,7 +58,6 @@ __all__ = [
     "expand_tokens",
     "NerReVisualizer",
     "spacy_visual_ner",
-    "span_utils",
     "compare_prediction_with_ground_truth",
     "NerExample",
     "Entity",
