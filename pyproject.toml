@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "texi"
-version = "0.2.0"
+version = "0.2.2"
 description = "Text processing toolbox."
 authors = ["Yevgnen Koh <wherejoystarts@gmail.com>"]
 
