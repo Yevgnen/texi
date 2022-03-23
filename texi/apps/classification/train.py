@@ -18,7 +18,8 @@ from torchlight.dataset import get_dataloader
 from torchlight.preprocessing import LabelEncoder
 from torchlight.training import create_engines, run, setup_env
 from torchlight.training.params import Params as _Params
-from torchlight.utils import get_pretrained_optimizer_and_scheduler, plm_path
+from torchlight.utils.file import plm_path
+from torchlight.utils.pytorch import get_pretrained_optimizer_and_scheduler
 from transformers import BertTokenizer, BertTokenizerFast
 
 from texi.datasets import JSONDatasets

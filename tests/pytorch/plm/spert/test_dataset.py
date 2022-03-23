@@ -5,7 +5,7 @@ from unittest.mock import Mock
 
 import torch
 from torchlight.preprocessing import LabelEncoder
-from torchlight.utils import plm_path
+from torchlight.utils.file import plm_path
 from transformers import BertTokenizer
 
 from texi.pytorch.models.spert import SpERTCollator

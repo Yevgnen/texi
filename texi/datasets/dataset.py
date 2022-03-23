@@ -13,7 +13,7 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from typing import Any, Generic, Optional, Type, TypeVar, Union, cast
 
 from carton.logger import log_dict
-from torchlight.utils import ModeKeys
+from torchlight.utils.phase import ModeKeys
 
 T_co = TypeVar("T_co", covariant=True)
 

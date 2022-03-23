@@ -13,7 +13,8 @@ from torch.utils.data.dataloader import DataLoader
 from torchlight.dataset import get_dataloader
 from torchlight.preprocessing import LabelEncoder
 from torchlight.training import create_engines, run, setup_env
-from torchlight.utils import get_pretrained_optimizer_and_scheduler, plm_path
+from torchlight.utils.file import plm_path
+from torchlight.utils.pytorch import get_pretrained_optimizer_and_scheduler
 from transformers import AdamW, BertTokenizer, BertTokenizerFast
 
 from texi.apps.ner import NerReVisualizer, encode_labels, split_example

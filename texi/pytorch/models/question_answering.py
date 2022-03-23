@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import torch
 from torch import nn
-from torchlight.utils import plm_path
+from torchlight.utils.file import plm_path
 from transformers import BertModel
 
 

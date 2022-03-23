@@ -11,7 +11,7 @@ from torchlight.attention import BidirectionalAttention
 from torchlight.losses import ManhattanSimilarity
 from torchlight.masking import length_to_mask
 from torchlight.pooling import get_pooling
-from torchlight.utils import plm_path
+from torchlight.utils.file import plm_path
 from transformers import BertModel
 
 

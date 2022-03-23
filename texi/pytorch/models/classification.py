@@ -8,7 +8,7 @@ import torch
 from torch import nn
 from torchlight.pooling import get_pooling
 from torchlight.rnn import get_rnn
-from torchlight.utils import plm_path
+from torchlight.utils.file import plm_path
 from transformers import BertModel
 
 

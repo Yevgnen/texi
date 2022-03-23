@@ -17,7 +17,8 @@ from torch import nn
 from torchlight.dataset import get_dataloader
 from torchlight.preprocessing import LabelEncoder
 from torchlight.training import create_evaluator, run
-from torchlight.utils import ModeKeys, load_checkpoint, plm_path
+from torchlight.utils.file import load_checkpoint, plm_path
+from torchlight.utils.phase import ModeKeys
 from transformers import BertTokenizerFast
 
 from texi.apps.ner import split_example

@@ -11,7 +11,8 @@ from carton.collections import collate, flatten_dict
 from torchlight.dataset import Collator
 from torchlight.masking import create_span_mask
 from torchlight.preprocessing import LabelEncoder
-from torchlight.utils import ModeKeys, pad_stack_1d, pad_stack_2d
+from torchlight.utils.phase import ModeKeys
+from torchlight.utils.tensor import pad_stack_1d, pad_stack_2d
 
 from texi.apps.ner.utils import Entity, NerExample, Relation, describe_examples
 from texi.datasets import Dataset

@@ -11,7 +11,7 @@ import torch
 from carton.collections import collate
 from torchlight.dataset import Collator
 from torchlight.preprocessing import LabelEncoder
-from torchlight.utils import ModeKeys
+from torchlight.utils.phase import ModeKeys
 from transformers.tokenization_utils import PreTrainedTokenizer
 
 

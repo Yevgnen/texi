@@ -8,7 +8,8 @@ import torch
 from carton.collections import collate
 from torchlight.dataset import Collator
 from torchlight.preprocessing import LabelEncoder
-from torchlight.utils import ModeKeys, pad_stack_1d
+from torchlight.utils.phase import ModeKeys
+from torchlight.utils.tensor import pad_stack_1d
 
 
 class TextClassificationCollator(Collator):

@@ -12,7 +12,8 @@ from torchcrf import CRF
 from torchlight.masking import length_to_mask
 from torchlight.preprocessing import LabelEncoder
 from torchlight.rnn import LSTM
-from torchlight.utils import ModeKeys, plm_path
+from torchlight.utils.file import plm_path
+from torchlight.utils.phase import ModeKeys
 from transformers import BertModel
 
 from texi.tagger.sequence_labeling import SequeceLabelingTagger, Tagged
